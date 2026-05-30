@@ -1,0 +1,96 @@
+import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import type { ToolCallInfo } from '@/lib/types'
+
+interface ToolCallStatusProps {
+  toolCall: ToolCallInfo
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  list_tables: '查看表列表',
+  get_table_schema: '查看表结构',
+  execute_sql: 'SQL 查询',
+}
+
+const TOOL_PARAM_LABELS: Record<string, Record<string, string>> = {
+  get_table_schema: { table_name: '表名' },
+  list_tables: {},
+}
+
+export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
+  const label = TOOL_LABELS[toolCall.name] ?? toolCall.name
+  const paramLabels = TOOL_PARAM_LABELS[toolCall.name] ?? {}
+  const hasResult = toolCall.status === 'completed' && toolCall.result !== undefined
+  const isEmptyResult = hasResult && (!toolCall.result || toolCall.result.trim() === '')
+
+  return (
+    <div className="border border-gray-700 rounded-xl overflow-hidden bg-white">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-300">
+        <StatusIcon status={toolCall.status} />
+        <span className="text-[13px] font-semibold text-gray-800">{label}</span>
+        <StatusBadge status={toolCall.status} />
+      </div>
+
+      <div className="px-3 py-2.5 space-y-2">
+        {Object.entries(toolCall.args).length > 0 && (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {Object.entries(toolCall.args).map(([key, value]) => (
+              <div key={key} className="flex items-center gap-1.5 text-[13px]">
+                <span className="text-gray-500">{paramLabels[key] ?? key}:</span>
+                <span className="border border-gray-300 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-white">
+                  {formatValue(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {hasResult && (
+          <div className="text-[13px] text-gray-500 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
+            {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StatusIcon({ status }: { status: ToolCallInfo['status'] }) {
+  switch (status) {
+    case 'calling':
+      return <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
+    case 'completed':
+      return <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+    case 'error':
+      return <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+  }
+}
+
+function StatusBadge({ status }: { status: ToolCallInfo['status'] }) {
+  switch (status) {
+    case 'calling':
+      return <span className="text-xs text-gray-400 ml-0.5">待确认</span>
+    case 'completed':
+      return (
+        <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
+          成功
+        </span>
+      )
+    case 'error':
+      return (
+        <span className="text-xs bg-red-500 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
+          失败
+        </span>
+      )
+  }
+}
+
+function formatValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value === null || value === undefined) return String(value)
+  return JSON.stringify(value)
+}
+
+function truncateResult(result: string): string {
+  if (result.length <= 800) return result
+  return result.slice(0, 800) + '...'
+}

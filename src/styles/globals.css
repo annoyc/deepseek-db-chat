@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-sidebar: #f8fafc;
+  --color-sidebar-border: #e2e8f0;
+  --color-chat-bg: #ffffff;
+  --color-user-bubble: #2563eb;
+  --color-ai-bubble: #f1f5f9;
+  --color-thinking-bg: #f8fafc;
+  --color-thinking-border: #e2e8f0;
+  --color-tool-badge: #059669;
+  --color-danger: #dc2626;
+  --font-sans: "Inter", "system-ui", "-apple-system", "sans-serif";
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+#root {
+  height: 100%;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes typing {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.typing-indicator span {
+  animation: typing 1.4s infinite;
+}
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}

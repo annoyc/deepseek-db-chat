@@ -1,0 +1,62 @@
+import { tool } from '@/core'
+import { z } from 'zod'
+import { listTables, getTableSchema } from './database'
+import type { DatabaseConnection } from '@/lib/types'
+
+export type ResultStore = Map<string, string[]>
+
+export function createDbTools(connection: DatabaseConnection) {
+  const resultStore: ResultStore = new Map()
+
+  function pushResult(name: string, result: string) {
+    const queue = resultStore.get(name) ?? []
+    queue.push(result)
+    resultStore.set(name, queue)
+  }
+
+  const listTablesTool = tool({
+    name: 'list_tables',
+    description: '列出当前数据库中的所有表名。当用户询问数据库有哪些表、或需要了解数据库结构时使用。',
+    schema: z.object({}),
+    execute: async () => {
+      const tables = await listTables(connection)
+      const result = tables.join('\n')
+      pushResult('list_tables', result)
+      return result
+    },
+  })
+
+  const getTableSchemaTool = tool({
+    name: 'get_table_schema',
+    description: '获取指定表的详细结构信息，包括字段名、类型、索引、注释等。当需要了解表的具体字段以便编写SQL时使用。',
+    schema: z.object({
+      table_name: z.string().describe('要查询结构的表名'),
+    }),
+    execute: async ({ table_name }: { table_name: string }) => {
+      const result = await getTableSchema(connection, table_name)
+      pushResult('get_table_schema', result)
+      return result
+    },
+  })
+
+  const executeSqlTool = tool({
+    name: 'execute_sql',
+    description: '生成SQL查询语句。该SQL将展示给用户确认后执行。请确保SQL语法正确且安全。只在你确定需要执行查询时才调用此工具。',
+    schema: z.object({
+      sql: z.string().describe('要执行的SQL语句'),
+      explanation: z.string().describe('对该SQL的简要说明，解释查询的目的和逻辑'),
+    }),
+    execute: async ({ sql, explanation }) => {
+      const result = JSON.stringify({
+        status: 'pending_confirmation',
+        sql,
+        explanation,
+        message: '已提交给用户确认。请立即停止，不要再调用任何工具。等待下一轮对话获取执行结果。',
+      })
+      pushResult('execute_sql', result)
+      return result
+    },
+  })
+
+  return { tools: [listTablesTool, getTableSchemaTool, executeSqlTool], resultStore }
+}
