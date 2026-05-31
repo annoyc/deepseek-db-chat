@@ -3,11 +3,7 @@
 </p>
 
 <p align="center">
-  The DeepSeek-native chat2sql Agent
-</p>
-
-<p align="center">
-  自然语言转 SQL，实时思考过程可视化，人工确认安全机制，极致美观的数据可视化。
+  基于 DeepSeek 原生优化的 AI 数据库助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，极致美观的数据可视化。
 </p>
 
 <p align="center">

@@ -1,69 +1,129 @@
 import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { DatabaseConnection } from '@/lib/types'
-import { listConnections, createConnection, deleteConnection } from '@/server/functions/connections'
+import { generateId, encodePassword, decodePassword } from '@/lib/utils'
+import { testConnectionFn } from '@/server/functions/connections'
+
+type StoredConnection = Omit<DatabaseConnection, 'password'> & { password: string }
 
 interface DatabaseState {
   connections: Omit<DatabaseConnection, 'password'>[]
   activeConnectionId: string | null
   activeConnection: Omit<DatabaseConnection, 'password'> | null
+  editingConnection: Omit<DatabaseConnection, 'password'> | null
   setActiveConnection: (id: string) => void
+  setEditingConnection: (conn: Omit<DatabaseConnection, 'password'> | null) => void
   addConnection: (data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => Promise<void>
-  removeConnection: (id: string) => Promise<void>
-  refreshConnections: () => Promise<void>
+  updateConnection: (id: string, data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => Promise<void>
+  removeConnection: (id: string) => void
+  getFullConnection: (id: string) => DatabaseConnection | null
 }
 
 const DatabaseContext = createContext<DatabaseState | null>(null)
+
+const STORAGE_KEY = 'db-connections'
+
+function loadConnections(): StoredConnection[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function saveConnections(conns: StoredConnection[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(conns))
+}
 
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [connections, setConnections] = useState<Omit<DatabaseConnection, 'password'>[]>([])
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null)
 
-  const refreshConnections = useCallback(async () => {
-    try {
-      const data = await listConnections()
-      setConnections(data as Omit<DatabaseConnection, 'password'>[])
-      if (data.length > 0 && !activeConnectionId) {
-        setActiveConnectionId(data[0].id)
-      }
-    } catch (err) {
-      console.error('Failed to fetch connections:', err)
-    }
-  }, [activeConnectionId])
-
   useEffect(() => {
-    refreshConnections()
+    const stored = loadConnections()
+    if (stored.length > 0) {
+      setConnections(stored.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+    }
   }, [])
+  const [editingConnection, setEditingConnection] = useState<Omit<DatabaseConnection, 'password'> | null>(null)
 
   const activeConnection = connections.find((c) => c.id === activeConnectionId) ?? null
 
-  const handleAddConnection = useCallback(async (data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => {
-    await createConnection({ data } as any)
-    await refreshConnections()
-  }, [refreshConnections])
+  const addConnection = useCallback(async (data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => {
+    const testResult = await testConnectionFn({ data } as any)
+    if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
 
-  const handleRemoveConnection = useCallback(async (id: string) => {
-    await deleteConnection({ data: { id } })
-    if (activeConnectionId === id) {
-      setActiveConnectionId(connections.find((c) => c.id !== id)?.id ?? null)
+    const newConn: StoredConnection = {
+      id: generateId(),
+      name: data.name,
+      host: data.host,
+      port: data.port,
+      user: data.user,
+      password: encodePassword(data.password),
+      database: data.database,
+      createdAt: new Date().toISOString(),
     }
-    await refreshConnections()
-  }, [activeConnectionId, connections, refreshConnections])
+    const updated = [...loadConnections(), newConn]
+    saveConnections(updated)
+    setConnections(updated.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+  }, [])
+
+  const updateConnection = useCallback(async (id: string, data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => {
+    const existing = loadConnections().find((c) => c.id === id)
+    if (!existing) throw new Error('连接不存在')
+
+    const passwordToSave = data.password === '' ? existing.password : encodePassword(data.password)
+
+    const testConn: DatabaseConnection = {
+      ...existing,
+      name: data.name,
+      host: data.host,
+      port: data.port,
+      user: data.user,
+      password: data.password === '' ? decodePassword(existing.password) : data.password,
+      database: data.database,
+    }
+    const testResult = await testConnectionFn({ data: testConn } as any)
+    if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
+
+    const updatedConns = loadConnections().map((c) =>
+      c.id === id
+        ? { ...c, name: data.name, host: data.host, port: data.port, user: data.user, password: passwordToSave, database: data.database }
+        : c
+    )
+    saveConnections(updatedConns)
+    setConnections(updatedConns.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+  }, [])
+
+  const removeConnection = useCallback((id: string) => {
+    const updatedConns = loadConnections().filter((c) => c.id !== id)
+    saveConnections(updatedConns)
+    setConnections(updatedConns.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+    if (activeConnectionId === id) setActiveConnectionId(null)
+  }, [activeConnectionId])
+
+  const getFullConnection = useCallback((id: string): DatabaseConnection | null => {
+    const stored = loadConnections().find((c) => c.id === id)
+    if (!stored) return null
+    return { ...stored, password: decodePassword(stored.password) }
+  }, [])
 
   const value: DatabaseState = {
     connections,
     activeConnectionId,
     activeConnection,
+    editingConnection,
     setActiveConnection: setActiveConnectionId,
-    addConnection: handleAddConnection,
-    removeConnection: handleRemoveConnection,
-    refreshConnections,
+    setEditingConnection,
+    addConnection,
+    updateConnection,
+    removeConnection,
+    getFullConnection,
   }
 
-  return (
-    <DatabaseContext.Provider value={value}>
-      {children}
-    </DatabaseContext.Provider>
-  )
+  return <DatabaseContext.Provider value={value}>{children}</DatabaseContext.Provider>
 }
 
 export function useDatabaseStore(): DatabaseState {

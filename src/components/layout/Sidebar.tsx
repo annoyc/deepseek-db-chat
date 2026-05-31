@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Database, MessageSquarePlus, Plus, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DatabaseList } from './DatabaseList'
@@ -6,11 +6,19 @@ import { ChatHistory } from './ChatHistory'
 import { AddConnectionDialog } from './AddConnectionDialog'
 import { ApiKeyDialog } from './ApiKeyDialog'
 import { useChatStore } from '@/hooks/useChat'
+import { useDatabaseStore } from '@/hooks/useDatabase'
 
 export function Sidebar() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
   const { createNewSession } = useChatStore()
+  const { editingConnection } = useDatabaseStore()
+
+  useEffect(() => {
+    if (editingConnection) {
+      setShowAddDialog(true)
+    }
+  }, [editingConnection])
 
   return (
     <>

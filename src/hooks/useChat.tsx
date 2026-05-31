@@ -13,6 +13,7 @@ interface ChatState {
   isStreaming: boolean
   setActiveSession: (id: string) => void
   createNewSession: () => void
+  deleteSession: (id: string) => void
   sendMessage: (content: string) => Promise<void>
   clearMessages: () => void
   confirmSql: (messageId: string) => Promise<void>
@@ -83,7 +84,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
-  const { activeConnectionId } = useDatabaseStore()
+  const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { model, apiKey } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
@@ -117,6 +118,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return newSession.id
   }, [activeSessionId, sessions, activeConnectionId])
 
+  const deleteSession = useCallback((id: string) => {
+    setSessions((prev) => {
+      const updated = prev.filter((s) => s.id !== id)
+      saveSessionsToStorage(updated)
+      return updated
+    })
+    if (activeSessionId === id) {
+      setActiveSessionId(null)
+    }
+  }, [activeSessionId])
+
   const createNewSession = useCallback(() => {
     const newSession: ChatSession = {
       id: generateId(),
@@ -134,8 +146,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     let hasSqlConfirm = false
     let pendingSqlConfirm: { sql: string; explanation: string } | null = null
 
+    const connection = getFullConnection(connectionId)
+    if (!connection) throw new Error('数据库连接不存在')
+
     const response = await chatStream({
-      data: { connectionId, message, history, model, apiKey: apiKey || undefined },
+      data: { connection, message, history, model, apiKey: apiKey || undefined },
     })
 
     for await (const chunk of parseSSEStream(response as unknown as Response)) {
@@ -222,7 +237,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     return hasSqlConfirm
-  }, [updateSession, model, apiKey])
+  }, [updateSession, model, apiKey, getFullConnection])
 
   const markTaskComplete = useCallback((sessionId: string) => {
     updateSession(sessionId, (s) => {
@@ -295,6 +310,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         .filter((m) => m.content)
         .map((m) => ({ role: m.role, content: m.content })) ?? []
 
+      const connection = getFullConnection(activeConnectionId)
+      if (!connection) return
+
       const hasSqlConfirm = await processStream(sessionId, activeConnectionId, content, history)
 
       if (!hasSqlConfirm) {
@@ -311,7 +329,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsStreaming(false)
     }
-  }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete])
+  }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, getFullConnection])
 
   const continueWithSqlResult = useCallback(async (sessionId: string, connectionId: string, sql: string, result: SqlResultInfo): Promise<boolean> => {
     const resultSummary = formatSqlResultForAI(sql, result)
@@ -390,14 +408,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     try {
-      const execResult = await confirmAndExecuteSql({
-        data: {
-          connectionId: activeConnectionId,
-          sql: message.sqlConfirm.sql,
-        },
-      })
+    const connection = getFullConnection(activeConnectionId)
+    if (!connection) return
 
-      if (!execResult.success) {
+    const execResult = await confirmAndExecuteSql({
+      data: {
+        connection,
+        sql: message.sqlConfirm.sql,
+      },
+    })
+
+    if (!execResult.success) {
         updateSession(activeSessionId, (s) => {
           const messages = s.messages.map((m) => {
             if (m.id === messageId && m.sqlConfirm) {
@@ -456,7 +477,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return { ...s, messages }
       })
     }
-  }, [activeSessionId, activeConnectionId, updateSession, continueWithSqlResult, continueWithSqlError, markTaskComplete])
+  }, [activeSessionId, activeConnectionId, updateSession, continueWithSqlResult, continueWithSqlError, markTaskComplete, getFullConnection, confirmAndExecuteSql])
 
   const cancelSql = useCallback((messageId: string) => {
     if (!activeSessionId) return
@@ -484,6 +505,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     isStreaming,
     setActiveSession: setActiveSessionId,
     createNewSession,
+    deleteSession,
     sendMessage,
     clearMessages,
     confirmSql,

@@ -1,10 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createDbAgent } from '@/server/agent'
-import { getConnectionById } from '@/server/store'
-import type { StreamChunk } from '@/lib/types'
+import type { DatabaseConnection, StreamChunk } from '@/lib/types'
 
 interface ChatInput {
-  connectionId: string
+  connection: DatabaseConnection
   message: string
   history?: { role: 'user' | 'assistant'; content: string }[]
   model?: string
@@ -13,15 +12,7 @@ interface ChatInput {
 
 export const chatStream = createServerFn({ method: 'POST', response: 'raw' }).handler(
   async ({ data }: { data: ChatInput }): Promise<Response> => {
-    const connection = getConnectionById(data.connectionId)
-    if (!connection) {
-      return new Response(
-        formatSSE({ type: 'error', message: '数据库连接不存在' }),
-        { headers: sseHeaders() }
-      )
-    }
-
-    const { agent, resultStore } = createDbAgent(connection, {
+    const { agent, resultStore } = createDbAgent(data.connection, {
       model: data.model,
       apiKey: data.apiKey,
     })

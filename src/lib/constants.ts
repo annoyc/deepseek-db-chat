@@ -3,7 +3,6 @@ export const DEFAULT_MODEL = 'deepseek-v4-flash'
 export const QUERY_TIMEOUT_MS = 30_000
 export const MAX_POOL_SIZE = 5
 export const DATA_DIR = 'data'
-export const CONNECTIONS_FILE = 'data/connections.json'
 export const CHATS_DIR = 'data/chats'
 
 export const AVAILABLE_MODELS = [

@@ -6,7 +6,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   useEffect(() => {
     try {
       const item = window.localStorage.getItem(key)
-      if (item) {
+      if (item !== null) {
         setStoredValue(JSON.parse(item))
       }
     } catch {}

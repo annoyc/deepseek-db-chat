@@ -3,11 +3,7 @@
 </p>
 
 <p align="center">
-  The DeepSeek-native chat2sql Agent
-</p>
-
-<p align="center">
-  Natural language to SQL with real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
+  An AI-powered MySQL assistant with DeepSeek-native optimization — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
 </p>
 
 <p align="center">
