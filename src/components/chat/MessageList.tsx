@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, Fragment } from 'react'
+import { useEffect, useRef, useMemo, Fragment, useCallback } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
@@ -13,14 +13,38 @@ interface MessageListProps {
 
 export function MessageList({ messages }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
-  const { sendMessage } = useChatStore()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { sendMessage, isStreaming } = useChatStore()
   const { model } = useSettings()
+  const shouldAutoScrollRef = useRef(true)
+  const prevLengthRef = useRef(messages.length)
 
   const currentModelName = AVAILABLE_MODELS.find((m) => m.id === model)?.id ?? model
 
+  // Track if user manually scrolled up
+  const handleScroll = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    shouldAutoScrollRef.current = isNearBottom
+  }, [])
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    const isNewMessage = messages.length > prevLengthRef.current
+    prevLengthRef.current = messages.length
+
+    if (!shouldAutoScrollRef.current && !isNewMessage) return
+    if (isNewMessage) shouldAutoScrollRef.current = true
+
+    const el = containerRef.current
+    if (!el) return
+
+    if (isStreaming) {
+      el.scrollTop = el.scrollHeight
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isStreaming])
 
   const roundMap = useMemo(() => {
     let round = 0
@@ -70,7 +94,7 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto px-[10%] py-4 space-y-4">
+    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto px-[10%] py-4 space-y-4">
       {messages.map((message) => (
         <Fragment key={message.id}>
           <MessageBubble

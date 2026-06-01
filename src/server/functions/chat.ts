@@ -18,17 +18,16 @@ export const chatStream = createServerFn({ method: 'POST' })
     async ({ data }): Promise<Response> => {
     const stream = new ReadableStream({
       async start(controller) {
+        const encoder = new TextEncoder()
         try {
           const decryptedConnection: DatabaseConnection = {
             ...data.connection,
             password: decrypt(data.connection.password),
           }
-          console.log('decryptedConnection', decryptedConnection)
           const { agent, resultStore } = createDbAgent(decryptedConnection, {
             model: data.model,
             apiKey: data.apiKey,
           })
-          const encoder = new TextEncoder()
           const agentStream = agent.stream({
             prompt: data.message,
             messages: data.history as any,

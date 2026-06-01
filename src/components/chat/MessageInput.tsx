@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { ArrowUp, ChevronDown } from 'lucide-react'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
@@ -9,9 +9,17 @@ export function MessageInput() {
   const [input, setInput] = useState('')
   const [showModelMenu, setShowModelMenu] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { sendMessage, isStreaming } = useChatStore()
+  const { sendMessage, isStreaming, activeSessionId } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { model, setModel } = useSettings()
+  const prevSessionIdRef = useRef(activeSessionId)
+
+  useEffect(() => {
+    if (activeSessionId && activeSessionId !== prevSessionIdRef.current) {
+      prevSessionIdRef.current = activeSessionId
+      setTimeout(() => textareaRef.current?.focus(), 50)
+    }
+  }, [activeSessionId])
 
   const currentModel = AVAILABLE_MODELS.find((m) => m.id === model) ?? AVAILABLE_MODELS[0]
   const canSend = input.trim() && !isStreaming && activeConnectionId
