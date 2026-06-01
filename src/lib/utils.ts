@@ -17,18 +17,6 @@ export function formatTimestamp(date: Date | string): string {
   })
 }
 
-export function encodePassword(password: string): string {
-  return btoa(password)
-}
-
-export function decodePassword(encoded: string): string {
-  try {
-    return atob(encoded)
-  } catch {
-    return encoded
-  }
-}
-
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text
   return text.slice(0, maxLength) + '...'

@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, createContext, useContext } from 'react'
 import type { DatabaseConnection } from '@/lib/types'
-import { generateId, encodePassword, decodePassword } from '@/lib/utils'
+import { generateId } from '@/lib/utils'
 import { testConnectionFn } from '@/server/functions/connections'
+import { encryptPasswordFn } from '@/server/functions/crypto'
 
 type StoredConnection = Omit<DatabaseConnection, 'password'> & { password: string }
 
@@ -55,13 +56,16 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     const testResult = await testConnectionFn({ data } as any)
     if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
 
+    const { encrypted } = await encryptPasswordFn({ data: { password: data.password } })
+    console.log('encrypted', encrypted)
+
     const newConn: StoredConnection = {
       id: generateId(),
       name: data.name,
       host: data.host,
       port: data.port,
       user: data.user,
-      password: encodePassword(data.password),
+      password: encrypted,
       database: data.database,
       createdAt: new Date().toISOString(),
     }
@@ -74,19 +78,24 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     const existing = loadConnections().find((c) => c.id === id)
     if (!existing) throw new Error('连接不存在')
 
-    const passwordToSave = data.password === '' ? existing.password : encodePassword(data.password)
+    let passwordToSave = existing.password
 
-    const testConn: DatabaseConnection = {
-      ...existing,
-      name: data.name,
-      host: data.host,
-      port: data.port,
-      user: data.user,
-      password: data.password === '' ? decodePassword(existing.password) : data.password,
-      database: data.database,
+    if (data.password !== '') {
+      const { encrypted } = await encryptPasswordFn({ data: { password: data.password } })
+      passwordToSave = encrypted
+
+      const testConn: DatabaseConnection = {
+        ...existing,
+        name: data.name,
+        host: data.host,
+        port: data.port,
+        user: data.user,
+        password: data.password,
+        database: data.database,
+      }
+      const testResult = await testConnectionFn({ data: testConn } as any)
+      if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
     }
-    const testResult = await testConnectionFn({ data: testConn } as any)
-    if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
 
     const updatedConns = loadConnections().map((c) =>
       c.id === id
@@ -107,7 +116,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const getFullConnection = useCallback((id: string): DatabaseConnection | null => {
     const stored = loadConnections().find((c) => c.id === id)
     if (!stored) return null
-    return { ...stored, password: decodePassword(stored.password) }
+    return { ...stored, password: stored.password }
   }, [])
 
   const value: DatabaseState = {

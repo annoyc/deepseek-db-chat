@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createDbAgent } from '@/server/agent'
 import { TOOL_ERROR_PREFIX } from '@/server/tools'
+import { decrypt } from '@/server/crypto'
 import type { DatabaseConnection, StreamChunk } from '@/lib/types'
 
 interface ChatInput {
@@ -15,15 +16,19 @@ export const chatStream = createServerFn({ method: 'POST' })
   .inputValidator((data: ChatInput) => data)
   .handler(
     async ({ data }): Promise<Response> => {
-    const { agent, resultStore } = createDbAgent(data.connection, {
-      model: data.model,
-      apiKey: data.apiKey,
-    })
-    const encoder = new TextEncoder()
-
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          const decryptedConnection: DatabaseConnection = {
+            ...data.connection,
+            password: decrypt(data.connection.password),
+          }
+          console.log('decryptedConnection', decryptedConnection)
+          const { agent, resultStore } = createDbAgent(decryptedConnection, {
+            model: data.model,
+            apiKey: data.apiKey,
+          })
+          const encoder = new TextEncoder()
           const agentStream = agent.stream({
             prompt: data.message,
             messages: data.history as any,
@@ -102,7 +107,8 @@ export const chatStream = createServerFn({ method: 'POST' })
 
           controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
         } catch (err) {
-          const msg = err instanceof Error ? err.message : '未知错误'
+          console.error('[chat] Agent stream error:', err)
+          const msg = 'AI 服务异常，请稍后重试'
           controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: msg })))
         } finally {
           controller.close()

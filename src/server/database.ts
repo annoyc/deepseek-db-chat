@@ -33,7 +33,8 @@ export async function testConnection(connection: DatabaseConnection): Promise<{ 
     conn.release()
     return { success: true }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) }
+    console.error('[database] Test connection error:', err)
+    return { success: false, error: '数据库连接失败，请检查连接参数' }
   }
 }
 
