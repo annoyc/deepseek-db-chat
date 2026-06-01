@@ -6,14 +6,16 @@ import type { DatabaseConnection } from '@/lib/types'
 
 const CONNECTIONS_FILE = path.join(process.cwd(), 'data', 'connections.json')
 
-export const testConnectionFn = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: DatabaseConnection }): Promise<{ success: boolean; error?: string }> => {
-    return testConnection(data)
-  }
-)
+export const testConnectionFn = createServerFn({ method: 'POST' })
+  .inputValidator((data: DatabaseConnection) => data)
+  .handler(
+    async ({ data }): Promise<{ success: boolean; error?: string }> => {
+      return testConnection(data)
+    }
+  )
 
 export const migrateConnections = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: {} }): Promise<DatabaseConnection[]> => {
+  async (): Promise<DatabaseConnection[]> => {
     if (!fs.existsSync(CONNECTIONS_FILE)) return []
     try {
       const raw = fs.readFileSync(CONNECTIONS_FILE, 'utf-8')

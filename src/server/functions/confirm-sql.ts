@@ -11,13 +11,15 @@ export type SqlExecuteResult =
   | { success: true; data: SqlResultInfo }
   | { success: false; error: string }
 
-export const confirmAndExecuteSql = createServerFn({ method: 'POST' }).handler(
-  async ({ data }: { data: ConfirmSqlInput }): Promise<SqlExecuteResult> => {
-    try {
-      const result = await executeQuery(data.connection, data.sql)
-      return { success: true, data: result }
-    } catch (err) {
-      return { success: false, error: `SQL执行失败: ${err instanceof Error ? err.message : String(err)}` }
+export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: false })
+  .inputValidator((data: ConfirmSqlInput) => data)
+  .handler(
+    async ({ data }): Promise<SqlExecuteResult> => {
+      try {
+        const result = await executeQuery(data.connection, data.sql)
+        return { success: true, data: result }
+      } catch (err) {
+        return { success: false, error: `SQL执行失败: ${err instanceof Error ? err.message : String(err)}` }
+      }
     }
-  }
-)
+  )

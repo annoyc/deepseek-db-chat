@@ -11,8 +11,10 @@ interface ChatInput {
   apiKey?: string
 }
 
-export const chatStream = createServerFn({ method: 'POST', response: 'raw' }).handler(
-  async ({ data }: { data: ChatInput }): Promise<Response> => {
+export const chatStream = createServerFn({ method: 'POST' })
+  .inputValidator((data: ChatInput) => data)
+  .handler(
+    async ({ data }): Promise<Response> => {
     const { agent, resultStore } = createDbAgent(data.connection, {
       model: data.model,
       apiKey: data.apiKey,
