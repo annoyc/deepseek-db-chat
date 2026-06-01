@@ -1,4 +1,6 @@
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCircle2, ChevronDown, ChevronRight, Loader2, XCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { ToolCallInfo } from '@/lib/types'
 
 interface ToolCallStatusProps {
@@ -17,38 +19,58 @@ const TOOL_PARAM_LABELS: Record<string, Record<string, string>> = {
 }
 
 export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
+  const [expanded, setExpanded] = useState(true)
   const label = TOOL_LABELS[toolCall.name] ?? toolCall.name
   const paramLabels = TOOL_PARAM_LABELS[toolCall.name] ?? {}
   const hasResult = toolCall.status === 'completed' && toolCall.result !== undefined
   const isEmptyResult = hasResult && (!toolCall.result || toolCall.result.trim() === '')
+  const showCollapse = hasResult && !isEmptyResult
 
   return (
     <div className="border border-gray-700 rounded-xl overflow-hidden bg-white">
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-300">
+      <button
+        onClick={() => showCollapse && setExpanded(!expanded)}
+        className={cn(
+          'w-full flex items-center gap-1.5 px-3 py-2 border-b border-gray-300 transition-colors',
+          showCollapse && 'hover:bg-gray-50/50',
+        )}
+      >
         <StatusIcon status={toolCall.status} />
         <span className="text-[13px] font-semibold text-gray-800">{label}</span>
         <StatusBadge status={toolCall.status} />
-      </div>
-
-      <div className="px-3 py-2.5 space-y-2">
-        {Object.entries(toolCall.args).length > 0 && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            {Object.entries(toolCall.args).map(([key, value]) => (
-              <div key={key} className="flex items-center gap-1.5 text-[13px]">
-                <span className="text-gray-500">{paramLabels[key] ?? key}:</span>
-                <span className="border border-gray-300 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-white">
-                  {formatValue(value)}
-                </span>
-              </div>
-            ))}
-          </div>
+        {showCollapse && (
+          expanded
+            ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto" />
+            : <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto" />
         )}
+      </button>
 
-        {hasResult && (
-          <div className="text-[13px] text-gray-500 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
-            {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
-          </div>
+      <div
+        className={cn(
+          'overflow-hidden transition-all duration-200',
+          expanded ? 'max-h-[2000px]' : 'max-h-0',
         )}
+      >
+        <div className="px-3 py-2.5 space-y-2">
+          {Object.entries(toolCall.args).length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {Object.entries(toolCall.args).map(([key, value]) => (
+                <div key={key} className="flex items-center gap-1.5 text-[13px]">
+                  <span className="text-gray-500">{paramLabels[key] ?? key}:</span>
+                  <span className="border border-gray-300 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-white">
+                    {formatValue(value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {hasResult && (
+            <div className="text-[13px] text-gray-500 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
+              {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

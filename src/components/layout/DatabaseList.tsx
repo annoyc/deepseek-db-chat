@@ -27,15 +27,15 @@ export function DatabaseList() {
         <div
           key={conn.id}
           className={cn(
-            'group flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors',
+            'group flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border border-transparent',
             activeConnectionId === conn.id
-              ? 'bg-green-50 text-green-800 border border-green-200'
+              ? 'bg-green-50 text-green-800 border-green-200'
               : 'text-gray-600 hover:bg-gray-100',
           )}
+          onClick={() => setActiveConnection(conn.id)}
         >
           <button
-            onClick={() => setActiveConnection(conn.id)}
-            className="flex items-center gap-2 flex-1 min-w-0"
+            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
           >
             <div className={cn(
               'w-2 h-2 rounded-full flex-shrink-0',

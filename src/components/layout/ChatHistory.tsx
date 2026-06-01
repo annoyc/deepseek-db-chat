@@ -30,15 +30,15 @@ export function ChatHistory() {
         <div
           key={session.id}
           className={cn(
-            'group flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors',
+            'group flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border border-transparent',
             activeSessionId === session.id
-              ? 'bg-green-50 text-green-800 border border-green-200'
+              ? 'bg-green-50 text-green-800 border-green-200'
               : 'text-gray-600 hover:bg-gray-100',
           )}
+          onClick={() => setActiveSession(session.id)}
         >
           <button
-            onClick={() => setActiveSession(session.id)}
-            className="flex items-center gap-2 flex-1 min-w-0"
+            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
           >
             <MessageSquare className="w-3 h-3 flex-shrink-0" />
             <span className="truncate">{session.title}</span>
