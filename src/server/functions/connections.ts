@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import fs from 'fs'
 import path from 'path'
 import { testConnection } from '@/server/database'
+import { decrypt } from '@/server/crypto'
 import type { DatabaseConnection } from '@/lib/types'
 
 const CONNECTIONS_FILE = path.join(process.cwd(), 'data', 'connections.json')
@@ -10,7 +11,11 @@ export const testConnectionFn = createServerFn({ method: 'POST' })
   .inputValidator((data: DatabaseConnection) => data)
   .handler(
     async ({ data }): Promise<{ success: boolean; error?: string }> => {
-      return testConnection(data)
+      const decryptedConn: DatabaseConnection = {
+        ...data,
+        password: decrypt(data.password),
+      }
+      return testConnection(decryptedConn)
     }
   )
 

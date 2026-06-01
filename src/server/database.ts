@@ -34,7 +34,7 @@ export async function testConnection(connection: DatabaseConnection): Promise<{ 
     return { success: true }
   } catch (err) {
     console.error('[database] Test connection error:', err)
-    return { success: false, error: '数据库连接失败，请检查连接参数' }
+    return { success: false, error: '当前所选数据库连接失败，请检查连接参数' }
   }
 }
 

@@ -4,9 +4,17 @@ import { cn } from '@/lib/utils'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 
 export function DatabaseList() {
-  const { connections, activeConnectionId, setActiveConnection, removeConnection, setEditingConnection } = useDatabaseStore()
+  const { connections, activeConnectionId, setActiveConnection, removeConnection, setEditingConnection, connectionStatus } = useDatabaseStore()
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  const dotColor = activeConnectionId
+    ? connectionStatus === 'error'
+      ? 'bg-red-500'
+      : connectionStatus === 'testing'
+        ? 'bg-yellow-500'
+        : 'bg-green-500'
+    : 'bg-gray-300'
 
   if (connections.length === 0) {
     return (
@@ -22,7 +30,7 @@ export function DatabaseList() {
   }
 
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-0.5 mb-2">
       {connections.map((conn) => (
         <div
           key={conn.id}
@@ -39,7 +47,7 @@ export function DatabaseList() {
           >
             <div className={cn(
               'w-2 h-2 rounded-full flex-shrink-0',
-              activeConnectionId === conn.id ? 'bg-green-500' : 'bg-gray-300'
+              activeConnectionId === conn.id ? dotColor : 'bg-gray-300'
             )} />
             <span className="truncate font-medium">{conn.name}</span>
           </button>

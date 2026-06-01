@@ -1,9 +1,11 @@
-import { Database, Zap, Shield, Search, Terminal, Eye } from 'lucide-react'
+import { Zap, Shield, Search, Terminal, Eye } from 'lucide-react'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (question: string) => void
   hasConnection: boolean
   connectionName?: string
+  connectionStatus?: 'idle' | 'testing' | 'success' | 'error'
+  connectionError?: string | null
 }
 
 const features = [
@@ -39,26 +41,35 @@ const features = [
 
 const suggestions = [
   { icon: '', text: '这个数据库有哪些表?' },
-  { icon: '🔍', text: '帮我查看所有表的结构' },
-  { icon: '📊', text: '查询最近 7 天的数据量趋势' },
-  { icon: '👥', text: '找出每个部门的用户数量' },
+  { icon: '', text: '帮我查看所有表的结构' },
+  { icon: '', text: '查询最近 7 天的数据量趋势' },
+  { icon: '', text: '找出每个部门的用户数量' },
 ]
 
-export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, connectionStatus, connectionError }: WelcomeScreenProps) {
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-8 h-full flex flex-col justify-center">
         {/* Hero */}
         <div className="text-center space-y-3 pt-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-600 to-green-700 shadow-lg shadow-green-200">
-            <Database className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-green-200">
+            <img src="/logo.svg" alt="DB Chat2SQL" className="w-full h-full" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">
             DeepSeek-Native DB Chat2SQL Agent
           </h1>
-          <p className="text-sm text-gray-500">
-            {hasConnection ? `已连接 ${connectionName}` : '用自然语言查询数据库，AI 自动生成 SQL 并执行'}
-          </p>
+          {connectionStatus === 'error' ? (
+            <div>
+              <p className="text-sm text-red-500 font-medium">连接失败</p>
+              <p className="text-xs text-red-400 mt-1">{connectionError}</p>
+            </div>
+          ) : connectionStatus === 'testing' ? (
+            <p className="text-sm text-yellow-500">连接测试中...</p>
+          ) : hasConnection ? (
+            <p className="text-sm text-green-600">已连接 {connectionName}</p>
+          ) : (
+            <p className="text-sm text-gray-500">用自然语言查询数据库，AI 自动生成 SQL 并执行</p>
+          )}
         </div>
 
         {/* Feature cards */}
@@ -82,7 +93,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
         </div>
 
         {/* Suggestions */}
-        {hasConnection && (
+        {connectionStatus === 'success' && (
           <div className="space-y-3">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">试试问我</p>
             <div className="grid grid-cols-2 gap-2">
@@ -90,7 +101,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                 <button
                   key={s.text}
                   onClick={() => onSuggestionClick(s.text)}
-                  className="text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all"
+                  className="cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all"
                 >
                   <span className="mr-1.5">{s.icon}</span>
                   {s.text}

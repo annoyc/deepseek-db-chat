@@ -6,10 +6,14 @@ import { encryptPasswordFn } from '@/server/functions/crypto'
 
 type StoredConnection = Omit<DatabaseConnection, 'password'> & { password: string }
 
+type ConnectionStatus = 'idle' | 'testing' | 'success' | 'error'
+
 interface DatabaseState {
   connections: Omit<DatabaseConnection, 'password'>[]
   activeConnectionId: string | null
   activeConnection: Omit<DatabaseConnection, 'password'> | null
+  connectionStatus: ConnectionStatus
+  connectionError: string | null
   editingConnection: Omit<DatabaseConnection, 'password'> | null
   setActiveConnection: (id: string) => void
   setEditingConnection: (conn: Omit<DatabaseConnection, 'password'> | null) => void
@@ -41,6 +45,8 @@ function saveConnections(conns: StoredConnection[]) {
 export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [connections, setConnections] = useState<Omit<DatabaseConnection, 'password'>[]>([])
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle')
+  const [connectionError, setConnectionError] = useState<string | null>(null)
 
   useEffect(() => {
     const stored = loadConnections()
@@ -119,12 +125,45 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     return { ...stored, password: stored.password }
   }, [])
 
+  const testConnectionById = useCallback(async (id: string) => {
+    const fullConn = getFullConnection(id)
+    if (!fullConn) {
+      return { success: false, error: '连接不存在' }
+    }
+    try {
+      const result = await testConnectionFn({ data: fullConn } as any)
+      return result
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : '连接失败' }
+    }
+  }, [getFullConnection])
+
+  const setActiveConnection = useCallback((id: string) => {
+    setActiveConnectionId(id)
+    setConnectionStatus('testing')
+    setConnectionError(null)
+    // Use setTimeout to ensure the ID is set before testing
+    setTimeout(async () => {
+      const result = await testConnectionById(id)
+      console.log('result', result)
+      if (result.success) {
+        setConnectionStatus('success')
+        setConnectionError(null)
+      } else {
+        setConnectionStatus('error')
+        setConnectionError(result.error || '连接失败')
+      }
+    }, 0)
+  }, [setActiveConnectionId, testConnectionById])
+
   const value: DatabaseState = {
     connections,
     activeConnectionId,
     activeConnection,
+    connectionStatus,
+    connectionError,
     editingConnection,
-    setActiveConnection: setActiveConnectionId,
+    setActiveConnection,
     setEditingConnection,
     addConnection,
     updateConnection,

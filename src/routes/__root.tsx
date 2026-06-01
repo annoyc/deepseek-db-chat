@@ -12,6 +12,9 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'DB Chat2SQL Agent' },
     ],
+    links: [
+      { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' },
+    ],
   }),
   component: RootComponent,
 })

@@ -37,11 +37,11 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
         <div className={cn('p-4', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
             <div className="flex items-center">
-              <div className="w-7 h-7 rounded-lg bg-green-800 flex items-center justify-center text-xs font-bold text-white" onClick={onToggleCollapse}>
-                DB
+              <div className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer" onClick={onToggleCollapse}>
+                <img src="/logo.svg" alt="DB Chat2SQL" className="w-full h-full" />
               </div>
               {!collapsed && (
-                <span className="font-semibold text-sm text-gray-900 ml-2">DB Chat</span>
+                <span className="font-semibold text-base text-gray-900 ml-2.5">DB Chat2SQL</span>
               )}
             </div>
             {!collapsed && <button
@@ -65,7 +65,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
           {collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="p-2 hover:bg-gray-200 rounded text-gray-500 hover:text-green-700 transition-colors"
+              className="p-2 hover:bg-gray-200 rounded text-sm text-gray-500 hover:text-green-700 transition-colors"
               title="添加数据库连接"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -77,9 +77,9 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
         <div className={cn('flex-1 overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
           {/* Database section */}
           <div className={cn('flex items-center gap-2 py-1.5', collapsed ? 'justify-center' : 'px-2')}>
-            <Database className="w-3.5 h-3.5 text-gray-500" />
+            <Database className="w-4 h-4 text-gray-500" />
             {!collapsed && (
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">数据库连接</span>
+              <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">数据库连接</span>
             )}
           </div>
           {!collapsed && <DatabaseList />}
@@ -87,9 +87,9 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
           {/* Chat section */}
           <div className={cn('flex items-center py-1.5', collapsed ? 'justify-center' : 'justify-between px-2')}>
             <div className="flex items-center gap-1.5">
-              <MessageSquarePlus className="w-3.5 h-3.5 text-gray-500" />
+              <MessageSquarePlus className="w-4 h-4 text-gray-500" />
               {!collapsed && (
-                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">对话记录</span>
+                <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">对话历史</span>
               )}
             </div>
             {!collapsed && (
