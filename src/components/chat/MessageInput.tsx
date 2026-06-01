@@ -10,7 +10,7 @@ export function MessageInput() {
   const [showModelMenu, setShowModelMenu] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming } = useChatStore()
-  const { activeConnectionId } = useDatabaseStore()
+  const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { model, setModel } = useSettings()
 
   const currentModel = AVAILABLE_MODELS.find((m) => m.id === model) ?? AVAILABLE_MODELS[0]
@@ -40,6 +40,8 @@ export function MessageInput() {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px'
   }
 
+  const connectionName = activeConnectionId ? getFullConnection(activeConnectionId)?.name : ''
+
   return (
     <div className="px-[10%] pb-4 pt-2 bg-[#f5f5f0]">
       <div className="mx-auto">
@@ -49,7 +51,7 @@ export function MessageInput() {
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder={activeConnectionId ? '给 DeepSeek 发送消息' : '请先选择一个数据库连接'}
+            placeholder={activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
             disabled={!activeConnectionId || isStreaming}
             rows={2}
             className="w-full resize-none px-4 pt-4 pb-2 text-sm bg-transparent outline-none placeholder-gray-400 disabled:opacity-50 max-h-[200px] leading-relaxed"

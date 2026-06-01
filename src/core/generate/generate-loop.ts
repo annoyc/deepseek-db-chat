@@ -110,12 +110,12 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       currentMessages.push(stepResult.assistantMessage)
 
       if (stepResult.toolCalls.length > 0 && currentTools.length > 0) {
+        yield { type: 'tool-call', step: stepRef.value, toolCalls: stepResult.toolCalls }
+
         const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks)
         for (const { tool_call_id, content } of toolResults) {
           currentMessages.push({ role: 'tool', content, tool_call_id })
         }
-
-        yield { type: 'tool-call', step: stepRef.value, toolCalls: stepResult.toolCalls }
 
         runner.runAfterStep(hooks, {
           step: stepRef.value,

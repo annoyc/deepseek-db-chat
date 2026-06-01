@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createDbAgent } from '@/server/agent'
+import { TOOL_ERROR_PREFIX } from '@/server/tools'
 import type { DatabaseConnection, StreamChunk } from '@/lib/types'
 
 interface ChatInput {
@@ -63,8 +64,12 @@ export const chatStream = createServerFn({ method: 'POST', response: 'raw' }).ha
                   const queue = resultStore.get(name)
                   const result = queue?.shift() ?? ''
                   if (queue?.length === 0) resultStore.delete(name)
-                  const displayResult = name === 'execute_sql' ? '' : result
-                  controller.enqueue(encoder.encode(formatSSE({ type: 'tool-call-end', name, result: displayResult })))
+                  const isError = result.startsWith(TOOL_ERROR_PREFIX)
+                  const displayResult = name === 'execute_sql' ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
+                  const chunk: StreamChunk = isError
+                    ? { type: 'tool-call-end', name, result: '', error: displayResult }
+                    : { type: 'tool-call-end', name, result: displayResult }
+                  controller.enqueue(encoder.encode(formatSSE(chunk)))
                 }
                 pendingToolNames = []
                 break
@@ -85,8 +90,12 @@ export const chatStream = createServerFn({ method: 'POST', response: 'raw' }).ha
             const queue = resultStore.get(name)
             const result = queue?.shift() ?? ''
             if (queue?.length === 0) resultStore.delete(name)
-            const displayResult = name === 'execute_sql' ? '' : result
-            controller.enqueue(encoder.encode(formatSSE({ type: 'tool-call-end', name, result: displayResult })))
+            const isError = result.startsWith(TOOL_ERROR_PREFIX)
+            const displayResult = name === 'execute_sql' ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
+            const chunk: StreamChunk = isError
+              ? { type: 'tool-call-end', name, result: '', error: displayResult }
+              : { type: 'tool-call-end', name, result: displayResult }
+            controller.enqueue(encoder.encode(formatSSE(chunk)))
           }
 
           controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))

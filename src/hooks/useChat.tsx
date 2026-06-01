@@ -196,7 +196,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               }
             }
             if (idx >= 0) {
-              toolCalls[idx] = { ...toolCalls[idx], status: 'completed', result: chunk.result }
+              if (chunk.error) {
+                toolCalls[idx] = { ...toolCalls[idx], status: 'error', error: chunk.error }
+              } else {
+                toolCalls[idx] = { ...toolCalls[idx], status: 'completed', result: chunk.result }
+              }
             }
             lastMsg.toolCalls = toolCalls
             break
@@ -209,7 +213,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           case 'finish': {
             if (lastMsg.toolCalls) {
               lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
-                tc.status === 'calling' ? { ...tc, status: 'completed' } : tc
+                tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
               )
             }
             break
@@ -226,7 +230,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const lastMsg = { ...messages[messages.length - 1] }
       if (lastMsg.toolCalls) {
         lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
-          tc.status === 'calling' ? { ...tc, status: 'completed' } : tc
+          tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
         )
       }
       if (pendingSqlConfirm) {

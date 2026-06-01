@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { listTables, getTableSchema } from './database'
 import type { DatabaseConnection } from '@/lib/types'
 
+export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
+
 export type ResultStore = Map<string, string[]>
 
 export function createDbTools(connection: DatabaseConnection) {
@@ -14,15 +16,26 @@ export function createDbTools(connection: DatabaseConnection) {
     resultStore.set(name, queue)
   }
 
+  function pushError(name: string, error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    pushResult(name, TOOL_ERROR_PREFIX + msg)
+  }
+
   const listTablesTool = tool({
     name: 'list_tables',
     description: '列出当前数据库中的所有表名。当用户询问数据库有哪些表、或需要了解数据库结构时使用。',
     schema: z.object({}),
     execute: async () => {
-      const tables = await listTables(connection)
-      const result = tables.join('\n')
-      pushResult('list_tables', result)
-      return result
+      try {
+        const tables = await listTables(connection)
+        const result = tables.join('\n')
+        pushResult('list_tables', result)
+        return result
+      } catch (err) {
+        pushError('list_tables', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        return `查询失败: ${msg}`
+      }
     },
   })
 
@@ -33,9 +46,15 @@ export function createDbTools(connection: DatabaseConnection) {
       table_name: z.string().describe('要查询结构的表名'),
     }),
     execute: async ({ table_name }: { table_name: string }) => {
-      const result = await getTableSchema(connection, table_name)
-      pushResult('get_table_schema', result)
-      return result
+      try {
+        const result = await getTableSchema(connection, table_name)
+        pushResult('get_table_schema', result)
+        return result
+      } catch (err) {
+        pushError('get_table_schema', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        return `查询失败: ${msg}`
+      }
     },
   })
 

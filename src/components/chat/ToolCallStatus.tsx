@@ -24,14 +24,24 @@ export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
   const paramLabels = TOOL_PARAM_LABELS[toolCall.name] ?? {}
   const hasResult = toolCall.status === 'completed' && toolCall.result !== undefined
   const isEmptyResult = hasResult && (!toolCall.result || toolCall.result.trim() === '')
-  const showCollapse = hasResult && !isEmptyResult
+  const hasError = toolCall.status === 'error'
+  const showCollapse = (hasResult && !isEmptyResult) || hasError
+
+  const borderClass = toolCall.status === 'calling'
+    ? 'border border-amber-300'
+    : toolCall.status === 'error' ? 'border border-red-300' : 'border border-gray-700'
+
+  const headerBorderClass = toolCall.status === 'calling'
+    ? 'border-b border-b-amber-200 bg-amber-50/50'
+    : 'border-b border-b-gray-300'
 
   return (
-    <div className="border border-gray-700 rounded-xl overflow-hidden bg-white">
+    <div className={`${borderClass} rounded-xl overflow-hidden bg-white`}>
       <button
         onClick={() => showCollapse && setExpanded(!expanded)}
         className={cn(
-          'w-full flex items-center gap-1.5 px-3 py-2 border-b border-gray-300 transition-colors',
+          'w-full flex items-center gap-1.5 px-3 py-2 transition-colors',
+          headerBorderClass,
           showCollapse && 'hover:bg-gray-50/50',
         )}
       >
@@ -65,6 +75,19 @@ export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
             </div>
           )}
 
+          {toolCall.status === 'calling' && (
+            <div className="border-t border-gray-100 pt-2 mt-2 space-y-1.5">
+              <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
+              <div className="h-3 w-1/2 bg-gray-200 rounded animate-pulse" />
+            </div>
+          )}
+
+          {hasError && toolCall.error && (
+            <div className="text-[13px] text-red-600 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
+              {toolCall.error}
+            </div>
+          )}
+
           {hasResult && (
             <div className="text-[13px] text-gray-500 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
               {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
@@ -90,7 +113,7 @@ function StatusIcon({ status }: { status: ToolCallInfo['status'] }) {
 function StatusBadge({ status }: { status: ToolCallInfo['status'] }) {
   switch (status) {
     case 'calling':
-      return <span className="text-xs text-gray-400 ml-0.5">待确认</span>
+      return <span className="text-xs text-amber-500 ml-0.5 font-medium">执行中</span>
     case 'completed':
       return (
         <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">

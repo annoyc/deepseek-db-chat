@@ -37,6 +37,7 @@ export interface ToolCallInfo {
   name: string
   args: Record<string, unknown>
   result?: string
+  error?: string
   status: 'calling' | 'completed' | 'error'
 }
 
@@ -58,7 +59,7 @@ export type StreamChunk =
   | { type: 'thinking'; content: string }
   | { type: 'text'; content: string }
   | { type: 'tool-call-start'; name: string; args: Record<string, unknown> }
-  | { type: 'tool-call-end'; name: string; result: string }
+  | { type: 'tool-call-end'; name: string; result: string; error?: string }
   | { type: 'sql-confirm'; sql: string; explanation: string }
   | { type: 'sql-result'; data: SqlResultInfo }
   | { type: 'error'; message: string }
