@@ -2,9 +2,10 @@ import { useEffect, useRef, useMemo, Fragment, useCallback } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
+import { WelcomeScreen } from './WelcomeScreen'
 import { useChatStore } from '@/hooks/useChat'
 import { useSettings } from '@/hooks/useSettings'
-import { Database } from 'lucide-react'
+import { useDatabaseStore } from '@/hooks/useDatabase'
 import { AVAILABLE_MODELS } from '@/lib/constants'
 
 interface MessageListProps {
@@ -15,6 +16,7 @@ export function MessageList({ messages }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { sendMessage, isStreaming } = useChatStore()
+  const { activeConnection } = useDatabaseStore()
   const { model } = useSettings()
   const shouldAutoScrollRef = useRef(true)
   const prevLengthRef = useRef(messages.length)
@@ -65,31 +67,11 @@ export function MessageList({ messages }: MessageListProps) {
 
   if (messages.length === 0) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gray-200/80 flex items-center justify-center">
-            <Database className="w-7 h-7 text-gray-400" />
-          </div>
-          <p className="text-sm text-gray-500">
-            你可以问我关于数据库的任何问题
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 max-w-md">
-            {[
-              '这个数据库有哪些表?',
-              '帮我查看 users 表的结构',
-              '查询最近 7 天的数据量趋势',
-            ].map((q) => (
-              <button
-                key={q}
-                onClick={() => sendMessage(q)}
-                className="px-3 py-1.5 text-xs text-gray-600 border border-gray-300 rounded-full hover:border-green-500 hover:text-green-700 hover:bg-green-50/50 transition-colors"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <WelcomeScreen
+        onSuggestionClick={sendMessage}
+        hasConnection={!!activeConnection}
+        connectionName={activeConnection?.name}
+      />
     )
   }
 

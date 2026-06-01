@@ -36,12 +36,14 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
         {/* Logo + Toggle */}
         <div className={cn('p-4', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
-            <div className="w-7 h-7 rounded-lg bg-green-800 flex items-center justify-center text-xs font-bold text-white" onClick={onToggleCollapse}>
-              DB
+            <div className="flex items-center">
+              <div className="w-7 h-7 rounded-lg bg-green-800 flex items-center justify-center text-xs font-bold text-white" onClick={onToggleCollapse}>
+                DB
+              </div>
+              {!collapsed && (
+                <span className="font-semibold text-sm text-gray-900 ml-2">DB Chat</span>
+              )}
             </div>
-            {!collapsed && (
-              <span className="font-semibold text-sm text-gray-900 ml-2">DeepSeek DB Agent</span>
-            )}
             {!collapsed && <button
               onClick={onToggleCollapse}
               className="p-1.5 hover:bg-gray-200 rounded text-gray-500 hover:text-gray-700 transition-colors"

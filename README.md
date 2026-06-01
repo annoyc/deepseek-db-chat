@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">DeepSeek DB Chat</h1>
+  <h1 align="center">DeepSeek-Native DB Chat2SQL Agent</h1>
 </p>
 
 <p align="center">
@@ -19,13 +19,13 @@
 
 ---
 
-## Why DeepSeek DB Chat?
+## Why DeepSeek-Native DB Chat2SQL Agent?
 
-General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DeepSeek DB Chat is purpose-built for DeepSeek, solving problems other tools cannot.
+General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DeepSeek-Native DB Chat2SQL Agent is purpose-built for DeepSeek, solving problems other tools cannot.
 
 ### 🧠 WYSIWYG Thinking & Tool Calling
 
-DeepSeek's thinking mode outputs a chain of thought (`reasoning_content`) before generating SQL. **DeepSeek DB Chat** renders the entire thinking process in real time — thinking blocks, tool calls, and final answers stream live. **What you see is what the AI thinks** — full transparency, zero black box.
+DeepSeek's thinking mode outputs a chain of thought (`reasoning_content`) before generating SQL. **DeepSeek-Native DB Chat2SQL Agent** renders the entire thinking process in real time — thinking blocks, tool calls, and final answers stream live. **What you see is what the AI thinks** — full transparency, zero black box.
 
 The agent automatically tracks and re-sends `reasoning_content` across multi-turn tool calls, with differentiated strategies to avoid the 400 errors that break general-purpose frameworks.
 
@@ -47,7 +47,7 @@ Zero-redundancy request bodies with deterministic message construction ensure ma
 - 📊 **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
 - 💾 **DeepSeek Cost Optimization** — Zero-redundancy requests, deterministic message construction, maximum cache hit rate
 - 🔄 **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
-- 🗄️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
+- ️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
 - 🤖 **Intelligent Agent Loop** — Multi-step reasoning: list tables → inspect schema → generate SQL → confirm → execute
 - ✍️ **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
 - 💬 **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
@@ -142,14 +142,14 @@ src/
 │   ├── generate/       # Agent loop, streaming, structured output
 │   ├── context/        # Context compaction
 │   └── index.ts        # Public API exports
-├── server/             # Server-side logic
+── server/             # Server-side logic
 │   ├── agent.ts        # DB Agent configuration & system prompt
 │   ├── tools.ts        # Database tools (list_tables, get_schema, execute_sql)
 │   ├── database.ts     # MySQL connection pool management
 │   └── functions/      # TanStack server functions (chat, connections)
 ├── components/         # React components
 │   ├── chat/           # Chat UI (messages, SQL confirm, charts, thinking)
-│   └── layout/         # Sidebar, dialogs, database list
+│   ── layout/         # Sidebar, dialogs, database list
 ├── hooks/              # React hooks (useChat, useDatabase, useSettings)
 ├── lib/                # Types, constants, utilities
 ├── routes/             # TanStack Router pages

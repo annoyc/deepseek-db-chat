@@ -1,6 +1,6 @@
 # Core Concepts
 
-DeepSeek DB Chat is an AI-powered MySQL assistant built on an inlined copy of **deepseek-kit** (`src/core/`). This document explains the key concepts behind the agent, tools, streaming, human-in-the-loop SQL safety, thinking mode, error handling, and data visualization.
+DeepSeek-Native DB Chat2SQL Agent is an AI-powered MySQL assistant built on an inlined copy of **deepseek-kit** (`src/core/`). This document explains the key concepts behind the agent, tools, streaming, human-in-the-loop SQL safety, thinking mode, error handling, and data visualization.
 
 ---
 
@@ -8,7 +8,7 @@ DeepSeek DB Chat is an AI-powered MySQL assistant built on an inlined copy of **
 
 The agent is the central orchestrator. It connects a DeepSeek model to database tools and drives a multi-step **ReAct** loop — the model **Reasons** about the user's question, **Acts** by calling tools, observes the results, and repeats until it can answer or hits the step limit.
 
-DeepSeek DB Chat assembles the agent from three deepseek-kit primitives:
+DeepSeek-Native DB Chat2SQL Agent assembles the agent from three deepseek-kit primitives:
 
 - **`createModel`** — configures the LLM (model name, API key, thinking mode)
 - **`tool`** — defines typed, executable functions the model can call
@@ -48,7 +48,7 @@ const agentStream = agent.stream({
 
 Tools give the agent structured access to the database. Each tool is defined with deepseek-kit's `tool()` helper and a **Zod schema** that validates arguments before execution. Invalid arguments are returned to the model as structured errors so it can self-correct.
 
-DeepSeek DB Chat registers three database tools in `src/server/tools.ts`:
+DeepSeek-Native DB Chat2SQL Agent registers three database tools in `src/server/tools.ts`:
 
 ### list_tables
 
@@ -223,7 +223,7 @@ if (execResult.success) {
 
 ## Thinking Mode
 
-DeepSeek models support an extended **thinking** mode that exposes the model's chain-of-thought as `reasoning_content` in streaming deltas. DeepSeek DB Chat enables this by default.
+DeepSeek models support an extended **thinking** mode that exposes the model's chain-of-thought as `reasoning_content` in streaming deltas. DeepSeek-Native DB Chat2SQL Agent enables this by default.
 
 ```ts
 const model = createModel({
@@ -253,7 +253,7 @@ The thinking block is **collapsible** — users can expand or collapse it to foc
 
 ## Retry & Error Handling
 
-DeepSeek DB Chat inherits resilience mechanisms from the inlined deepseek-kit core. These operate at both the HTTP layer (API calls) and the tool layer (database operations).
+DeepSeek-Native DB Chat2SQL Agent inherits resilience mechanisms from the inlined deepseek-kit core. These operate at both the HTTP layer (API calls) and the tool layer (database operations).
 
 ### HTTP auto-retry
 

@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide covers local setup, project layout, key files, and conventions for contributing to **DeepSeek DB Chat** — an AI-powered MySQL assistant.
+This guide covers local setup, project layout, key files, and conventions for contributing to **DeepSeek-Native DB Chat2SQL Agent** — an AI-powered MySQL assistant.
 
 ---
 
@@ -162,7 +162,7 @@ Tool parameters are validated with Zod schemas before being passed to the agent.
 
 ### deepseek-kit core inlined for deep DeepSeek integration
 
-The `src/core/` directory contains an inlined copy of deepseek-kit rather than using it as an npm dependency. This allows direct control over the agent loop, streaming parser, and reasoning content handling — features that are central to the DeepSeek DB Chat experience.
+The `src/core/` directory contains an inlined copy of deepseek-kit rather than using it as an npm dependency. This allows direct control over the agent loop, streaming parser, and reasoning content handling — features that are central to the DeepSeek-Native DB Chat2SQL Agent experience.
 
 ---
 

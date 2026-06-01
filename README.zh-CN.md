@@ -1,9 +1,9 @@
 <p align="center">
-  <h1 align="center">DeepSeek DB Chat</h1>
+  <h1 align="center">DeepSeek-Native DB Chat2SQL Agent</h1>
 </p>
 
 <p align="center">
-  基于 DeepSeek 原生优化的 AI 数据库助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，极致美观的数据可视化。
+  一个基于 DeepSeek 原生优化的 AI 数据库助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
 </p>
 
 <p align="center">
@@ -19,13 +19,13 @@
 
 ---
 
-## 为什么选择 DeepSeek DB Chat？
+## 为什么选择 DeepSeek-Native DB Chat2SQL Agent？
 
-通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DeepSeek DB Chat 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
+通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DeepSeek-Native DB Chat2SQL Agent 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
 
 ### 🧠 所见即所得的思考 & 精准工具调用
 
-DeepSeek 思考模式会在生成 SQL 前输出思维链（`reasoning_content`）。**DeepSeek DB Chat** 将整个思考过程实时渲染 — 思考过程、工具调用、最终回答全程流式展示。**AI 想什么，你就看到什么** — 全程透明，零黑盒。
+DeepSeek 思考模式会在生成 SQL 前输出思维链（`reasoning_content`）。**DeepSeek-Native DB Chat2SQL Agent** 将整个思考过程实时渲染 — 思考过程、工具调用、最终回答全程流式展示。**AI 想什么，你就看到什么** — 全程透明，零黑盒。
 
 Agent 在多轮工具调用中自动追踪并回传 `reasoning_content`，采用差异化策略，避免通用框架常见的 400 错误。
 

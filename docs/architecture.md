@@ -1,6 +1,6 @@
-# DeepSeek DB Chat — Architecture
+# DeepSeek-Native DB Chat2SQL Agent — Architecture
 
-DeepSeek DB Chat is an AI-powered MySQL assistant that lets users ask natural-language questions about their databases. The application combines a React 19 single-page client, TanStack Start server functions, an inlined DeepSeek agent runtime, and mysql2 connection pools to deliver streaming, tool-augmented database analysis with human-in-the-loop SQL execution.
+DeepSeek-Native DB Chat2SQL Agent is an AI-powered MySQL assistant that lets users ask natural-language questions about their databases. The application combines a React 19 single-page client, TanStack Start server functions, an inlined DeepSeek agent runtime, and mysql2 connection pools to deliver streaming, tool-augmented database analysis with human-in-the-loop SQL execution.
 
 ---
 
