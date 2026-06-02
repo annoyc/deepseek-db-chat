@@ -1,4 +1,4 @@
-import { Zap, Shield, Search, Terminal, Eye } from 'lucide-react'
+import { Coins, Shield, Eye, Lock } from 'lucide-react'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (question: string) => void
@@ -10,32 +10,32 @@ interface WelcomeScreenProps {
 
 const features = [
   {
-    icon: Search,
-    title: '自然语言查询',
-    description: '用中文描述需求，AI 自动生成精准 SQL，无需手写代码',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  {
-    icon: Eye,
-    title: '自动探索结构',
-    description: 'AI 自动查看表结构，确认字段名后再生成 SQL，避免字段错误',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
+    icon: Coins,
+    title: '极致成本',
+    description: '基于 DeepSeek 前缀缓存优化，复用上下文降低 API 调用开销，智能控制 Token 消耗',
+    color: 'text-yellow-600',
+    bg: 'bg-yellow-50',
   },
   {
     icon: Shield,
-    title: '执行前确认',
-    description: 'SQL 执行前会展示给你确认，仅允许查询类操作，保障数据安全',
+    title: '安全可靠',
+    description: '数据库密码 AES-256 加密存储，SQL 执行前必须经你确认，危险操作一律拦截，仅允许安全查询',
     color: 'text-green-600',
     bg: 'bg-green-50',
   },
   {
-    icon: Terminal,
-    title: '流式实时响应',
-    description: '基于 DeepSeek 大模型，流式输出思考过程和结果，实时可见',
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
+    icon: Eye,
+    title: '过程透明',
+    description: 'AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都有迹可循，拒绝黑箱操作',
+    color: 'text-blue-600',
+    bg: 'bg-blue-50',
+  },
+  {
+    icon: Lock,
+    title: '隐私无忧',
+    description: '除模型对话外，所有数据与对话记录完全存储在本地，无任何云端交互，你的数据始终只属于你',
+    color: 'text-purple-600',
+    bg: 'bg-purple-50',
   },
 ]
 

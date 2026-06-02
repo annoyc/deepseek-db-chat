@@ -48,7 +48,7 @@ export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: fal
         return { success: true, data: result }
       } catch (err) {
         console.error('[confirm-sql] Execute error:', err)
-        return { success: false, error: 'SQL 执行失败，请检查 SQL 语法' }
+        return { success: false, error: err instanceof Error ? err.message : String(err) }
       }
     }
   )

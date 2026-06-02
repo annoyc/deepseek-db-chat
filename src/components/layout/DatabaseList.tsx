@@ -54,14 +54,14 @@ export function DatabaseList() {
 
           <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              onClick={() => setEditingConnection(conn)}
+              onClick={(e) => { e.stopPropagation(); setEditingConnection(conn) }}
               className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-blue-600 transition-colors"
               title="编辑连接"
             >
               <Pencil className="w-3 h-3" />
             </button>
             <button
-              onClick={() => setConfirmDeleteId(conn.id)}
+              onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(conn.id) }}
               className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-red-600 transition-colors"
               title="删除连接"
             >

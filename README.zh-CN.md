@@ -23,94 +23,60 @@
 
 通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DeepSeek-Native DB Chat2SQL Agent 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
 
-### 🧠 所见即所得的思考 & 精准工具调用
+### 💰 极致成本
 
-DeepSeek 思考模式会在生成 SQL 前输出思维链（`reasoning_content`）。**DeepSeek-Native DB Chat2SQL Agent** 将整个思考过程实时渲染 — 思考过程、工具调用、最终回答全程流式展示。**AI 想什么，你就看到什么** — 全程透明，零黑盒。
+基于 DeepSeek 前缀缓存优化，上下文复用降低 API 调用开销。确定性消息构建与零冗余请求体确保缓存命中率最大化，以最低成本获得最佳性能。
 
-Agent 在多轮工具调用中自动追踪并回传 `reasoning_content`，采用差异化策略，避免通用框架常见的 400 错误。
+### 🔒 安全可靠
 
-### 🔒 Human-in-the-Loop SQL 安全机制
+数据库密码使用 AES-256-GCM 加密存储。所有生成的 SQL 查询在执行**之前**都会呈现给你审查。危险操作（INSERT / UPDATE / DELETE / DROP）一律拦截，仅允许安全查询，你的数据库永远不会被意外操作伤害。
 
-所有生成的 SQL 查询都会在执行**之前**呈现给你审查。没有你的明确确认，任何 SQL 都不会执行。危险操作（INSERT / UPDATE / DELETE / DROP）会被清晰标注警告。你的数据库永远不会被幻觉查询所伤害。
+### ️ 过程透明
 
-### 💾 DeepSeek 成本压缩 & 极致缓存命中
+AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都有迹可循、可审计。**AI 想什么，你就看到什么** — 拒绝黑箱操作。
 
-零冗余请求体 + 确定性消息构建，确保 DeepSeek 缓存命中率最大化。配合自动重试、指数退避和智能超时机制，以最低成本获得可靠的性能表现。
+### 🔐 隐私无忧
+
+所有数据与对话记录完全存储在本地，无任何云端交互，无服务端数据收集。**你的数据始终只属于你**。
 
 ---
 
 ## 核心特性
 
-- 🧠 **实时思考过程可视化** — AI 推理全程可见：思考过程、工具调用、最终回答实时流式展示，所见即所得
-- 🔒 **SQL 安全执行** — 每条 SQL 都需要你确认后才会执行，杜绝意外操作
-- 🔐 **100% 隐私保护** — 所有聊天记录存储在浏览器 localStorage 中。**无需登录注册，无任何服务端数据存储**
+- 💰 **极致成本** — DeepSeek 前缀缓存优化，上下文复用，确定性消息构建，最大化缓存命中率
+- 🔒 **安全可靠** — AES-256 密码加密，SQL 执行前必须确认，危险操作一律拦截
+- ️ **过程透明** — AI 思考过程与工具调用实时可视化，全程可审计
+- 🔐 **隐私无忧** — 100% 本地存储，无云端交互，无服务端数据收集
 - 📊 **极致美观的数据可视化** — 查询结果自动渲染为交互式表格和图表（柱状图 / 折线图 / 饼图）
-- 💾 **DeepSeek 成本优化** — 零冗余请求体 + 确定性消息构建，最大化缓存命中率，降低 API 费用
 - 🔄 **弹性执行机制** — 自动重试 + 指数退避 + 可配置超时 + 智能错误恢复
-- 🗄️ **多数据库管理** — 在侧边栏添加、切换、管理多个 MySQL 连接
-- 🤖 **智能 Agent 循环** — 多步推理：列出表 → 查看结构 → 生成 SQL → 确认 → 执行
-- ✍️ **默认思考模式** — `reasoning_content` 在多轮工具调用中正确管理，零配置即可工作
-- 💬 **SSE 流式传输** — 基于 Server-Sent Events 的实时响应，即时反馈
+- ️ **多数据库管理** — 从侧边栏添加、切换和管理多个 MySQL 连接
+-  **智能 Agent 循环** — 多步推理：列表表 → 检查表结构 → 生成 SQL → 确认 → 执行
+- ️ **默认思考模式** — `reasoning_content` 在多轮工具调用中正确管理，零配置
+- 💬 **SSE 流式传输** — 通过 Server-Sent Events 实时推送响应，即时反馈
 
 ---
-
-<!-- ## 演示
-
-> 在此添加截图或 GIF
-
---- -->
 
 ## 快速开始
 
-### 环境要求
-
-- Node.js >= 18.0.0
-- pnpm
-- MySQL 数据库
-
-### 1. 克隆 & 安装
-
 ```bash
+# 克隆仓库
 git clone https://github.com/annoyc/deepseek-db-chat.git
 cd deepseek-db-chat
-pnpm install
+
+# 安装依赖
+npm install
+
+# 设置环境变量
+cp .env.example .env
+# 编辑 .env 并填入你的 DeepSeek API Key
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+npm run start
 ```
-
-### 2. 启动
-
-```bash
-pnpm dev
-```
-
-打开 [http://localhost:3000](http://localhost:3000)，在设置对话框中配置你的 DeepSeek API 密钥，即可开始与数据库对话。
-
-> 你也可以在 `.env` 文件中设置 `DEEPSEEK_API_KEY` — 详见[配置说明](#配置说明)。
-
----
-
-## 工作原理
-
-```mermaid
-flowchart LR
-    A[自然语言提问] --> B[DeepSeek Agent]
-    B --> C{需要更多信息?}
-    C -- 是 --> D[list_tables / get_schema]
-    D --> B
-    C -- 否 --> E[生成 SQL]
-    E --> F[用户确认]
-    F -- 确认 --> G[执行 MySQL 查询]
-    G --> H[可视化展示结果]
-    F -- 取消 --> I[取消执行]
-```
-
-Agent 遵循 **ReAct 循环**（推理 + 行动）：
-
-1. **理解** — 解析自然语言问题
-2. **探索** — 使用 `list_tables` 和 `get_table_schema` 工具发现数据库结构
-3. **生成** — 基于确认过的真实字段名和类型编写精确 SQL
-4. **确认** — 将 SQL 和说明呈现给用户审批
-5. **执行** — 运行确认后的 SQL，以表格或图表展示结果
-6. **延续** — 如需更多数据，Agent 继续执行后续查询
 
 ---
 
@@ -158,72 +124,7 @@ src/
 
 ---
 
-## 配置说明
 
-### API 密钥
+## License
 
-通过以下任一方式配置 DeepSeek API 密钥：
-
-- **应用内设置对话框**（推荐）— 点击侧边栏的设置图标
-- **环境变量** — 创建 `.env` 文件：
-
-```bash
-cp .env.example .env
-```
-
-```env
-DEEPSEEK_API_KEY=your_api_key_here
-```
-
-> 在 [platform.deepseek.com](https://platform.deepseek.com/api_keys) 获取 API 密钥
-
-### 环境变量
-
-| 变量 | 必填 | 说明 |
-|------|------|------|
-| `DEEPSEEK_API_KEY` | 否 | DeepSeek API 密钥（可通过应用内对话框设置） |
-| `DEEPSEEK_API_BASE_URL` | 否 | 自定义 API 地址（默认：`https://api.deepseek.com`） |
-| `DB_HOST` | 否 | 默认 MySQL 主机 |
-| `DB_PORT` | 否 | 默认 MySQL 端口 |
-| `DB_USER` | 否 | 默认 MySQL 用户名 |
-| `DB_PASSWORD` | 否 | 默认 MySQL 密码 |
-| `DB_DATABASE` | 否 | 默认 MySQL 数据库名 |
-
-### 模型选择
-
-两个模型可选，可在侧边栏切换：
-
-- **deepseek-v4-flash**（默认）— 响应更快，成本更低
-- **deepseek-v4-pro** — 推理质量更高
-
----
-
-## 路线图
-
-- [ ] 支持 PostgreSQL / SQLite
-- [ ] 查询历史与保存查询
-- [ ] 导出结果为 CSV / Excel
-- [ ] 深色模式
-- [ ] Docker 部署
-- [ ] 多语言支持（i18n）
-- [ ] MCP（Model Context Protocol）集成
-
----
-
-## 贡献指南
-
-欢迎贡献！请随时提交 Pull Request。
-
-1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 提交 Pull Request
-
----
-
-## 开源协议
-
-[MIT](./LICENSE) 协议 © [annoyc](https://github.com/annoyc)
-
-AI Agent 核心（`src/core/`）基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit) by [Flippedround](https://github.com/flippedround)，MIT 协议。
+[MIT](./LICENSE) 协议 © [annoyc](https://github.com/annoyc).

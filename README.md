@@ -23,94 +23,66 @@
 
 General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DeepSeek-Native DB Chat2SQL Agent is purpose-built for DeepSeek, solving problems other tools cannot.
 
-### 🧠 WYSIWYG Thinking & Tool Calling
+### 💰 Ultimate Cost Efficiency
 
-DeepSeek's thinking mode outputs a chain of thought (`reasoning_content`) before generating SQL. **DeepSeek-Native DB Chat2SQL Agent** renders the entire thinking process in real time — thinking blocks, tool calls, and final answers stream live. **What you see is what the AI thinks** — full transparency, zero black box.
+Built on DeepSeek prefix caching optimization, context reuse minimizes API call overhead. Deterministic message construction and zero-redundancy request bodies ensure maximum cache hit rates — intelligent token control at the lowest possible cost.
 
-The agent automatically tracks and re-sends `reasoning_content` across multi-turn tool calls, with differentiated strategies to avoid the 400 errors that break general-purpose frameworks.
+### 🔒 Rock-Solid Security
 
-### 🔒 Human-in-the-Loop SQL Safety
+Database passwords are encrypted with AES-256-GCM before storage. Every generated SQL query is presented to you for review **before** execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked — only safe read queries are allowed. Your database is never at risk.
 
-Every generated SQL query is presented to you for review **before** execution. No SQL runs without your explicit confirmation. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are clearly flagged with warnings. Your database is never at risk from hallucinated queries.
+### ️ Full Transparency
 
-### 💾 Cost Optimization & Maximum Cache Hit Rate
+The AI's entire thinking process and tool calls are fully visible — every reasoning step and SQL generation is traceable and auditable. No black box operations: **what you see is exactly what the AI thinks**.
 
-Zero-redundancy request bodies with deterministic message construction ensure maximum DeepSeek cache hit rates. Combined with auto-retry, exponential backoff, and intelligent timeout mechanisms, you get reliable performance at the lowest possible cost.
+###  Complete Privacy
+
+All data and conversation history are stored entirely on your local machine. No cloud interactions, no server-side data collection — **your data always belongs to you**.
 
 ---
 
 ## Features
 
-- 🧠 **Real-Time Thinking Visualization** — Watch the AI reason step by step: thinking, tool calls, and answers stream live — WYSIWYG
-- 🔒 **Human-in-the-Loop SQL** — Every SQL query requires your confirmation before execution — no surprises
-- 🔐 **100% Privacy** — All chat history stays in your browser's localStorage. **No login, no registration, no server-side data storage**
+- ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
+- 🔒 **Security** — AES-256 encrypted passwords, mandatory SQL confirmation, dangerous operations blocked
+- ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
+- 🔐 **Privacy** — 100% local storage, no cloud interaction, no server-side data collection
 - 📊 **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
-- 💾 **DeepSeek Cost Optimization** — Zero-redundancy requests, deterministic message construction, maximum cache hit rate
 - 🔄 **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
-- ️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
-- 🤖 **Intelligent Agent Loop** — Multi-step reasoning: list tables → inspect schema → generate SQL → confirm → execute
+- 🗄️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
+-  **Intelligent Agent Loop** — Multi-step reasoning: list tables → inspect schema → generate SQL → confirm → execute
 - ✍️ **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
 - 💬 **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
 
 ---
 
-<!-- ## Demo
-
-> Add screenshot or GIF here
-
---- -->
-
 ## Quick Start
 
-### Prerequisites
-
-- Node.js >= 18.0.0
-- pnpm
-- A MySQL database
-
-### 1. Clone & Install
-
 ```bash
+# Clone the repository
 git clone https://github.com/annoyc/deepseek-db-chat.git
 cd deepseek-db-chat
-pnpm install
+
+# Install dependencies
+npm install
+
+# Set environment variables
+cp .env.example .env
+# Edit .env and fill in your DeepSeek API key
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+npm run start
 ```
-
-### 2. Run
-
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000](http://localhost:3000), configure your DeepSeek API key in the settings dialog, and start chatting with your database.
-
-> You can also set `DEEPSEEK_API_KEY` in a `.env` file if you prefer — see [Configuration](#configuration).
 
 ---
 
-## How It Works
+## Screenshots
 
-```mermaid
-flowchart LR
-    A[Natural Language] --> B[DeepSeek Agent]
-    B --> C{Needs Info?}
-    C -- Yes --> D[list_tables / get_schema]
-    D --> B
-    C -- No --> E[Generate SQL]
-    E --> F[User Confirms]
-    F -- Yes --> G[Execute on MySQL]
-    G --> H[Visualize Results]
-    F -- No --> I[Cancel]
-```
-
-The agent follows a **ReAct loop** (Reasoning + Acting):
-
-1. **Understand** — Parse the natural language question
-2. **Explore** — Use `list_tables` and `get_table_schema` tools to discover the database structure
-3. **Generate** — Write precise SQL based on confirmed field names and types
-4. **Confirm** — Present SQL to the user with an explanation for approval
-5. **Execute** — Run the confirmed SQL and display results as tables or charts
-6. **Continue** — If more data is needed, the agent continues with additional queries
+> Add screenshots here to showcase the UI
 
 ---
 
@@ -142,88 +114,22 @@ src/
 │   ├── generate/       # Agent loop, streaming, structured output
 │   ├── context/        # Context compaction
 │   └── index.ts        # Public API exports
-── server/             # Server-side logic
+├── server/             # Server-side logic
 │   ├── agent.ts        # DB Agent configuration & system prompt
 │   ├── tools.ts        # Database tools (list_tables, get_schema, execute_sql)
 │   ├── database.ts     # MySQL connection pool management
 │   └── functions/      # TanStack server functions (chat, connections)
 ├── components/         # React components
 │   ├── chat/           # Chat UI (messages, SQL confirm, charts, thinking)
-│   ── layout/         # Sidebar, dialogs, database list
+│   └── layout/         # Sidebar, dialogs, database list
 ├── hooks/              # React hooks (useChat, useDatabase, useSettings)
-├── lib/                # Types, constants, utilities
+── lib/                # Types, constants, utilities
 ├── routes/             # TanStack Router pages
 └── styles/             # Global CSS (Tailwind)
 ```
 
 ---
 
-## Configuration
-
-### API Key
-
-Configure your DeepSeek API key via either:
-
-- **In-app settings dialog** (recommended) — click the settings icon in the sidebar
-- **Environment variable** — create a `.env` file:
-
-```bash
-cp .env.example .env
-```
-
-```env
-DEEPSEEK_API_KEY=your_api_key_here
-```
-
-> Get your API key at [platform.deepseek.com](https://platform.deepseek.com/api_keys)
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DEEPSEEK_API_KEY` | No | DeepSeek API key (can be set via in-app dialog instead) |
-| `DEEPSEEK_API_BASE_URL` | No | Custom API base URL (default: `https://api.deepseek.com`) |
-| `DB_HOST` | No | Default MySQL host |
-| `DB_PORT` | No | Default MySQL port |
-| `DB_USER` | No | Default MySQL user |
-| `DB_PASSWORD` | No | Default MySQL password |
-| `DB_DATABASE` | No | Default MySQL database name |
-
-### Model Selection
-
-Two models available, switchable from the sidebar:
-
-- **deepseek-v4-flash** (default) — Fast responses, lower cost
-- **deepseek-v4-pro** — Higher reasoning quality
-
----
-
-## Roadmap
-
-- [ ] PostgreSQL / SQLite support
-- [ ] Query history and saved queries
-- [ ] Export results to CSV / Excel
-- [ ] Dark mode
-- [ ] Docker deployment
-- [ ] Multi-language support (i18n)
-- [ ] MCP (Model Context Protocol) integration
-
----
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
 ## License
 
-[MIT](./LICENSE) License © [annoyc](https://github.com/annoyc)
-
-The AI agent core (`src/core/`) is based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit) by [Flippedround](https://github.com/flippedround), MIT License.
+[MIT](./LICENSE) 协议 © [annoyc](https://github.com/annoyc).
