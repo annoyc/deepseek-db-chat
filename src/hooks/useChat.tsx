@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react'
 import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo } from '@/lib/types'
 import { generateId } from '@/lib/utils'
+import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
 import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
 import { useDatabaseStore } from './useDatabase'
@@ -534,7 +535,7 @@ function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
     lines.push(header)
     lines.push(result.columns.map(() => '---').join(' | '))
     for (const row of result.rows.slice(0, 50)) {
-      lines.push(result.columns.map((col) => String(row[col] ?? 'NULL')).join(' | '))
+      lines.push(result.columns.map((col) => maskPII(String(row[col] ?? 'NULL'))).join(' | '))
     }
     if (result.rows.length > 50) {
       lines.push(`... 还有 ${result.rows.length - 50} 行未展示`)

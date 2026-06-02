@@ -33,7 +33,7 @@ const features = [
   {
     icon: Lock,
     title: '隐私无忧',
-    description: '除模型对话外，所有数据与对话记录完全存储在本地，无任何云端交互，你的数据始终只属于你',
+    description: '除对话外（敏感数据脱敏后再发送给模型），所有对话记录完全存储在本地，你的数据始终只属于你',
     color: 'text-purple-600',
     bg: 'bg-purple-50',
   },
