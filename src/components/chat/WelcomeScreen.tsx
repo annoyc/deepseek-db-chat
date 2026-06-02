@@ -40,10 +40,10 @@ const features = [
 ]
 
 const suggestions = [
-  { icon: '', text: '这个数据库有哪些表?' },
-  { icon: '', text: '帮我查看所有表的结构' },
-  { icon: '', text: '查询最近 7 天的数据量趋势' },
-  { icon: '', text: '找出每个部门的用户数量' },
+  { icon: '', text: '这个数据库有哪几张用户表?' },
+  { icon: '', text: '帮我查看终端用户表的结构' },
+  { icon: '', text: '查询最近一个月广告页访问量趋势' },
+  { icon: '', text: '查询最近一个月首页banner点击事件趋势' },
 ]
 
 export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, connectionStatus, connectionError }: WelcomeScreenProps) {
@@ -52,7 +52,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
       <div className="max-w-3xl mx-auto px-6 py-8 space-y-8 h-full flex flex-col justify-center">
         {/* Hero */}
         <div className="text-center space-y-3 pt-8">
-          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-green-200">
+          <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-green-100">
             <img src="/logo.svg" alt="DB Chat2SQL" className="w-full h-full" />
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">

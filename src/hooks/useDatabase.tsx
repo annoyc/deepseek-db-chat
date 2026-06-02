@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, createContext, useContext } from 'rea
 import type { DatabaseConnection } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { testConnectionFn } from '@/server/functions/connections'
-import { encryptPasswordFn } from '@/server/functions/crypto'
+import { encryptPasswordFn, validatePasswordFn } from '@/server/functions/crypto'
 
 type StoredConnection = Omit<DatabaseConnection, 'password'> & { password: string }
 
@@ -50,9 +50,19 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = loadConnections()
-    if (stored.length > 0) {
-      setConnections(stored.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
-    }
+    if (stored.length === 0) return
+
+    ;(async () => {
+      const validConns: StoredConnection[] = []
+      for (const conn of stored) {
+        const { valid } = await validatePasswordFn({ data: { encrypted: conn.password } })
+        if (valid) validConns.push(conn)
+      }
+      if (validConns.length !== stored.length) {
+        saveConnections(validConns)
+      }
+      setConnections(validConns.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+    })()
   }, [])
   const [editingConnection, setEditingConnection] = useState<Omit<DatabaseConnection, 'password'> | null>(null)
 

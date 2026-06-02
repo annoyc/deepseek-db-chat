@@ -2,6 +2,5 @@ node_modules/
 dist/
 .output/
 .env
-data/
 *.local
 .DS_Store
