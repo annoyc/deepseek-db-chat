@@ -15,7 +15,7 @@ interface DatabaseState {
   connectionStatus: ConnectionStatus
   connectionError: string | null
   editingConnection: Omit<DatabaseConnection, 'password'> | null
-  setActiveConnection: (id: string) => void
+  setActiveConnection: (id: string | null) => void
   setEditingConnection: (conn: Omit<DatabaseConnection, 'password'> | null) => void
   addConnection: (data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => Promise<void>
   updateConnection: (id: string, data: Omit<DatabaseConnection, 'id' | 'createdAt'>) => Promise<void>
@@ -148,8 +148,13 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     }
   }, [getFullConnection])
 
-  const setActiveConnection = useCallback((id: string) => {
+  const setActiveConnection = useCallback((id: string | null) => {
     setActiveConnectionId(id)
+    if (id === null) {
+      setConnectionStatus('idle')
+      setConnectionError(null)
+      return
+    }
     setConnectionStatus('testing')
     setConnectionError(null)
     // Use setTimeout to ensure the ID is set before testing

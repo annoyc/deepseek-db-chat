@@ -82,13 +82,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (loaded.length > 0) {
       setSessions(loaded)
       setActiveSessionId(loaded[0].id)
+      if (loaded[0].connectionId) {
+        loadingSessionConnIdRef.current = loaded[0].connectionId
+        setActiveConnection(loaded[0].connectionId)
+      }
     }
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
-  const { activeConnectionId, getFullConnection } = useDatabaseStore()
+  const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
   const { model, apiKey } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
+  const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     saveSessionsToStorage(sessions)
@@ -119,6 +124,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     return newSession.id
   }, [activeSessionId, sessions, activeConnectionId])
 
+  const prevConnectionIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const shouldSkip = loadingSessionConnIdRef.current !== undefined && loadingSessionConnIdRef.current === activeConnectionId
+    loadingSessionConnIdRef.current = undefined
+
+    if (activeConnectionId !== null && activeConnectionId !== prevConnectionIdRef.current && !shouldSkip) {
+      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
+      const isEmptySession = currentSession && currentSession.messages.length === 0
+
+      if (isEmptySession) {
+        setSessions((prev) => {
+          const updated = prev.map((s) =>
+            s.id === currentSession.id ? { ...s, connectionId: activeConnectionId, updatedAt: new Date().toISOString() } : s
+          )
+          saveSessionsToStorage(updated)
+          return updated
+        })
+      } else {
+        const newSession: ChatSession = {
+          id: generateId(),
+          connectionId: activeConnectionId,
+          title: '新对话',
+          messages: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        setSessions((prev) => {
+          const updated = [newSession, ...prev]
+          saveSessionsToStorage(updated)
+          return updated
+        })
+        setActiveSessionId(newSession.id)
+      }
+    }
+    prevConnectionIdRef.current = activeConnectionId
+  }, [activeConnectionId, activeSessionId])
+
   const deleteSession = useCallback((id: string) => {
     setSessions((prev) => {
       const updated = prev.filter((s) => s.id !== id)
@@ -129,6 +172,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setActiveSessionId(null)
     }
   }, [activeSessionId])
+
+  const handleSetActiveSession = useCallback((id: string) => {
+    const session = sessions.find((s) => s.id === id)
+    if (!session) return
+
+    if (session.connectionId) {
+      const conn = getFullConnection(session.connectionId)
+      if (conn) {
+        loadingSessionConnIdRef.current = session.connectionId
+        setActiveConnection(session.connectionId)
+      } else {
+        setActiveConnection(null)
+      }
+    } else {
+      setActiveConnection(null)
+    }
+
+    setActiveSessionId(id)
+  }, [sessions, getFullConnection, setActiveConnection])
 
   const createNewSession = useCallback(() => {
     const newSession: ChatSession = {
@@ -508,7 +570,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     activeSessionId,
     activeSession,
     isStreaming,
-    setActiveSession: setActiveSessionId,
+    setActiveSession: handleSetActiveSession,
     createNewSession,
     deleteSession,
     sendMessage,
