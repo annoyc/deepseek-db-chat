@@ -110,7 +110,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
-  const { model, apiKey } = useSettings()
+  const { model, apiKey, thinkingMode } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
@@ -238,7 +238,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!connection) throw new Error('数据库连接不存在')
 
     const response = await chatStream({
-      data: { connection, message, history, model, apiKey: apiKey || undefined },
+      data: { connection, message, history, model, apiKey: apiKey || undefined, thinkingMode },
     })
 
     for await (const chunk of parseSSEStream(response as unknown as Response)) {
@@ -351,7 +351,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     return hasSqlConfirm
-  }, [updateSession, model, apiKey, getFullConnection])
+  }, [updateSession, model, apiKey, thinkingMode, getFullConnection])
 
   const markTaskComplete = useCallback((sessionId: string) => {
     updateSession(sessionId, (s) => {

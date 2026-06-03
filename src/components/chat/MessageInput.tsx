@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowUp, ChevronDown } from 'lucide-react'
+import { ArrowUp, Atom, ChevronDown } from 'lucide-react'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
@@ -11,7 +11,7 @@ export function MessageInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { model, setModel } = useSettings()
+  const { model, setModel, thinkingMode, setThinkingMode } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -65,40 +65,54 @@ export function MessageInput() {
             className="w-full resize-none px-4 pt-4 pb-2 text-sm bg-transparent outline-none placeholder-gray-400 disabled:opacity-50 max-h-[200px] leading-relaxed"
           />
           <div className="flex items-center justify-between px-3 pb-3">
-            <div className="relative">
-              <button
-                onClick={() => setShowModelMenu(!showModelMenu)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
-              >
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                <span>{currentModel.name}</span>
-                <ChevronDown className="w-3 h-3" />
-              </button>
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelMenu(!showModelMenu)}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span>{currentModel.name}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
 
-              {showModelMenu && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                  <div className="absolute bottom-full left-0 mb-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-48">
-                    {AVAILABLE_MODELS.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => { setModel(m.id); setShowModelMenu(false) }}
-                        className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                          m.id === model ? 'text-green-700 font-medium' : 'text-gray-700'
-                        }`}
-                      >
-                        <div>
-                          <div className="font-medium">{m.name}</div>
-                          <div className="text-xs text-gray-400">{m.description}</div>
-                        </div>
-                        {m.id === model && (
-                          <div className="w-2 h-2 rounded-full bg-green-500" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+                {showModelMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
+                    <div className="absolute bottom-full left-0 mb-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-48">
+                      {AVAILABLE_MODELS.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => { setModel(m.id); setShowModelMenu(false) }}
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                            m.id === model ? 'text-green-700 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium">{m.name}</div>
+                            <div className="text-xs text-gray-400">{m.description}</div>
+                          </div>
+                          {m.id === model && (
+                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
+                  thinkingMode === 'enabled'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-gray-300 text-gray-400'
+                }`}
+              >
+                <Atom className="w-3.5 h-3.5" />
+                <span>深度思考</span>
+              </button>
             </div>
 
             <button

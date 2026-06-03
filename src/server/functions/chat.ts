@@ -10,6 +10,7 @@ interface ChatInput {
   history?: { role: 'user' | 'assistant'; content: string }[]
   model?: string
   apiKey?: string
+  thinkingMode?: 'enabled' | 'disabled'
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -28,6 +29,7 @@ export const chatStream = createServerFn({ method: 'POST' })
           const { agent, resultStore } = createDbAgent(decryptedConnection, {
             model: data.model,
             apiKey: decryptedApiKey,
+            thinkingMode: data.thinkingMode,
           })
           const agentStream = agent.stream({
             prompt: data.message,

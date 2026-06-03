@@ -6,6 +6,7 @@ import { DEFAULT_MODEL } from '@/lib/constants'
 interface AgentOptions {
   model?: string
   apiKey?: string
+  thinkingMode?: 'enabled' | 'disabled'
 }
 
 const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据用户的自然语言问题生成精确的SQL查询。
@@ -53,7 +54,7 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
 
   const modelConfig: Record<string, unknown> = {
     model: modelName,
-    thinking: { type: 'enabled' },
+    thinking: { type: options?.thinkingMode ?? 'enabled' },
   }
   if (apiKey) {
     modelConfig.apiKey = apiKey
