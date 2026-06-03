@@ -20,12 +20,18 @@ export interface ChatSession {
   taskEndTime?: number
 }
 
+export type MessagePart =
+  | { type: 'thinking'; content: string }
+  | { type: 'tool-call'; toolCallIndex: number }
+  | { type: 'text'; content: string }
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   thinking?: string
   toolCalls?: ToolCallInfo[]
+  parts?: MessagePart[]
   sqlConfirm?: SqlConfirmInfo
   sqlResult?: SqlResultInfo
   timestamp: string

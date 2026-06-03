@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 interface ThinkingBlockProps {
   content: string
   round: number
+  index?: number
 }
 
 function renderInlineCode(text: string): ReactNode[] {
@@ -24,10 +25,13 @@ function renderInlineCode(text: string): ReactNode[] {
   })
 }
 
-export function ThinkingBlock({ content, round }: ThinkingBlockProps) {
+export function ThinkingBlock({ content, round, index }: ThinkingBlockProps) {
   const [expanded, setExpanded] = useState(true)
 
-  const title = round <= 1 ? '思考过程' : `思考过程 (第${round}轮)`
+  let title = round <= 1 ? '思考过程' : `思考过程 (第${round}轮)`
+  if (index && index > 1) {
+    title += ` #${index}`
+  }
 
   return (
     <div className="border border-gray-700 rounded-xl overflow-hidden bg-white">

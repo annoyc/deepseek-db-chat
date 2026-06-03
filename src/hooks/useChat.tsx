@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react'
-import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo } from '@/lib/types'
+import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
 import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
+import { db } from '@/lib/db'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
 
@@ -52,41 +53,60 @@ async function* parseSSEStream(response: Response): AsyncGenerator<StreamChunk> 
   }
 }
 
-function loadSessionsFromStorage(): ChatSession[] {
+async function loadSessionsFromStorage(): Promise<ChatSession[]> {
   if (typeof window === 'undefined') return []
   try {
+    const sessions = await db.chatSessions.toArray()
+    if (sessions.length > 0) return sessions
+
+    // IndexedDB 为空时尝试从 localStorage 恢复残留数据
     const raw = window.localStorage.getItem('deepseek-chat-sessions')
-    return raw ? JSON.parse(raw) : []
+    if (raw) {
+      const restored: ChatSession[] = JSON.parse(raw)
+      if (Array.isArray(restored) && restored.length > 0) {
+        await db.chatSessions.bulkPut(restored)
+        return restored
+      }
+    }
+    return []
   } catch {
     return []
   }
 }
 
-function saveSessionsToStorage(sessions: ChatSession[]) {
+async function saveSessionsToStorage(sessions: ChatSession[]) {
   if (typeof window === 'undefined') return
   try {
     const toSave = sessions.map((s) => ({
       ...s,
       messages: s.messages.slice(-100),
     }))
-    window.localStorage.setItem('deepseek-chat-sessions', JSON.stringify(toSave))
+    await db.transaction('rw', db.chatSessions, async () => {
+      await db.chatSessions.clear()
+      if (toSave.length > 0) {
+        await db.chatSessions.bulkPut(toSave)
+      }
+    })
   } catch {}
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const initialLoadDone = useRef(false)
 
   useEffect(() => {
-    const loaded = loadSessionsFromStorage()
-    if (loaded.length > 0) {
-      setSessions(loaded)
-      setActiveSessionId(loaded[0].id)
-      if (loaded[0].connectionId) {
-        loadingSessionConnIdRef.current = loaded[0].connectionId
-        setActiveConnection(loaded[0].connectionId)
+    loadSessionsFromStorage().then((loaded) => {
+      if (loaded.length > 0) {
+        setSessions(loaded)
+        setActiveSessionId(loaded[0].id)
+        if (loaded[0].connectionId) {
+          loadingSessionConnIdRef.current = loaded[0].connectionId
+          setActiveConnection(loaded[0].connectionId)
+        }
       }
-    }
+      initialLoadDone.current = true
+    })
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
@@ -96,6 +116,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
+    if (!initialLoadDone.current) return
     saveSessionsToStorage(sessions)
   }, [sessions])
 
@@ -234,13 +255,26 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const messages = [...s.messages]
         const lastMsg = { ...messages[messages.length - 1] }
 
+        const parts: MessagePart[] = [...(lastMsg.parts ?? [])]
+        const lastPart = parts.length > 0 ? parts[parts.length - 1] : null
+
         switch (chunk.type) {
           case 'thinking':
             lastMsg.thinking = (lastMsg.thinking ?? '') + chunk.content
+            if (lastPart && lastPart.type === 'thinking') {
+              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
+            } else {
+              parts.push({ type: 'thinking', content: chunk.content })
+            }
             break
 
           case 'text':
             lastMsg.content = (lastMsg.content ?? '') + chunk.content
+            if (lastPart && lastPart.type === 'text') {
+              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
+            } else {
+              parts.push({ type: 'text', content: chunk.content })
+            }
             break
 
           case 'tool-call-start': {
@@ -249,7 +283,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               args: chunk.args,
               status: 'calling',
             }
-            lastMsg.toolCalls = [...(lastMsg.toolCalls ?? []), tc]
+            const newToolCalls = [...(lastMsg.toolCalls ?? []), tc]
+            lastMsg.toolCalls = newToolCalls
+            parts.push({ type: 'tool-call', toolCallIndex: newToolCalls.length - 1 })
             break
           }
 
@@ -275,6 +311,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           case 'error':
             lastMsg.content = (lastMsg.content ?? '') + `\n\n错误: ${chunk.message}`
+            if (lastPart && lastPart.type === 'text') {
+              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + `\n\n错误: ${chunk.message}` }
+            } else {
+              parts.push({ type: 'text', content: `\n\n错误: ${chunk.message}` })
+            }
             break
 
           case 'finish': {
@@ -286,6 +327,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             break
           }
         }
+
+        lastMsg.parts = parts
 
         messages[messages.length - 1] = lastMsg
         return { ...s, messages }

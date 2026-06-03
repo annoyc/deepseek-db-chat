@@ -10,24 +10,43 @@ interface MessageBubbleProps {
   roundNumber: number
 }
 
-export function MessageBubble({ message, roundNumber }: MessageBubbleProps) {
-  const isUser = message.role === 'user'
+function AssistantPartsView({ message, roundNumber }: MessageBubbleProps) {
+  const parts = message.parts!
+  const toolCalls = message.toolCalls ?? []
+  let thinkingIdx = 0
 
-  if (isUser) {
-    return (
-      <div className="flex gap-3 justify-end">
-        <div className="max-w-[70%]">
-          <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-green-700 text-white">
-            <p className="whitespace-pre-wrap">{message.content}</p>
-          </div>
-        </div>
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-1">
-          <User className="w-4 h-4 text-gray-600" />
-        </div>
-      </div>
-    )
-  }
+  return (
+    <div className="space-y-3">
+      {parts.map((part, i) => {
+        switch (part.type) {
+          case 'thinking': {
+            const idx = ++thinkingIdx
+            return <ThinkingBlock key={`t-${i}`} content={part.content} round={roundNumber} index={idx} />
+          }
+          case 'tool-call': {
+            const tc = toolCalls[part.toolCallIndex]
+            if (!tc || tc.name === 'execute_sql') return null
+            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} />
+          }
+          case 'text':
+            return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} /> : null
+          default:
+            return null
+        }
+      })}
 
+      {message.sqlConfirm && (
+        <SqlConfirmBlock
+          info={message.sqlConfirm}
+          messageId={message.id}
+          result={message.sqlResult}
+        />
+      )}
+    </div>
+  )
+}
+
+function AssistantLegacyView({ message, roundNumber }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0
@@ -64,4 +83,27 @@ export function MessageBubble({ message, roundNumber }: MessageBubbleProps) {
       )}
     </div>
   )
+}
+
+export function MessageBubble({ message, roundNumber }: MessageBubbleProps) {
+  if (message.role === 'user') {
+    return (
+      <div className="flex gap-3 justify-end">
+        <div className="max-w-[70%]">
+          <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-green-700 text-white">
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          </div>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-1">
+          <User className="w-4 h-4 text-gray-600" />
+        </div>
+      </div>
+    )
+  }
+
+  if (message.parts && message.parts.length > 0) {
+    return <AssistantPartsView message={message} roundNumber={roundNumber} />
+  }
+
+  return <AssistantLegacyView message={message} roundNumber={roundNumber} />
 }

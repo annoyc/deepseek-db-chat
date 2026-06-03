@@ -3,16 +3,17 @@ import { X, Eye, EyeOff, Server, Lock, Loader2 } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import { getEnvApiKeyStatus } from '@/server/functions/settings'
 import { encryptPasswordFn } from '@/server/functions/crypto'
+import { db } from '@/lib/db'
 
 interface ApiKeyDialogProps {
   open: boolean
   onClose: () => void
 }
 
-function hasEncryptedKey(): boolean {
+async function hasEncryptedKey(): Promise<boolean> {
   try {
-    const raw = window.localStorage.getItem('deepseek-api-key')
-    return raw ? !!JSON.parse(raw) : false
+    const record = await db.settings.get('deepseek-api-key')
+    return record !== undefined && !!record.value
   } catch {
     return false
   }
@@ -32,7 +33,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   useEffect(() => {
     if (open) {
       setInputValue('')
-      setHasSavedKey(hasEncryptedKey())
+      hasEncryptedKey().then(setHasSavedKey)
       setShowKey(false)
       getEnvApiKeyStatus().then(setEnvStatus).catch(() => {})
     }
