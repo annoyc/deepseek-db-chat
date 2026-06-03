@@ -29,7 +29,7 @@ Built on DeepSeek prefix caching optimization, context reuse minimizes API call 
 
 ### 🔒 Rock-Solid Security
 
-Database passwords are encrypted with AES-256-GCM before storage. Every generated SQL query passes **dual-layer validation** — blocked at the tool layer by a strict query-only whitelist, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at both gates — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
+Database passwords and model apiKey are encrypted with AES-256-GCM before storage. Every generated SQL query passes **dual-layer validation** — blocked at the tool layer by a strict query-only whitelist, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at both gates — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
 
 ### ️ Full Transparency
 

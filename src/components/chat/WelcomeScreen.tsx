@@ -19,7 +19,7 @@ const features = [
   {
     icon: Shield,
     title: '安全可靠',
-    description: '数据库密码 AES-256 加密存储，SQL 经工具层白名单与人工确认双重校验，危险操作双门拦截',
+    description: '敏感密码及密钥均使用AES-256加密存储，SQL经工具层白名单与人工确认双重校验，危险操作双门拦截',
     color: 'text-green-600',
     bg: 'bg-green-50',
   },
@@ -49,7 +49,7 @@ const suggestions = [
 export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, connectionStatus, connectionError }: WelcomeScreenProps) {
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-8 h-full flex flex-col justify-center">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8 h-full flex flex-col justify-center">
         {/* Hero */}
         <div className="text-center space-y-3 pt-8">
           <div className="w-16 h-16 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-green-100">
