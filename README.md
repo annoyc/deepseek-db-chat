@@ -29,7 +29,7 @@ Built on DeepSeek prefix caching optimization, context reuse minimizes API call 
 
 ### 🔒 Rock-Solid Security
 
-Database passwords are encrypted with AES-256-GCM before storage. Every generated SQL query is presented to you for review **before** execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
+Database passwords are encrypted with AES-256-GCM before storage. Every generated SQL query passes **dual-layer validation** — blocked at the tool layer by a strict query-only whitelist, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at both gates — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
 
 ### ️ Full Transparency
 
@@ -44,7 +44,7 @@ All data and conversation history are stored entirely on your local machine. No 
 ## Features
 
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
-- 🔒 **Security** — AES-256 encrypted passwords, mandatory SQL confirmation, dangerous operations blocked, PII auto-masking before AI transmission
+- 🔒 **Security** — AES-256 encrypted passwords, dual-layer SQL validation (tool + confirmation), dangerous operations blocked at both gates, PII auto-masking before AI transmission
 - ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
 - 🔐 **Privacy** — 100% local storage, no cloud interaction, no server-side data collection
 - 📊 **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)

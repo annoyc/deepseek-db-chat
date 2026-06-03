@@ -19,7 +19,7 @@ const features = [
   {
     icon: Shield,
     title: '安全可靠',
-    description: '数据库密码 AES-256 加密存储，SQL 执行前必须经你确认，危险操作一律拦截，仅允许安全查询',
+    description: '数据库密码 AES-256 加密存储，SQL 经工具层白名单与人工确认双重校验，危险操作双门拦截',
     color: 'text-green-600',
     bg: 'bg-green-50',
   },
@@ -66,7 +66,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
           ) : connectionStatus === 'testing' ? (
             <p className="text-sm text-yellow-500">连接测试中...</p>
           ) : hasConnection ? (
-            <p className="text-sm text-green-600">已连接 {connectionName}</p>
+            <p className="text-sm text-green-600">已连接数据库：{connectionName}</p>
           ) : (
             <p className="text-sm text-gray-500">用自然语言查询数据库，AI 自动生成 SQL 并执行</p>
           )}

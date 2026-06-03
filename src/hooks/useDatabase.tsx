@@ -160,7 +160,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     // Use setTimeout to ensure the ID is set before testing
     setTimeout(async () => {
       const result = await testConnectionById(id)
-      console.log('result', result)
       if (result.success) {
         setConnectionStatus('success')
         setConnectionError(null)

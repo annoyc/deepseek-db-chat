@@ -18,3 +18,12 @@ export const validatePasswordFn = createServerFn({ method: 'POST' })
       return { valid: result !== '' || data.encrypted === '' }
     }
   )
+
+export const decryptApiKeyFn = createServerFn({ method: 'POST' })
+  .inputValidator((data: { encrypted: string }) => data)
+  .handler(
+    async ({ data }): Promise<{ decrypted: string }> => {
+      if (!data.encrypted) return { decrypted: '' }
+      return { decrypted: decrypt(data.encrypted) }
+    }
+  )

@@ -24,9 +24,10 @@ export const chatStream = createServerFn({ method: 'POST' })
             ...data.connection,
             password: decrypt(data.connection.password),
           }
+          const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
           const { agent, resultStore } = createDbAgent(decryptedConnection, {
             model: data.model,
-            apiKey: data.apiKey,
+            apiKey: decryptedApiKey,
           })
           const agentStream = agent.stream({
             prompt: data.message,
@@ -107,7 +108,7 @@ export const chatStream = createServerFn({ method: 'POST' })
           controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
         } catch (err) {
           console.error('[chat] Agent stream error:', err)
-          const msg = 'AI 服务异常，请稍后重试'
+          const msg = 'AI 服务异常，请检查 API Key 是否正确'
           controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: msg })))
         } finally {
           controller.close()

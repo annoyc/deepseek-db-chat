@@ -89,7 +89,7 @@ export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
           )}
 
           {hasResult && (
-            <div className="text-[13px] text-gray-500 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
+            <div className={cn('text-[13px] text-gray-500 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed', Object.entries(toolCall.args).length > 0 && 'border-t border-gray-100 pt-2')}>
               {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
             </div>
           )}

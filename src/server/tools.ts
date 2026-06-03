@@ -1,6 +1,7 @@
 import { tool } from '@/core'
 import { z } from 'zod'
 import { listTables, getTableSchema } from './database'
+import { validateSql } from '@/lib/sql-guard'
 import type { DatabaseConnection } from '@/lib/types'
 
 export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
@@ -66,6 +67,14 @@ export function createDbTools(connection: DatabaseConnection) {
       explanation: z.string().describe('对该SQL的简要说明，解释查询的目的和逻辑'),
     }),
     execute: async ({ sql, explanation }) => {
+      // 工具层安全校验：拦截危险 SQL
+      const validation = validateSql(sql)
+      if (!validation.allowed) {
+        const errorMsg = `SQL 被安全策略拦截: ${validation.reason}。仅允许执行查询类语句（SELECT/SHOW/DESCRIBE/EXPLAIN）。`
+        pushError('execute_sql', new Error(errorMsg))
+        return errorMsg
+      }
+
       const result = JSON.stringify({
         status: 'pending_confirmation',
         sql,

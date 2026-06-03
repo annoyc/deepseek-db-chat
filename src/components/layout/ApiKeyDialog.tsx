@@ -1,27 +1,29 @@
 import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Server } from 'lucide-react'
+import { X, Eye, EyeOff, Server, Lock, Loader2 } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import { getEnvApiKeyStatus } from '@/server/functions/settings'
+import { encryptPasswordFn } from '@/server/functions/crypto'
 
 interface ApiKeyDialogProps {
   open: boolean
   onClose: () => void
 }
 
-function readApiKeyFromStorage(): string {
+function hasEncryptedKey(): boolean {
   try {
     const raw = window.localStorage.getItem('deepseek-api-key')
-    return raw ? JSON.parse(raw) : ''
+    return raw ? !!JSON.parse(raw) : false
   } catch {
-    return ''
+    return false
   }
 }
 
 export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   const { setApiKey, clearApiKey } = useSettings()
   const [inputValue, setInputValue] = useState('')
-  const [savedKey, setSavedKey] = useState('')
+  const [hasSavedKey, setHasSavedKey] = useState(false)
   const [showKey, setShowKey] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [envStatus, setEnvStatus] = useState<{ hasEnvKey: boolean; maskedKey: string }>({
     hasEnvKey: false,
     maskedKey: '',
@@ -29,30 +31,39 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
   useEffect(() => {
     if (open) {
-      const key = readApiKeyFromStorage()
-      setInputValue(key)
-      setSavedKey(key)
+      setInputValue('')
+      setHasSavedKey(hasEncryptedKey())
+      setShowKey(false)
       getEnvApiKeyStatus().then(setEnvStatus).catch(() => {})
     }
   }, [open])
 
   if (!open) return null
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = inputValue.trim()
-    setApiKey(trimmed)
-    setSavedKey(trimmed)
-    onClose()
+    if (!trimmed) return
+    setSaving(true)
+    try {
+      const { encrypted } = await encryptPasswordFn({ data: { password: trimmed } })
+      setApiKey(encrypted)
+      setHasSavedKey(true)
+      setInputValue('')
+      onClose()
+    } catch (err) {
+      console.error('[ApiKeyDialog] Encrypt failed:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleClear = () => {
     clearApiKey()
+    setHasSavedKey(false)
     setInputValue('')
-    setSavedKey('')
   }
 
-  const hasLocalKey = !!savedKey
-  const hasAnyKey = hasLocalKey || envStatus.hasEnvKey
+  const hasAnyKey = hasSavedKey || envStatus.hasEnvKey
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -73,7 +84,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 <p className="font-medium">已通过环境变量配置 API Key</p>
                 <p className="mt-0.5 font-mono text-blue-600">{envStatus.maskedKey}</p>
                 <p className="mt-1 text-blue-500">
-                  {hasLocalKey
+                  {hasSavedKey
                     ? '当前使用浏览器本地保存的 Key（优先级更高）'
                     : '如需覆盖，可在下方输入新的 Key'}
                 </p>
@@ -104,10 +115,11 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             </div>
           </div>
 
-          {hasLocalKey && (
-            <p className="text-xs text-green-600">
-              已保存自定义 API Key 到浏览器本地
-            </p>
+          {hasSavedKey && (
+            <div className="flex items-center gap-1.5 text-xs text-green-600">
+              <Lock className="w-3.5 h-3.5" />
+              <span>已加密保存 API Key（AES-256-GCM），浏览器无法查看明文</span>
+            </div>
           )}
 
           {!hasAnyKey && (
@@ -117,7 +129,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           )}
 
           <div className="flex justify-end gap-3 pt-2">
-            {hasLocalKey && (
+            {hasSavedKey && (
               <button
                 onClick={handleClear}
                 className="px-6 py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors mr-auto"
@@ -133,9 +145,11 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             </button>
             <button
               onClick={handleSave}
-              className="px-6 py-2.5 text-sm font-medium text-white bg-green-700 rounded-xl hover:bg-green-800 transition-colors"
+              disabled={saving || !inputValue.trim()}
+              className="px-6 py-2.5 text-sm font-medium text-white bg-green-700 rounded-xl hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              保存
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {saving ? '加密保存中...' : '保存'}
             </button>
           </div>
         </div>
