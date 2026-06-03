@@ -30,7 +30,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [thinkingMode, setThinkingMode])
 
-  // 当 localStorage 没有 key 时，自动从 env 获取并加密保存
+  // 当 IndexedDB 没有 key 时，自动从 env 获取并加密保存
   useEffect(() => {
     if (apiKey) return
     getEncryptedEnvApiKey().then(({ encrypted }) => {

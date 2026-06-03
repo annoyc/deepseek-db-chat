@@ -102,7 +102,7 @@ Custom React hooks that encapsulate client-side state and side effects.
 | `useChat.tsx` | Main chat logic — SSE consumption, message state, SQL confirmation flow |
 | `useDatabase.tsx` | Database connection management |
 | `useSettings.tsx` | App settings (API key, model selection) |
-| `useLocalStorage.ts` | Typed localStorage read/write with React state sync |
+| `useLocalStorage.ts` | IndexedDB read/write (with localStorage migration fallback) |
 
 ### `src/lib/`
 
@@ -152,9 +152,9 @@ TanStack Start provides full-stack React with server functions (`createServerFn`
 
 Server-Sent Events (SSE) stream agent events (thinking, tool calls, text deltas) from server to client in real time. SSE is simpler than WebSockets for this use case because communication is one-directional — the client sends a request, then receives a stream of events.
 
-### localStorage for privacy-first data storage
+### IndexedDB for privacy-first data storage
 
-Chat history, API keys, and app settings are stored in the browser's `localStorage`. No user data is persisted on the server. This keeps conversations private and eliminates the need for authentication.
+Chat history, API keys, and app settings are stored in the browser's `IndexedDB` (via Dexie.js). No user data is persisted on the server. This keeps conversations private and eliminates the need for authentication.
 
 ### Zod for tool parameter validation
 

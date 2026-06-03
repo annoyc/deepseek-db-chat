@@ -12,7 +12,7 @@ Currently **MySQL only**. PostgreSQL and SQLite support is planned.
 
 ### Is my data safe?
 
-Yes. All chat history is stored in your browser's **localStorage**. No data is sent to any server except the DeepSeek API for AI processing. No login or registration is required.
+Yes. All chat history is stored in your browser's **IndexedDB**. No data is sent to any server except the DeepSeek API for AI processing. No login or registration is required.
 
 Your database credentials are stored server-side in `data/connections.json` (local to your deployment) and are never sent to DeepSeek.
 
@@ -93,9 +93,9 @@ Try these steps:
 
 ### How do I reset chat history?
 
-Chat history is stored in browser **localStorage**. To clear it:
+Chat history is stored in browser **IndexedDB**. To clear it:
 
-- **Browser dev tools** — open Application → Local Storage → delete the relevant keys
+- **Browser dev tools** — open Application → IndexedDB → delete the relevant database
 - **App clear function** — use the clear/reset option in the chat interface (if available)
 
-Clearing localStorage does not affect your database connections or server-side configuration.
+Clearing IndexedDB does not affect your database connections or server-side configuration.

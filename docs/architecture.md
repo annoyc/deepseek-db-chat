@@ -27,9 +27,9 @@ flowchart TB
     subgraph client ["Client (Browser)"]
         UI["React 19 SPA<br/>TanStack Router /"]
         useChat["useChat hook"]
-        localStorage["localStorage<br/>sessions + API key"]
+        indexedDB["IndexedDB (Dexie.js)<br/>sessions + API key + settings"]
         UI --> useChat
-        useChat --> localStorage
+        useChat --> indexedDB
     end
 
     subgraph server ["Server (TanStack Start)"]
@@ -128,7 +128,7 @@ The agent is assembled in `src/server/agent.ts` from three primitives provided b
 ```mermaid
 flowchart TB
     subgraph config ["Configuration"]
-        apiKey["API key<br/>localStorage or env"]
+        apiKey["API key<br/>IndexedDB or env"]
         modelName["Model name<br/>deepseek-v4-flash / pro"]
         systemPrompt["System prompt<br/>Chinese DB analyst instructions"]
         maxSteps["maxSteps: 10"]
@@ -320,9 +320,9 @@ flowchart LR
 
 | Data | Location | Format | Notes |
 |------|----------|--------|-------|
-| Chat sessions | Browser `localStorage` (`deepseek-chat-sessions`) | JSON array of `ChatSession` | Last 100 messages per session retained on save |
-| API key | Browser `localStorage` (`deepseek-api-key`) | Plain string | Sent to server per request; falls back to `DEEPSEEK_API_KEY` env var |
-| Model preference | Browser `localStorage` (`deepseek-model`) | String | Default: `deepseek-v4-flash` |
+| Chat sessions | Browser `IndexedDB` (`deepseek-chat-sessions`) | JSON array of `ChatSession` | Last 100 messages per session retained on save |
+| API key | Browser `IndexedDB` (`deepseek-api-key`) | Plain string | Sent to server per request; falls back to `DEEPSEEK_API_KEY` env var |
+| Model preference | Browser `IndexedDB` (`deepseek-model`) | String | Default: `deepseek-v4-flash` |
 | Database connections | Server `data/connections.json` | JSON array | Host, port, user, password, database name |
 | Connection pools | Server in-memory `Map` | mysql2 `Pool` | Created lazily per connection ID; max 5 connections per pool |
 
@@ -363,7 +363,7 @@ The `execute_sql` tool does not run queries. A separate `confirmAndExecuteSql` s
 - **Transparency** — Users see the exact SQL and explanation before anything touches the database.
 - **Auditability** — Confirmation state (`pending`, `confirmed`, `executed`, `cancelled`, `error`) is tracked on each message.
 
-### 4. localStorage for user data
+### 4. IndexedDB for user data
 
 Chat history and API keys are stored in the browser, not on the server.
 
@@ -393,7 +393,7 @@ deepseek-db-chat/
 │   ├── hooks/
 │   │   ├── useChat.tsx        # Chat state, SSE parsing, SQL confirm flow
 │   │   ├── useDatabase.tsx    # Active connection selection
-│   │   └── useSettings.tsx    # API key and model (localStorage)
+│   │   └── useSettings.tsx    # API key and model (IndexedDB)
 │   ├── components/
 │   │   ├── chat/              # MessageList, SqlConfirmBlock, ThinkingBlock, etc.
 │   │   └── layout/            # Sidebar, DatabaseList, ApiKeyDialog

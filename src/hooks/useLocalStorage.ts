@@ -11,7 +11,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       if (record !== undefined) {
         setStoredValue(record.value as T)
       } else {
-        // IndexedDB 无数据时尝试从 localStorage 恢复
+        // IndexedDB 无数据时尝试从旧版 localStorage 迁移
         try {
           const raw = window.localStorage.getItem(key)
           if (raw !== null) {

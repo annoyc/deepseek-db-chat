@@ -59,7 +59,7 @@ async function loadSessionsFromStorage(): Promise<ChatSession[]> {
     const sessions = await db.chatSessions.toArray()
     if (sessions.length > 0) return sessions
 
-    // IndexedDB 为空时尝试从 localStorage 恢复残留数据
+    // IndexedDB 为空时尝试从旧版 localStorage 迁移残留数据
     const raw = window.localStorage.getItem('deepseek-chat-sessions')
     if (raw) {
       const restored: ChatSession[] = JSON.parse(raw)

@@ -46,7 +46,7 @@ All data and conversation history are stored entirely on your local machine. No 
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
 - 🔒 **Security** — AES-256 encrypted passwords, dual-layer SQL validation (tool + confirmation), dangerous operations blocked at both gates, PII auto-masking before AI transmission
 - ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
-- 🔐 **Privacy** — 100% local storage, no cloud interaction, no server-side data collection
+- 🔐 **Privacy** — 100% client-side IndexedDB storage, no cloud interaction, no server-side data collection
 - 📊 **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
 - 🔄 **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
 - 🗄️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar

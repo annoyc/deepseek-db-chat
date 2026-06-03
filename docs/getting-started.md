@@ -227,7 +227,7 @@ Set `DEEPSEEK_API_KEY` in your `.env` file. The server reads it at startup. Rest
 
 1. Click **设置** (Settings) at the bottom of the sidebar, **or** click the gear icon in the chat panel header.
 2. Enter your API key in the dialog and click **保存** (Save).
-3. The key is stored in your browser's `localStorage` under `deepseek-api-key` and sent with each chat request.
+3. The key is stored in browser `IndexedDB` under `deepseek-api-key` and sent with each chat request.
 
 If both are set, the in-app key takes precedence over the server `.env` value for that browser session.
 
@@ -242,7 +242,7 @@ Choose between two DeepSeek models from the dropdown in the **message input area
 | **DeepSeek V4 Flash** | `deepseek-v4-flash` | Fast responses, lower cost — **default** |
 | **DeepSeek V4 Pro** | `deepseek-v4-pro` | Deeper reasoning, complex multi-step queries |
 
-Your selection is persisted in `localStorage` (`deepseek-model`) and applies to all new messages in that browser.
+Your selection is persisted in `IndexedDB` (`deepseek-model`) and applies to all new messages in that browser.
 
 > **Tip:** Start with **Flash** for schema exploration and simple queries. Switch to **Pro** when you need multi-table joins, complex aggregations, or nuanced business logic.
 
@@ -254,12 +254,12 @@ DeepSeek-Native DB Chat2SQL Agent is designed with a local-first, privacy-consci
 
 | Aspect | Behavior |
 |--------|----------|
-| **Chat history** | Stored in browser `localStorage` only (`deepseek-chat-sessions`). Never sent to a third-party server except as part of DeepSeek API requests. |
+| **Chat history** | Stored in browser `IndexedDB` only (`deepseek-chat-sessions`). Never sent to a third-party server except as part of DeepSeek API requests. |
 | **Authentication** | No login or registration required. |
 | **Server-side data** | No user accounts, no chat persistence on the server. |
 | **SQL execution** | Every query requires explicit user confirmation. Nothing runs automatically. |
 | **Database credentials** | Stored locally in `data/connections.json` on the machine running the server. Passwords are never returned to the client API (masked as `***`). |
-| **API keys** | Server key in `.env`; optional per-browser key in `localStorage`. |
+| **API keys** | Server key in `.env`; optional per-browser key in `IndexedDB`. |
 
 > **Tip:** Because credentials live in `data/connections.json`, treat that file like a secret. Add `data/` to your backup exclusions if you deploy on a shared machine, or restrict filesystem permissions.
 

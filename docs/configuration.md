@@ -62,7 +62,7 @@ Set `DEEPSEEK_API_KEY` in your `.env` file. This is the recommended approach for
 
 ### Method 2: In-App Settings Dialog
 
-Open **Settings** from the sidebar footer and enter your API key in the dialog. The key is stored in browser `localStorage` under the key `deepseek-api-key`.
+Open **Settings** from the sidebar footer and enter your API key in the dialog. The key is stored in browser `IndexedDB` under the key `deepseek-api-key`.
 
 Clearing the key in the dialog removes the stored value and reverts to the server environment variable.
 
@@ -97,7 +97,7 @@ export const DEFAULT_MODEL = 'deepseek-v4-flash'
 
 ### Switching Models
 
-Select the model from the dropdown in the chat input area. Your choice is persisted in browser `localStorage` under the key `deepseek-model`.
+Select the model from the dropdown in the chat input area. Your choice is persisted in browser `IndexedDB` under the key `deepseek-model`.
 
 Available models are registered in `src/lib/constants.ts`:
 
@@ -300,15 +300,15 @@ Compaction is handled by `CompactMessage` and `CompactTool` in `src/core/context
 
 | Data | Location | Persistence |
 |------|----------|-------------|
-| Chat sessions | Browser `localStorage` (`deepseek-chat-sessions`) | Per browser |
-| API key | Browser `localStorage` (`deepseek-api-key`) | Per browser |
-| Model selection | Browser `localStorage` (`deepseek-model`) | Per browser |
+| Chat sessions | Browser `IndexedDB` (`deepseek-chat-sessions`) | Per browser |
+| API key | Browser `IndexedDB` (`deepseek-api-key`) | Per browser |
+| Model selection | Browser `IndexedDB` (`deepseek-model`) | Per browser |
 | Database connections | `data/connections.json` | Server-side file |
 | Chat history (server) | `data/chats/` | Server-side file (currently unused) |
 
 ### Browser Storage
 
-Client-side data is scoped to the browser profile. Clearing browser data removes chat history, API keys, and model preferences. Chat sessions are capped at the **last 100 messages** per session when saved to `localStorage`.
+Client-side data is scoped to the browser profile. Clearing browser data removes chat history, API keys, and model preferences. Chat sessions are capped at the **last 100 messages** per session when saved to `IndexedDB`.
 
 ### Server-Side Storage
 

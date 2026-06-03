@@ -37,7 +37,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       let stored = await db.dbConnections.toArray()
 
-      // IndexedDB 为空时尝试从 localStorage 恢复残留数据
+      // IndexedDB 为空时尝试从旧版 localStorage 迁移残留数据
       if (stored.length === 0) {
         try {
           const raw = window.localStorage.getItem('db-connections')
