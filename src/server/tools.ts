@@ -8,7 +8,7 @@ export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
 
 export type ResultStore = Map<string, string[]>
 
-export function createDbTools(connection: DatabaseConnection) {
+export function createDbTools(connection: DatabaseConnection, sqlPermission: 'readonly' | 'write' = 'readonly') {
   const resultStore: ResultStore = new Map()
 
   function pushResult(name: string, result: string) {
@@ -68,9 +68,10 @@ export function createDbTools(connection: DatabaseConnection) {
     }),
     execute: async ({ sql, explanation }) => {
       // 工具层安全校验：拦截危险 SQL
-      const validation = validateSql(sql)
+      const validation = validateSql(sql, sqlPermission)
       if (!validation.allowed) {
-        const errorMsg = `SQL 被安全策略拦截: ${validation.reason}。仅允许执行查询类语句（SELECT/SHOW/DESCRIBE/EXPLAIN）。`
+        const allowedLabel = sqlPermission === 'write' ? 'SELECT/SHOW/DESCRIBE/EXPLAIN/WITH/DESC/INSERT/UPDATE/DELETE/REPLACE' : 'SELECT/SHOW/DESCRIBE/EXPLAIN/WITH/DESC'
+        const errorMsg = `SQL 被安全策略拦截: ${validation.reason}。当前模式仅允许: ${allowedLabel}。`
         pushError('execute_sql', new Error(errorMsg))
         return errorMsg
       }

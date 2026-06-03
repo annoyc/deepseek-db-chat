@@ -1,4 +1,4 @@
-import { ALLOWED_SQL_KEYWORDS, BLOCKED_SQL_PATTERNS } from './constants'
+import { ALLOWED_SQL_KEYWORDS, BLOCKED_SQL_PATTERNS, WRITE_SQL_KEYWORDS } from './constants'
 
 /**
  * 去除 SQL 中的注释
@@ -50,8 +50,9 @@ function splitStatements(sql: string): string[] {
 /**
  * 校验 SQL 是否允许执行
  * 双重校验：白名单（首关键字）+ 黑名单（危险模式）
+ * @param mode 'readonly' 仅允许查询; 'write' 额外允许写操作
  */
-export function validateSql(sql: string): { allowed: boolean; reason?: string } {
+export function validateSql(sql: string, mode: 'readonly' | 'write' = 'readonly'): { allowed: boolean; reason?: string } {
   const cleaned = stripComments(sql)
 
   if (!cleaned.trim()) {
@@ -71,7 +72,12 @@ export function validateSql(sql: string): { allowed: boolean; reason?: string } 
 
   // 拆分多语句，逐条检查白名单
   const statements = splitStatements(cleaned)
-  const allowedSet = new Set<string>(ALLOWED_SQL_KEYWORDS)
+  const keywords = mode === 'write'
+    ? [...ALLOWED_SQL_KEYWORDS, ...WRITE_SQL_KEYWORDS]
+    : [...ALLOWED_SQL_KEYWORDS]
+  const allowedSet = new Set<string>(keywords)
+  const allowedLabel = keywords.join('/')
+  console.log('allowedSet', allowedSet)
 
   for (const stmt of statements) {
     const firstWord = /^[A-Za-z_]+/.exec(stmt)
@@ -81,7 +87,7 @@ export function validateSql(sql: string): { allowed: boolean; reason?: string } 
     if (!allowedSet.has(firstWord[0].toUpperCase())) {
       return {
         allowed: false,
-        reason: `不允许执行 "${firstWord[0].toUpperCase()}" 语句，仅允许: ${ALLOWED_SQL_KEYWORDS.join('/')}`,
+        reason: `不允许执行 "${firstWord[0].toUpperCase()}" 语句，仅允许: ${allowedLabel}`,
       }
     }
   }

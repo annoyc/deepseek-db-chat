@@ -11,6 +11,7 @@ interface ChatInput {
   model?: string
   apiKey?: string
   thinkingMode?: 'enabled' | 'disabled'
+  sqlPermission?: 'readonly' | 'write'
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -30,6 +31,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             model: data.model,
             apiKey: decryptedApiKey,
             thinkingMode: data.thinkingMode,
+            sqlPermission: data.sqlPermission,
           })
           const agentStream = agent.stream({
             prompt: data.message,

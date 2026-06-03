@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowUp, Atom, ChevronDown } from 'lucide-react'
+import { ArrowUp, Atom, ChevronDown, Shield, AlertTriangle } from 'lucide-react'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
@@ -8,10 +8,11 @@ import { AVAILABLE_MODELS } from '@/lib/constants'
 export function MessageInput() {
   const [input, setInput] = useState('')
   const [showModelMenu, setShowModelMenu] = useState(false)
+  const [showSqlWarning, setShowSqlWarning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { model, setModel, thinkingMode, setThinkingMode } = useSettings()
+  const { model, setModel, thinkingMode, setThinkingMode, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -113,6 +114,25 @@ export function MessageInput() {
                 <Atom className="w-3.5 h-3.5" />
                 <span>深度思考</span>
               </button>
+
+              <button
+                onClick={() => {
+                  if (sqlPermission === 'readonly') {
+                    setShowSqlWarning(true)
+                  } else {
+                    setSqlPermission('readonly')
+                  }
+                }}
+                className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
+                  sqlPermission === 'write'
+                    ? 'border-amber-500 text-amber-600'
+                    : 'border-gray-300 text-gray-500'
+                }`}
+                title={sqlPermission === 'write' ? '已允许写操作（INSERT/UPDATE/DELETE），AI 生成的写 SQL 需二次确认' : '仅允许查询操作'}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>{sqlPermission === 'write' ? '可写入' : '仅查询'}</span>
+              </button>
             </div>
 
             <button
@@ -133,6 +153,63 @@ export function MessageInput() {
           {isStreaming ? '正在思考中...' : '内容由 AI 生成，请仔细甄别'}
         </p>
       </div>
+
+      {showSqlWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowSqlWarning(false)}>
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-4">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">开启写入模式</h3>
+              </div>
+
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>开启后，AI 将能够生成并执行以下写操作指令：</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {['INSERT', 'UPDATE', 'DELETE', 'REPLACE'].map((cmd) => (
+                    <span key={cmd} className="rounded-md bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700">
+                      {cmd}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700">
+                  <p className="font-medium mb-1">风险提醒</p>
+                  <ul className="space-y-1 list-disc list-inside">
+                    <li>AI 生成的 SQL 可能修改或删除数据库中的真实数据</li>
+                    <li>每条写操作 SQL 仍需您手动确认后才会执行</li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg bg-green-50 p-3 text-xs text-green-700">
+                  <p className="font-medium mb-1">安全保障</p>
+                  <ul className="space-y-1 list-disc list-inside">
+                    <li>DROP / ALTER / TRUNCATE 等危险操作始终被禁止</li>
+                    <li>可随时切换回「仅查询」模式</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-3">
+              <button
+                onClick={() => setShowSqlWarning(false)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => { setSqlPermission('write'); setShowSqlWarning(false) }}
+                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 transition-colors"
+              >
+                确认开启
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

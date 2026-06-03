@@ -1,16 +1,19 @@
-import { createContext, useContext, useCallback, useEffect } from 'react'
+import { createContext, useContext, useCallback, useEffect, useState } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { DEFAULT_MODEL, AVAILABLE_MODELS } from '@/lib/constants'
 import { getEncryptedEnvApiKey } from '@/server/functions/settings'
+import { db } from '@/lib/db'
 
 interface SettingsState {
   apiKey: string
   model: string
   thinkingMode: 'enabled' | 'disabled'
+  sqlPermission: 'readonly' | 'write'
   setApiKey: (key: string) => void
   clearApiKey: () => void
   setModel: (model: string) => void
   setThinkingMode: (mode: 'enabled' | 'disabled') => void
+  setSqlPermission: (mode: 'readonly' | 'write') => void
 }
 
 const SettingsContext = createContext<SettingsState | null>(null)
@@ -22,6 +25,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     'deepseek-thinking-mode',
     'enabled'
   )
+  const [sqlPermission, setSqlPermission] = useState<'readonly' | 'write'>('readonly')
 
   // 确保默认值为 'enabled'（思考模式）
   useEffect(() => {
@@ -44,10 +48,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     apiKey,
     model,
     thinkingMode,
+    sqlPermission,
     setApiKey,
     clearApiKey: () => clearApiKey(),
     setModel,
     setThinkingMode,
+    setSqlPermission,
   }
 
   return (

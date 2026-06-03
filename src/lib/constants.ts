@@ -13,10 +13,12 @@ export const AVAILABLE_MODELS = [
 // 允许执行的 SQL 关键字白名单（仅查询类）
 export const ALLOWED_SQL_KEYWORDS = ['SELECT', 'SHOW', 'DESCRIBE', 'EXPLAIN', 'WITH', 'DESC'] as const
 
+// 写操作关键字（需要用户显式开启"可写入"模式才允许）
+export const WRITE_SQL_KEYWORDS = ['INSERT', 'UPDATE', 'DELETE', 'REPLACE'] as const
+
 // 危险 SQL 模式黑名单（正则匹配，不区分大小写）
 export const BLOCKED_SQL_PATTERNS: RegExp[] = [
   /\b(ALTER|CREATE|DROP|TRUNCATE|RENAME)\b/i,       // DDL
-  /\b(INSERT|UPDATE|DELETE|REPLACE|MERGE)\b/i,       // DML
   /\b(GRANT|REVOKE)\b/i,                              // DCL
   /\b(LOCK|UNLOCK|FLUSH|RESET)\b/i,                   // 管理命令
   /\b(INTO\s+OUTFILE|INTO\s+DUMPFILE|LOAD\s+DATA)\b/i, // 文件操作

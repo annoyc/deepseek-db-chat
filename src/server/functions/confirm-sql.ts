@@ -7,6 +7,7 @@ import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
 interface ConfirmSqlInput {
   connection: DatabaseConnection
   sql: string
+  sqlPermission?: 'readonly' | 'write'
 }
 
 export type SqlExecuteResult =
@@ -17,7 +18,7 @@ export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: fal
   .inputValidator((data: ConfirmSqlInput) => data)
   .handler(
     async ({ data }): Promise<SqlExecuteResult> => {
-      const validation = validateSql(data.sql)
+      const validation = validateSql(data.sql, data.sqlPermission)
       if (!validation.allowed) {
         return {
           success: false,
