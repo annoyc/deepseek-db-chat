@@ -193,6 +193,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [sessions, getFullConnection, setActiveConnection])
 
   const createNewSession = useCallback(() => {
+    const currentSession = sessions.find((s) => s.id === activeSessionId)
+    if (currentSession && currentSession.messages.length === 0) {
+      return
+    }
     const newSession: ChatSession = {
       id: generateId(),
       connectionId: activeConnectionId ?? '',
@@ -203,7 +207,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
     setSessions((prev) => [newSession, ...prev])
     setActiveSessionId(newSession.id)
-  }, [activeConnectionId])
+  }, [activeConnectionId, sessions, activeSessionId])
 
   const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: { role: 'user' | 'assistant'; content: string }[]): Promise<boolean> => {
     let hasSqlConfirm = false
