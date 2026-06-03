@@ -23,11 +23,11 @@
 
 General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DeepSeek-Native DB Chat2SQL Agent is purpose-built for DeepSeek, solving problems other tools cannot.
 
-### 💰 Ultimate Cost Efficiency
+### Ultimate Cost Efficiency
 
 Built on DeepSeek prefix caching optimization, context reuse minimizes API call overhead. Deterministic message construction and zero-redundancy request bodies ensure maximum cache hit rates — intelligent token control at the lowest possible cost.
 
-### 🔒 Rock-Solid Security
+### Rock-Solid Security
 
 Database passwords and model apiKey are encrypted with AES-256-GCM before storage. Every generated SQL query passes **dual-layer validation** — blocked at the tool layer by a strict query-only whitelist, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at both gates — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
 
@@ -44,15 +44,15 @@ All data and conversation history are stored entirely on your local machine. No 
 ## Features
 
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
-- 🔒 **Security** — AES-256 encrypted passwords, dual-layer SQL validation (tool + confirmation), dangerous operations blocked at both gates, PII auto-masking before AI transmission
+-  **Security** — AES-256 encrypted passwords, dual-layer SQL validation (tool + confirmation), dangerous operations blocked at both gates, PII auto-masking before AI transmission
 - ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
-- 🔐 **Privacy** — 100% client-side IndexedDB storage, no cloud interaction, no server-side data collection
-- 📊 **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
-- 🔄 **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
-- 🗄️ **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
+-  **Privacy** — 100% client-side IndexedDB storage, no cloud interaction, no server-side data collection
+-  **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
+-  **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
+-  **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
 -  **Intelligent Agent Loop** — Multi-step reasoning: list tables → inspect schema → generate SQL → confirm → execute
-- ✍️ **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
-- 💬 **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
+-  **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
+-  **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
 
 ---
 
