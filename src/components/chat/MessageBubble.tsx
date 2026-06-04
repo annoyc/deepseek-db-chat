@@ -8,6 +8,17 @@ import { MarkdownContent } from './MarkdownContent'
 interface MessageBubbleProps {
   message: ChatMessage
   roundNumber: number
+  isStreaming?: boolean
+}
+
+function StreamingIndicator() {
+  return (
+    <div className="flex items-center gap-1.5 py-2">
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+    </div>
+  )
 }
 
 function AssistantPartsView({ message, roundNumber }: MessageBubbleProps) {
@@ -85,7 +96,7 @@ function AssistantLegacyView({ message, roundNumber }: MessageBubbleProps) {
   )
 }
 
-export function MessageBubble({ message, roundNumber }: MessageBubbleProps) {
+export function MessageBubble({ message, roundNumber, isStreaming }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex gap-3 justify-end">
@@ -99,6 +110,14 @@ export function MessageBubble({ message, roundNumber }: MessageBubbleProps) {
         </div>
       </div>
     )
+  }
+
+  // Show loading indicator when streaming and message has no content yet
+  const hasContent = message.parts && message.parts.length > 0
+  const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm
+
+  if (isStreaming && !hasContent && !hasLegacyContent) {
+    return <StreamingIndicator />
   }
 
   if (message.parts && message.parts.length > 0) {

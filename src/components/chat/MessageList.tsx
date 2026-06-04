@@ -84,6 +84,7 @@ export function MessageList({ messages }: MessageListProps) {
           <MessageBubble
             message={message}
             roundNumber={roundMap.get(message.id) ?? 0}
+            isStreaming={isStreaming}
           />
           {message.role === 'assistant' && message.answerDuration != null && (
             <TaskCompleteIndicator

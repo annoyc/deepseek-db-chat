@@ -17,6 +17,7 @@ interface ChatState {
   createNewSession: () => void
   deleteSession: (id: string) => void
   sendMessage: (content: string) => Promise<void>
+  stopStreaming: () => void
   clearMessages: () => void
   confirmSql: (messageId: string) => Promise<void>
   cancelSql: (messageId: string) => void
@@ -24,13 +25,19 @@ interface ChatState {
 
 const ChatContext = createContext<ChatState | null>(null)
 
-async function* parseSSEStream(response: Response): AsyncGenerator<StreamChunk> {
+async function* parseSSEStream(response: Response, signal?: AbortSignal): AsyncGenerator<StreamChunk> {
   const reader = response.body!.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
 
+  const onAbort = () => {
+    reader.cancel().catch(() => {})
+  }
+  signal?.addEventListener('abort', onAbort)
+
   try {
     while (true) {
+      if (signal?.aborted) return
       const { done, value } = await reader.read()
       if (done) break
 
@@ -49,6 +56,7 @@ async function* parseSSEStream(response: Response): AsyncGenerator<StreamChunk> 
       }
     }
   } finally {
+    signal?.removeEventListener('abort', onAbort)
     reader.cancel().catch(() => {})
   }
 }
@@ -109,6 +117,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
   const { model, apiKey, thinkingMode, sqlPermission } = useSettings()
   const sessionsRef = useRef(sessions)
@@ -241,7 +250,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       data: { connection, message, history, model, apiKey: apiKey || undefined, thinkingMode, sqlPermission },
     })
 
-    for await (const chunk of parseSSEStream(response as unknown as Response)) {
+    for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current?.signal)) {
       if (chunk.type === 'tool-call-start' && chunk.name === 'execute_sql') {
         hasSqlConfirm = true
         pendingSqlConfirm = {
@@ -392,6 +401,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!activeConnectionId || isStreaming) return
 
     setIsStreaming(true)
+    abortControllerRef.current = new AbortController()
     const sessionId = getOrCreateSession()
 
     const userMessage: ChatMessage = {
@@ -545,6 +555,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         })
 
         setIsStreaming(true)
+        abortControllerRef.current = new AbortController()
         try {
           const hasSqlConfirm = await continueWithSqlError(activeSessionId, activeConnectionId, message.sqlConfirm.sql, execResult.error)
           if (!hasSqlConfirm) {
@@ -573,6 +584,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       })
 
       setIsStreaming(true)
+      abortControllerRef.current = new AbortController()
       try {
         const hasSqlConfirm = await continueWithSqlResult(activeSessionId, activeConnectionId, message.sqlConfirm.sql, result)
         if (!hasSqlConfirm) {
@@ -608,6 +620,46 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     markTaskComplete(activeSessionId)
   }, [activeSessionId, updateSession, markTaskComplete])
 
+  const stopStreaming = useCallback(() => {
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+
+    const sessionId = activeSessionId
+    if (!sessionId) return
+
+    updateSession(sessionId, (s) => {
+      const messages = [...s.messages]
+      const lastMsg = { ...messages[messages.length - 1] }
+      if (lastMsg.role !== 'assistant') return s
+
+      if (lastMsg.toolCalls) {
+        lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
+          tc.status === 'calling' ? { ...tc, status: 'error', error: '已取消' } : tc
+        )
+      }
+
+      const stopNote = '\n\n*已停止生成*'
+      lastMsg.content = (lastMsg.content ?? '') + stopNote
+      if (lastMsg.parts && lastMsg.parts.length > 0) {
+        const parts = [...lastMsg.parts]
+        const lastPart = parts[parts.length - 1]
+        if (lastPart.type === 'text') {
+          parts[parts.length - 1] = { ...lastPart, content: lastPart.content + stopNote }
+        } else {
+          parts.push({ type: 'text', content: stopNote })
+        }
+        lastMsg.parts = parts
+      } else {
+        lastMsg.parts = [{ type: 'text', content: stopNote }]
+      }
+
+      messages[messages.length - 1] = lastMsg
+      return { ...s, messages, taskEndTime: Date.now() }
+    })
+
+    setIsStreaming(false)
+  }, [activeSessionId, updateSession])
+
   const clearMessages = useCallback(() => {
     if (!activeSessionId) return
     updateSession(activeSessionId, (s) => ({ ...s, messages: [], taskStartTime: undefined, taskEndTime: undefined }))
@@ -622,6 +674,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     createNewSession,
     deleteSession,
     sendMessage,
+    stopStreaming,
     clearMessages,
     confirmSql,
     cancelSql,

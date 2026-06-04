@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { ArrowUp, Atom, ChevronDown, Shield, AlertTriangle } from 'lucide-react'
+import { ArrowUp, Square, Atom, ChevronDown, Shield, AlertTriangle } from 'lucide-react'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
@@ -10,7 +10,7 @@ export function MessageInput() {
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showSqlWarning, setShowSqlWarning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { sendMessage, isStreaming, activeSessionId } = useChatStore()
+  const { sendMessage, isStreaming, activeSessionId, stopStreaming } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { model, setModel, thinkingMode, setThinkingMode, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
@@ -135,22 +135,31 @@ export function MessageInput() {
               </button>
             </div>
 
-            <button
-              onClick={handleSubmit}
-              disabled={!canSend}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                canSend
-                  ? 'bg-gray-900 text-white hover:bg-gray-800 shadow-sm'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-            </button>
+            {isStreaming ? (
+              <button
+                onClick={stopStreaming}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
+              >
+                <Square className="w-4 h-4" fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSend}
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  canSend
+                    ? 'bg-gray-900 text-white hover:bg-gray-800 shadow-sm'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+              </button>
+            )}
           </div>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-2">
-          {isStreaming ? '正在思考中...' : '内容由 AI 生成，请仔细甄别'}
+          {isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
         </p>
       </div>
 
