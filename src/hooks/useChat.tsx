@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react'
-import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart } from '@/lib/types'
+import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
 import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
+import { classifyHallucination } from '@/server/functions/classify-hallucination'
 import { db } from '@/lib/db'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
@@ -118,10 +119,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
   const { model, apiKey, thinkingMode, sqlPermission } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
+  const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
@@ -239,15 +242,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveSessionId(newSession.id)
   }, [activeConnectionId, sessions, activeSessionId])
 
-  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: { role: 'user' | 'assistant'; content: string }[]): Promise<boolean> => {
+  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: { role: 'user' | 'assistant'; content: string }[], retryCount: number = 0): Promise<boolean> => {
     let hasSqlConfirm = false
     let pendingSqlConfirm: { sql: string; explanation: string } | null = null
+    let hasToolCalls = false
+    let assistantContent = ''
 
     const connection = getFullConnection(connectionId)
     if (!connection) throw new Error('数据库连接不存在')
 
+    const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
+    const executionLog = currentSession?.executionLog
+
     const response = await chatStream({
-      data: { connection, message, history, model, apiKey: apiKey || undefined, thinkingMode, sqlPermission },
+      data: { connection, message, history, model, apiKey: apiKey || undefined, thinkingMode, sqlPermission, executionLog },
     })
 
     for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current?.signal)) {
@@ -279,6 +287,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
           case 'text':
             lastMsg.content = (lastMsg.content ?? '') + chunk.content
+            assistantContent += chunk.content
             if (lastPart && lastPart.type === 'text') {
               parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
             } else {
@@ -287,6 +296,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             break
 
           case 'tool-call-start': {
+            hasToolCalls = true
             const tc: ToolCallInfo = {
               name: chunk.name,
               args: chunk.args,
@@ -359,8 +369,51 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return { ...s, messages }
     })
 
+    // Detect hallucination: check if assistant's text contains fabricated execution results
+    // isContinuation: true when processStream is called after a real SQL execution result
+    const isContinuation = /^以下SQL(?:已执行完成|执行失败)/.test(message)
+    if (retryCount < 1 && !hasSqlConfirm && assistantContent.length > 30) {
+      try {
+        const classification = await classifyHallucination({
+          data: {
+            assistantContent,
+            hasToolCalls,
+            isContinuation,
+            model,
+            apiKey: apiKey || undefined,
+          },
+        })
+
+        if (classification.hasFakeResult) {
+          // Clear hallucinated content so user doesn't see it
+          updateSession(sessionId, (s) => {
+            const messages = [...s.messages]
+            const lastMsg = { ...messages[messages.length - 1] }
+            lastMsg.content = ''
+            lastMsg.parts = []
+            lastMsg.toolCalls = []
+            messages[messages.length - 1] = lastMsg
+            return { ...s, messages }
+          })
+
+          const correctiveMessage = '你刚才的回复中包含了编造的执行结果。你没有直接执行SQL的能力，所有SQL必须通过 execute_sql 工具提交给用户确认后才能执行。请重新分析用户需求，正确使用 execute_sql 工具提交SQL，调用后立即停止回复。如果需要了解表结构，可以先调用 list_tables 和 get_table_schema。绝对禁止编造执行结果（如"删除成功"、"影响了N行"、具体返回数据等）。'
+          const newHistory = [
+            ...history,
+            { role: 'assistant' as const, content: assistantContent },
+            { role: 'user' as const, content: correctiveMessage },
+          ]
+          await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1)
+          return hasSqlConfirm
+        }
+      } catch {
+        // Classification failed, skip retry — fail safe
+      }
+    }
+
     return hasSqlConfirm
-  }, [updateSession, model, apiKey, thinkingMode, getFullConnection])
+  }, [updateSession, model, apiKey, thinkingMode, sqlPermission, getFullConnection])
+
+  processStreamRef.current = processStream
 
   const markTaskComplete = useCallback((sessionId: string) => {
     updateSession(sessionId, (s) => {
@@ -551,7 +604,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             }
             return m
           })
-          return { ...s, messages }
+          const logEntry: ExecutionLogEntry = {
+            sql: message.sqlConfirm!.sql,
+            success: false,
+            summary: `执行失败: ${execResult.error}`,
+            timestamp: new Date().toISOString(),
+          }
+          const executionLog = [...(s.executionLog ?? []), logEntry]
+          return { ...s, messages, executionLog }
         })
 
         setIsStreaming(true)
@@ -580,7 +640,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           }
           return m
         })
-        return { ...s, messages }
+        const logEntry: ExecutionLogEntry = {
+          sql: message.sqlConfirm!.sql,
+          success: true,
+          summary: summarizeSqlResult(result),
+          timestamp: new Date().toISOString(),
+        }
+        const executionLog = [...(s.executionLog ?? []), logEntry]
+        return { ...s, messages, executionLog }
       })
 
       setIsStreaming(true)
@@ -593,11 +660,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       } finally {
         setIsStreaming(false)
       }
-    } catch {
+    } catch (err) {
+      console.error('[confirmSql] Unexpected error:', err)
+      setIsStreaming(false)
       updateSession(activeSessionId, (s) => {
         const messages = s.messages.map((m) => {
           if (m.id === messageId && m.sqlConfirm) {
-            return { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'pending' as const } }
+            return { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'error' as const, error: err instanceof Error ? err.message : 'SQL 执行过程中发生未知错误' } }
           }
           return m
         })
@@ -687,6 +756,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+function summarizeSqlResult(result: SqlResultInfo): string {
+  if (result.rows.length > 0) {
+    const row = result.rows[0]
+    if (row.insertId !== undefined) {
+      const affectedRows = Number(row.affectedRows ?? 0)
+      const insertId = Number(row.insertId ?? 0)
+      let summary = `影响了 ${affectedRows} 行`
+      if (insertId > 0) summary += `，新记录 insertId = ${insertId}`
+      return summary
+    }
+    return `返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`
+  }
+  return '查询无返回数据'
+}
+
 function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
   const lines: string[] = [`以下SQL已执行完成：`, '```sql', sql, '```', '']
   lines.push(`执行耗时: ${result.executionTime}ms，返回 ${result.rowCount} 行`)
@@ -708,7 +792,14 @@ function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
   }
 
   lines.push('')
-  lines.push('请基于以上执行结果分析并回答用户的问题。如果已有足够信息回答，请直接给出最终答案。如果确实还需要更多数据才能回答，可以继续生成SQL。')
+
+  const isWriteOperation = /^\s*(INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|CREATE|TRUNCATE)\s/i.test(sql.trim())
+  if (isWriteOperation) {
+    lines.push('以上写操作已成功执行。请直接基于此结果给出最终回复，告知用户操作结果。除非用户明确要求执行更多操作，否则不要再生成新的SQL。')
+  } else {
+    lines.push('请基于以上执行结果分析并回答用户的问题。如果已有足够信息回答，请直接给出最终答案。如果确实还需要更多数据才能回答，可以继续生成SQL。')
+  }
+
   return lines.join('\n')
 }
 

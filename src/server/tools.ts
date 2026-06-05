@@ -61,7 +61,7 @@ export function createDbTools(connection: DatabaseConnection, sqlPermission: 're
 
   const executeSqlTool = tool({
     name: 'execute_sql',
-    description: '生成SQL查询语句。该SQL将展示给用户确认后执行。请确保SQL语法正确且安全。只在你确定需要执行查询时才调用此工具。',
+    description: '提交SQL等待用户确认执行。注意：你自身没有执行SQL的能力，调用此工具后SQL会展示给用户确认，用户确认后才会真正执行并返回结果。调用此工具后你必须立即停止回复，禁止继续生成任何文本，绝对禁止编造执行结果（如"执行成功"、"影响了N行"、具体返回数据等）。',
     schema: z.object({
       sql: z.string().describe('要执行的SQL语句'),
       explanation: z.string().describe('对该SQL的简要说明，解释查询的目的和逻辑'),

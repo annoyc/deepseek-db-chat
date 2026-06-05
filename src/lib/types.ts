@@ -18,6 +18,14 @@ export interface ChatSession {
   updatedAt: string
   taskStartTime?: number
   taskEndTime?: number
+  executionLog?: ExecutionLogEntry[]
+}
+
+export interface ExecutionLogEntry {
+  sql: string
+  success: boolean
+  summary: string
+  timestamp: string
 }
 
 export type MessagePart =

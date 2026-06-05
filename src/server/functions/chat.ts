@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { createDbAgent } from '@/server/agent'
 import { TOOL_ERROR_PREFIX } from '@/server/tools'
 import { decrypt } from '@/server/crypto'
-import type { DatabaseConnection, StreamChunk } from '@/lib/types'
+import type { DatabaseConnection, StreamChunk, ExecutionLogEntry } from '@/lib/types'
 
 interface ChatInput {
   connection: DatabaseConnection
@@ -12,6 +12,7 @@ interface ChatInput {
   apiKey?: string
   thinkingMode?: 'enabled' | 'disabled'
   sqlPermission?: 'readonly' | 'write'
+  executionLog?: ExecutionLogEntry[]
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -32,6 +33,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             apiKey: decryptedApiKey,
             thinkingMode: data.thinkingMode,
             sqlPermission: data.sqlPermission,
+            executionLog: data.executionLog,
           })
           const agentStream = agent.stream({
             prompt: data.message,
