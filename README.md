@@ -29,7 +29,7 @@ Built on DeepSeek prefix caching optimization, context reuse minimizes API call 
 
 ### Rock-Solid Security
 
-Database passwords and model apiKey are encrypted with AES-256-GCM before storage. Every generated SQL query passes **dual-layer validation** — blocked at the tool layer by a strict query-only whitelist, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at both gates — only safe read queries are allowed. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
+Database passwords and model apiKey are encrypted with AES-256-GCM before storage. Every generated SQL query passes **triple-layer validation** — regex blacklist for known-dangerous patterns, AST-based deep analysis via `node-sql-parser` for precise function and table extraction, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at all gates — only safe read queries are allowed. SELECT results are automatically capped at 500 rows to prevent runaway queries. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
 
 ### ️ Full Transparency
 
@@ -44,13 +44,17 @@ All data and conversation history are stored entirely on your local machine. No 
 ## Features
 
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
--  **Security** — AES-256 encrypted passwords, dual-layer SQL validation (tool + confirmation), dangerous operations blocked at both gates, PII auto-masking before AI transmission
+-  **Security** — AES-256 encrypted passwords, triple-layer SQL validation (regex blacklist + AST analysis + human confirmation), dangerous operations blocked at all gates, PII auto-masking before AI transmission
+-  **Database Overview** — One-click full database structure scan with table row counts, comments, and foreign key relationship mapping for accurate JOIN queries
+-  **Foreign Key Awareness** — Schema inspection includes FK relationships extracted from `INFORMATION_SCHEMA`, enabling the AI to generate correct multi-table JOINs
+-  **EXPLAIN Pre-Analysis** — Optional query plan inspection with full table scan warnings before execution
+-  **SQL Self-Correction** — Structured error classification on failure (unknown column, missing table, syntax error) guides the AI to fix SQL intelligently instead of blind retries
 - ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
 -  **Privacy** — 100% client-side IndexedDB storage, no cloud interaction, no server-side data collection
 -  **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
 -  **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
 -  **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
--  **Intelligent Agent Loop** — Multi-step reasoning: list tables → inspect schema → generate SQL → confirm → execute
+-  **Intelligent Agent Loop** — Multi-step reasoning with few-shot JOIN examples: overview DB → inspect schema → generate SQL → confirm → execute → self-correct on error
 -  **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
 -  **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
 
@@ -96,7 +100,7 @@ npm run start
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
 | **Charts** | [Recharts](https://recharts.org/) |
 | **Markdown** | [react-markdown](https://github.com/remarkjs/react-markdown) + [remark-gfm](https://github.com/remarkjs/remark-gfm) |
-| **Validation** | [Zod](https://zod.dev/) |
+| **Validation** | [Zod](https://zod.dev/) + [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser) (AST-based SQL analysis) |
 | **Streaming** | Server-Sent Events (SSE) |
 | **Build** | [Vite](https://vite.dev/) |
 
@@ -115,15 +119,15 @@ src/
 │   ├── context/        # Context compaction
 │   └── index.ts        # Public API exports
 ├── server/             # Server-side logic
-│   ├── agent.ts        # DB Agent configuration & system prompt
-│   ├── tools.ts        # Database tools (list_tables, get_schema, execute_sql)
-│   ├── database.ts     # MySQL connection pool management
+│   ├── agent.ts        # DB Agent configuration & layered system prompt (core + workflow + few-shot)
+│   ├── tools.ts        # Database tools (overview, list_tables, get_schema, explain_sql, execute_sql)
+│   ├── database.ts     # MySQL connection pool, FK extraction, EXPLAIN, auto-LIMIT
 │   └── functions/      # TanStack server functions (chat, connections)
 ├── components/         # React components
 │   ├── chat/           # Chat UI (messages, SQL confirm, charts, thinking)
 │   └── layout/         # Sidebar, dialogs, database list
 ├── hooks/              # React hooks (useChat, useDatabase, useSettings)
-├── lib/                # Types, constants, utilities, PII masking
+├── lib/                # Types, constants, utilities, PII masking, AST-based SQL guard
 ├── routes/             # TanStack Router pages
 └── styles/             # Global CSS (Tailwind)
 ```

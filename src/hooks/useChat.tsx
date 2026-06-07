@@ -602,7 +602,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       '',
       `错误信息: ${errorMsg}`,
       '',
-      '请分析错误原因，修正SQL后重新生成。如果是字段名不存在，请先用 get_table_schema 确认正确的字段名。',
+      '【请按以下步骤自纠错】：',
+      '1. 分析错误类型：',
+      '   - "Unknown column" → 字段名错误，调用 get_table_schema 确认正确字段名',
+      '   - "Table doesn\'t exist" → 表名错误，调用 get_database_overview 确认表名',
+      '   - "You have an error in your SQL syntax" → 语法错误，检查 SQL 语法',
+      '   - "Column count doesn\'t match" → INSERT 列数不匹配，重新核对列',
+      '   - 其他错误 → 根据错误信息推理修复方案',
+      '2. 根据分析结果修正 SQL',
+      '3. 调用 execute_sql 提交修正后的 SQL',
+      '重要：禁止盲目重试相同的 SQL，必须基于错误分析做出有针对性的修改。',
     ].join('\n')
 
     const assistantMessage: ChatMessage = {
@@ -622,7 +631,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
     const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
-    console.log('history', history)
     return await processStream(sessionId, connectionId, errorSummary, history)
   }, [updateSession, processStream])
 

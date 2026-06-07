@@ -1,20 +1,31 @@
+import pkg from 'node-sql-parser'
+const { Parser } = pkg
 import { ALLOWED_SQL_KEYWORDS, BLOCKED_SQL_PATTERNS, WRITE_SQL_KEYWORDS } from './constants'
 
-/**
- * 去除 SQL 中的注释
- * 支持 -- 单行注释和 /* *\/ 多行注释
- */
+const parser = new Parser()
+
+// ────────────────────────────────────────────────────────────
+//  Dangerous MySQL functions — must never appear in SQL
+// ────────────────────────────────────────────────────────────
+const DANGEROUS_FUNCTIONS = new Set([
+  'LOAD_FILE', 'BENCHMARK', 'SLEEP',
+  'EXEC', 'EXECUTE',
+  'SYSTEM', 'SYS_EXEC',
+  'UUID_TO_BIN', // sometimes abused
+])
+
+// ────────────────────────────────────────────────────────────
+//  Regex-based fallback (used when AST parsing fails)
+// ────────────────────────────────────────────────────────────
+
+/** Strip SQL comments: single-line (--) and multi-line block comments */
 function stripComments(sql: string): string {
-  // 去除多行注释 /* ... */
   let result = sql.replace(/\/\*[\s\S]*?\*\//g, '')
-  // 去除单行注释 -- ...
   result = result.replace(/--[^\n]*/g, '')
   return result
 }
 
-/**
- * 按分号拆分 SQL 语句，忽略字符串内的分号
- */
+/** Split SQL by `;` while respecting quoted strings */
 function splitStatements(sql: string): string[] {
   const statements: string[] = []
   let current = ''
@@ -47,19 +58,84 @@ function splitStatements(sql: string): string[] {
   return statements
 }
 
+// ────────────────────────────────────────────────────────────
+//  AST-based table & function extraction
+// ────────────────────────────────────────────────────────────
+
 /**
- * 校验 SQL 是否允许执行
- * 双重校验：白名单（首关键字）+ 黑名单（危险模式）
- * @param mode 'readonly' 仅允许查询; 'write' 额外允许写操作
+ * Recursively walk an AST node to find all function call names.
  */
-export function validateSql(sql: string, mode: 'readonly' | 'write' = 'readonly'): { allowed: boolean; reason?: string } {
+function collectFunctionNames(node: unknown, result: Set<string> = new Set()): Set<string> {
+  if (!node || typeof node !== 'object') return result
+
+  if (Array.isArray(node)) {
+    for (const item of node) collectFunctionNames(item, result)
+    return result
+  }
+
+  const obj = node as Record<string, unknown>
+
+  // Detect function call nodes: { type: 'function', name: { name: [...] } }
+  if (obj.type === 'function' && obj.name && typeof obj.name === 'object') {
+    const nameObj = obj.name as { name?: Array<{ value?: string }> }
+    if (nameObj.name && Array.isArray(nameObj.name)) {
+      for (const part of nameObj.name) {
+        if (part?.value) result.add(String(part.value).toUpperCase())
+      }
+    }
+  }
+
+  // Recurse into all child properties
+  for (const key of Object.keys(obj)) {
+    collectFunctionNames(obj[key], result)
+  }
+
+  return result
+}
+
+/**
+ * Extract all table names from the parser's `tableList` result.
+ * Format: `"select::db::table_name"` → extract `table_name`
+ */
+function extractTableNames(tableList: string[]): string[] {
+  const tables = new Set<string>()
+  for (const entry of tableList) {
+    const parts = entry.split('::')
+    if (parts.length >= 3) {
+      const tableName = parts[2]
+      if (tableName && tableName !== '(null)') {
+        tables.add(tableName.toLowerCase())
+      }
+    }
+  }
+  return [...tables]
+}
+
+// ────────────────────────────────────────────────────────────
+//  Main validation function
+// ────────────────────────────────────────────────────────────
+
+export interface SqlValidationResult {
+  allowed: boolean
+  reason?: string
+  /** All table names referenced in the SQL (including subqueries) */
+  tables?: string[]
+}
+
+/**
+ * Validate SQL using a hybrid approach:
+ * 1. Regex blacklist for known-dangerous patterns (fast, catches DDL/DCL)
+ * 2. AST parsing for precise table & function extraction (catches subqueries, nested calls)
+ * 3. Regex fallback for first-keyword whitelist if AST parsing fails
+ */
+export function validateSql(sql: string, mode: 'readonly' | 'write' = 'readonly'): SqlValidationResult {
   const cleaned = stripComments(sql)
 
   if (!cleaned.trim()) {
     return { allowed: false, reason: 'SQL 语句为空' }
   }
 
-  // 检查整条 SQL 是否包含危险模式
+  // ── Step 1: Regex blacklist (always runs — fast and reliable for DDL/DCL) ──
   for (const pattern of BLOCKED_SQL_PATTERNS) {
     if (pattern.test(cleaned)) {
       const match = cleaned.match(pattern)
@@ -70,14 +146,64 @@ export function validateSql(sql: string, mode: 'readonly' | 'write' = 'readonly'
     }
   }
 
-  // 拆分多语句，逐条检查白名单
+  // ── Step 2: AST-based deep analysis ──
+  try {
+    const parsed = parser.parse(cleaned)
+
+    // Handle multi-statement SQL (parsed returns an array)
+    const astList = Array.isArray(parsed.ast) ? parsed.ast : [parsed.ast]
+
+    for (const ast of astList) {
+      if (!ast) continue
+
+      // 2a. Check statement type against whitelist
+      const stmtType = (ast.type || '').toUpperCase()
+      const allowedKeywords = mode === 'write'
+        ? [...ALLOWED_SQL_KEYWORDS, ...WRITE_SQL_KEYWORDS]
+        : [...ALLOWED_SQL_KEYWORDS]
+      const allowedSet = new Set<string>(allowedKeywords)
+
+      if (!allowedSet.has(stmtType)) {
+        return {
+          allowed: false,
+          reason: `不允许执行 "${stmtType}" 语句，仅允许: ${allowedKeywords.join('/')}`,
+        }
+      }
+
+      // 2b. Check for dangerous function calls anywhere in the AST
+      const funcNames = collectFunctionNames(ast)
+      for (const fn of funcNames) {
+        if (DANGEROUS_FUNCTIONS.has(fn)) {
+          return {
+            allowed: false,
+            reason: `SQL 包含禁止的函数调用: "${fn}()"`,
+          }
+        }
+      }
+    }
+
+    // 2c. Extract all referenced table names (for future permission checks)
+    const allTableList = Array.isArray(parsed.tableList) ? parsed.tableList : []
+    const tables = extractTableNames(allTableList)
+
+    return { allowed: true, tables }
+  } catch {
+    // ── Step 3: AST parsing failed — fall back to regex whitelist ──
+    return validateSqlFallback(cleaned, mode)
+  }
+}
+
+/**
+ * Regex-based fallback for when AST parsing fails (e.g. unusual MySQL syntax).
+ * Checks first keyword of each statement against whitelist.
+ */
+function validateSqlFallback(cleaned: string, mode: 'readonly' | 'write'): SqlValidationResult {
   const statements = splitStatements(cleaned)
   const keywords = mode === 'write'
     ? [...ALLOWED_SQL_KEYWORDS, ...WRITE_SQL_KEYWORDS]
     : [...ALLOWED_SQL_KEYWORDS]
   const allowedSet = new Set<string>(keywords)
   const allowedLabel = keywords.join('/')
-  console.log('allowedSet', allowedSet)
 
   for (const stmt of statements) {
     const firstWord = /^[A-Za-z_]+/.exec(stmt)

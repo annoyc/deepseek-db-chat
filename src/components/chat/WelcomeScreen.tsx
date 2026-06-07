@@ -24,7 +24,7 @@ const features = [
   {
     icon: Shield,
     title: '安全可靠',
-    description: '敏感密码及密钥均使用AES-256加密存储，SQL经工具层白名单与人工确认双重校验，危险操作双门拦截',
+    description: '敏感密码及密钥AES-256加密存储，SQL经正则黑名单、AST深度分析与人工确认三重校验，SELECT自动限流，危险操作全面拦截',
     color: 'text-green-600',
     bg: 'bg-green-50',
   },

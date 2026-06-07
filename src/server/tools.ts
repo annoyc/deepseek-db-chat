@@ -1,6 +1,6 @@
 import { tool } from '@/core'
 import { z } from 'zod'
-import { listTables, getTableSchema } from './database'
+import { listTables, getTableSchema, getDatabaseOverview, explainQuery } from './database'
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection } from '@/lib/types'
@@ -32,6 +32,30 @@ export function createDbTools(
   }
 
   let tablesCache: string | null = null
+  let overviewCache: string | null = null
+
+  const getDatabaseOverviewTool = tool({
+    name: 'get_database_overview',
+    description: '获取当前数据库的全局概览，包括所有表名、近似行数、表注释、以及表之间的外键关系。建议在对话开始时首先调用此工具，快速了解数据库整体结构，然后再针对具体表调用 get_table_schema 获取详细字段信息。',
+    schema: z.object({}),
+    execute: async () => {
+      try {
+        if (overviewCache !== null) {
+          pushResult('get_database_overview', overviewCache)
+          return overviewCache
+        }
+        const result = await getDatabaseOverview(connection)
+        console.log('get_database_overview', result)
+        overviewCache = result
+        pushResult('get_database_overview', result)
+        return result
+      } catch (err) {
+        pushError('get_database_overview', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        return `查询失败: ${msg}`
+      }
+    },
+  })
 
   const listTablesTool = tool({
     name: 'list_tables',
@@ -58,7 +82,7 @@ export function createDbTools(
 
   const getTableSchemaTool = tool({
     name: 'get_table_schema',
-    description: '获取指定表的详细结构信息，包括字段名、类型、索引、注释等。当需要了解表的具体字段以便编写SQL时使用。',
+    description: '获取指定表的详细结构信息，包括字段名、类型、索引、外键关系、注释等。当需要了解表的具体字段以便编写SQL时使用。',
     schema: z.object({
       table_name: z.string().describe('要查询结构的表名'),
     }),
@@ -79,6 +103,29 @@ export function createDbTools(
         pushError('get_table_schema', err)
         const msg = err instanceof Error ? err.message : String(err)
         return `查询失败: ${msg}`
+      }
+    },
+  })
+
+  const explainSqlTool = tool({
+    name: 'explain_sql',
+    description: '对一条 SELECT 语句执行 EXPLAIN 分析，返回执行计划。用于评估查询性能（是否全表扫描、是否使用了索引等）。在提交复杂查询前可先调用此工具评估性能。',
+    schema: z.object({
+      sql: z.string().describe('要分析的 SELECT SQL 语句'),
+    }),
+    execute: async ({ sql }: { sql: string }) => {
+      try {
+        // Basic validation: only SELECT statements
+        if (!/^\s*(SELECT|WITH)\b/i.test(sql.trim())) {
+          return 'EXPLAIN 仅支持 SELECT 语句。'
+        }
+        const result = await explainQuery(connection, sql)
+        pushResult('explain_sql', result)
+        return result
+      } catch (err) {
+        pushError('explain_sql', err)
+        const msg = err instanceof Error ? err.message : String(err)
+        return `EXPLAIN 失败: ${msg}`
       }
     },
   })
@@ -144,5 +191,5 @@ export function createDbTools(
     },
   })
 
-  return { tools: [listTablesTool, getTableSchemaTool, executeSqlTool], resultStore }
+  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, explainSqlTool, executeSqlTool], resultStore }
 }
