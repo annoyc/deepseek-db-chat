@@ -1,4 +1,8 @@
-import { Coins, Shield, Eye, Lock } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Coins, Shield, Eye, Lock, Loader2 } from 'lucide-react'
+import { useDatabaseStore } from '@/hooks/useDatabase'
+import { useSettings } from '@/hooks/useSettings'
+import { generateSuggestions } from '@/server/functions/generate-suggestions'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (question: string) => void
@@ -6,6 +10,7 @@ interface WelcomeScreenProps {
   connectionName?: string
   connectionStatus?: 'idle' | 'testing' | 'success' | 'error'
   connectionError?: string | null
+  activeConnectionId?: string | null
 }
 
 const features = [
@@ -39,14 +44,49 @@ const features = [
   },
 ]
 
-const suggestions = [
-  { icon: '', text: '这个数据库有哪几张用户表?' },
-  { icon: '', text: '帮我查看终端用户表的结构' },
-  { icon: '', text: '查询最近一个月广告页访问量趋势' },
-  { icon: '', text: '查询最近一个月首页banner点击事件趋势' },
-]
+export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, connectionStatus, connectionError, activeConnectionId }: WelcomeScreenProps) {
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const cacheRef = useRef<Map<string, string[]>>(new Map())
+  const { getFullConnection } = useDatabaseStore()
+  const { model, apiKey } = useSettings()
 
-export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, connectionStatus, connectionError }: WelcomeScreenProps) {
+  useEffect(() => {
+    if (connectionStatus !== 'success' || !activeConnectionId) {
+      return
+    }
+
+    // Use cache if available
+    if (cacheRef.current.has(activeConnectionId)) {
+      setSuggestions(cacheRef.current.get(activeConnectionId)!)
+      return
+    }
+
+    const conn = getFullConnection(activeConnectionId)
+    if (!conn) return
+
+    let cancelled = false
+    setLoadingSuggestions(true)
+
+    generateSuggestions({
+      data: { connection: conn, model, apiKey: apiKey || undefined },
+    })
+      .then((result) => {
+        if (cancelled) return
+        cacheRef.current.set(activeConnectionId, result)
+        setSuggestions(result)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setSuggestions([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSuggestions(false)
+      })
+
+    return () => { cancelled = true }
+  }, [activeConnectionId, connectionStatus, getFullConnection, model, apiKey])
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8 h-full flex flex-col justify-center">
@@ -96,18 +136,24 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
         {connectionStatus === 'success' && (
           <div className="space-y-3">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">试试问我</p>
-            <div className="grid grid-cols-2 gap-2">
-              {suggestions.map((s) => (
-                <button
-                  key={s.text}
-                  onClick={() => onSuggestionClick(s.text)}
-                  className="cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all"
-                >
-                  <span className="mr-1.5">{s.icon}</span>
-                  {s.text}
-                </button>
-              ))}
-            </div>
+            {loadingSuggestions ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-xs">AI 正在分析数据库结构...</span>
+              </div>
+            ) : suggestions.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {suggestions.map((text) => (
+                  <button
+                    key={text}
+                    onClick={() => onSuggestionClick(text)}
+                    className="cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all"
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>

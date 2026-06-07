@@ -16,7 +16,7 @@ export function MessageList({ messages }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { sendMessage, isStreaming } = useChatStore()
-  const { activeConnection, connectionStatus, connectionError } = useDatabaseStore()
+  const { activeConnection, activeConnectionId, connectionStatus, connectionError } = useDatabaseStore()
   const { model } = useSettings()
   const shouldAutoScrollRef = useRef(true)
   const prevLengthRef = useRef(messages.length)
@@ -56,6 +56,7 @@ export function MessageList({ messages }: MessageListProps) {
         connectionName={activeConnection?.name}
         connectionStatus={connectionStatus}
         connectionError={connectionError}
+        activeConnectionId={activeConnectionId}
       />
     )
   }
