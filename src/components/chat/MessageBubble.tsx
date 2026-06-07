@@ -40,7 +40,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
   })()
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0 max-w-full">
       {parts.map((part, i) => {
         switch (part.type) {
           case 'thinking': {
@@ -82,7 +82,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
   if (!hasAnyContent) return null
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 min-w-0 max-w-full">
       {hasThinking && (
         <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={thinkingExpanded} />
       )}

@@ -62,7 +62,7 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto px-[10%] py-4 space-y-4">
+    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden px-[10%] py-4 space-y-4">
       {messages.map((message) => (
         <Fragment key={message.id}>
           <MessageBubble
