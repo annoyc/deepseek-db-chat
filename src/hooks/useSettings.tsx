@@ -9,11 +9,13 @@ interface SettingsState {
   model: string
   thinkingMode: 'enabled' | 'disabled'
   sqlPermission: 'readonly' | 'write'
+  blockCollapseMode: 'expanded' | 'collapsed'
   setApiKey: (key: string) => void
   clearApiKey: () => void
   setModel: (model: string) => void
   setThinkingMode: (mode: 'enabled' | 'disabled') => void
   setSqlPermission: (mode: 'readonly' | 'write') => void
+  setBlockCollapseMode: (mode: 'expanded' | 'collapsed') => void
 }
 
 const SettingsContext = createContext<SettingsState | null>(null)
@@ -26,6 +28,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     'enabled'
   )
   const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
+  const [blockCollapseMode, setBlockCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
+    'block-collapse-mode',
+    'expanded'
+  )
 
   // 确保默认值为 'enabled'（思考模式）
   useEffect(() => {
@@ -49,11 +55,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     model,
     thinkingMode,
     sqlPermission,
+    blockCollapseMode,
     setApiKey,
     clearApiKey: () => clearApiKey(),
     setModel,
     setThinkingMode,
     setSqlPermission,
+    setBlockCollapseMode,
   }
 
   return (

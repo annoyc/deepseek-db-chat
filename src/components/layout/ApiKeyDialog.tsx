@@ -20,7 +20,7 @@ async function hasEncryptedKey(): Promise<boolean> {
 }
 
 export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
-  const { setApiKey, clearApiKey } = useSettings()
+  const { setApiKey, clearApiKey, blockCollapseMode, setBlockCollapseMode } = useSettings()
   const [inputValue, setInputValue] = useState('')
   const [hasSavedKey, setHasSavedKey] = useState(false)
   const [showKey, setShowKey] = useState(false)
@@ -128,6 +128,38 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               未检测到任何 API Key，请输入后保存，或在 .env 文件中配置 DEEPSEEK_API_KEY
             </p>
           )}
+
+          {/* 显示设置 */}
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700">思考过程 & 工具调用默认状态</div>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setBlockCollapseMode('expanded')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    blockCollapseMode === 'expanded'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  展开
+                </button>
+                <button
+                  onClick={() => setBlockCollapseMode('collapsed')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    blockCollapseMode === 'collapsed'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  折叠
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              控制聊天中思考过程和工具调用模块的初始展开/折叠状态
+            </p>
+          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             {hasSavedKey && (

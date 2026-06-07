@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, Fragment, useCallback } from 'react'
+import { useEffect, useRef, Fragment, useCallback } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
@@ -48,23 +48,6 @@ export function MessageList({ messages }: MessageListProps) {
     }
   }, [messages, isStreaming])
 
-  const roundMap = useMemo(() => {
-    let round = 0
-    const map = new Map<string, number>()
-
-    for (const msg of messages) {
-      if (msg.role === 'user') {
-        round = 0
-        map.set(msg.id, round)
-      } else if (msg.role === 'assistant') {
-        round++
-        map.set(msg.id, round)
-      }
-    }
-
-    return map
-  }, [messages])
-
   if (messages.length === 0) {
     return (
       <WelcomeScreen
@@ -83,7 +66,6 @@ export function MessageList({ messages }: MessageListProps) {
         <Fragment key={message.id}>
           <MessageBubble
             message={message}
-            roundNumber={roundMap.get(message.id) ?? 0}
             isStreaming={isStreaming}
           />
           {message.role === 'assistant' && message.answerDuration != null && (

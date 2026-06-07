@@ -4,11 +4,12 @@ import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallStatus } from './ToolCallStatus'
 import { SqlConfirmBlock } from './SqlConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
+import { useSettings } from '@/hooks/useSettings'
 
 interface MessageBubbleProps {
   message: ChatMessage
-  roundNumber: number
   isStreaming?: boolean
+  defaultExpanded?: boolean
 }
 
 function StreamingIndicator() {
@@ -21,10 +22,21 @@ function StreamingIndicator() {
   )
 }
 
-function AssistantPartsView({ message, roundNumber, isStreaming }: MessageBubbleProps) {
+function AssistantPartsView({ message, isStreaming, defaultExpanded }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
+
+  // 只有最后一个 part 是 thinking 类型时，该 thinking 块才处于流式状态
+  const lastPart = parts[parts.length - 1]
+  const isLastThinking = isStreaming && lastPart?.type === 'thinking'
+  const lastThinkingIndex = (() => {
+    let idx = 0
+    for (let i = 0; i < parts.length; i++) {
+      if (parts[i].type === 'thinking') idx++
+    }
+    return idx
+  })()
 
   return (
     <div className="space-y-3">
@@ -32,12 +44,13 @@ function AssistantPartsView({ message, roundNumber, isStreaming }: MessageBubble
         switch (part.type) {
           case 'thinking': {
             const idx = ++thinkingIdx
-            return <ThinkingBlock key={`t-${i}`} content={part.content} round={roundNumber} index={idx} isStreaming={isStreaming} />
+            const thinkingStreaming = isLastThinking && idx === lastThinkingIndex
+            return <ThinkingBlock key={`t-${i}`} content={part.content} index={idx} isStreaming={thinkingStreaming} defaultExpanded={defaultExpanded} />
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
             if (!tc || tc.name === 'execute_sql') return null
-            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} />
+            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={defaultExpanded} />
           }
           case 'text':
             return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} /> : null
@@ -57,7 +70,7 @@ function AssistantPartsView({ message, roundNumber, isStreaming }: MessageBubble
   )
 }
 
-function AssistantLegacyView({ message, roundNumber, isStreaming }: MessageBubbleProps) {
+function AssistantLegacyView({ message, isStreaming, defaultExpanded }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0
@@ -70,13 +83,13 @@ function AssistantLegacyView({ message, roundNumber, isStreaming }: MessageBubbl
   return (
     <div className="space-y-3">
       {hasThinking && (
-        <ThinkingBlock content={message.thinking!} round={roundNumber} isStreaming={isStreaming} />
+        <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
       )}
 
       {hasToolCalls && (
         <div className="space-y-3">
           {nonSqlToolCalls.map((tc, idx) => (
-            <ToolCallStatus key={idx} toolCall={tc} />
+            <ToolCallStatus key={idx} toolCall={tc} defaultExpanded={defaultExpanded} />
           ))}
         </div>
       )}
@@ -96,7 +109,10 @@ function AssistantLegacyView({ message, roundNumber, isStreaming }: MessageBubbl
   )
 }
 
-export function MessageBubble({ message, roundNumber, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+  const { blockCollapseMode } = useSettings()
+  const defaultExpanded = blockCollapseMode === 'expanded'
+
   if (message.role === 'user') {
     return (
       <div className="flex gap-3 justify-end">
@@ -121,8 +137,8 @@ export function MessageBubble({ message, roundNumber, isStreaming }: MessageBubb
   }
 
   if (message.parts && message.parts.length > 0) {
-    return <AssistantPartsView message={message} roundNumber={roundNumber} isStreaming={isStreaming} />
+    return <AssistantPartsView message={message} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
   }
 
-  return <AssistantLegacyView message={message} roundNumber={roundNumber} isStreaming={isStreaming} />
+  return <AssistantLegacyView message={message} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
 }

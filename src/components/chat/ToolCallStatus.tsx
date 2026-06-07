@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle2, ChevronDown, ChevronRight, Loader2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ToolCallInfo } from '@/lib/types'
 
 interface ToolCallStatusProps {
   toolCall: ToolCallInfo
+  defaultExpanded?: boolean
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -18,8 +19,13 @@ const TOOL_PARAM_LABELS: Record<string, Record<string, string>> = {
   list_tables: {},
 }
 
-export function ToolCallStatus({ toolCall }: ToolCallStatusProps) {
-  const [expanded, setExpanded] = useState(true)
+export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallStatusProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+
+  // 当设置中的默认状态变化时，同步到组件内部状态
+  useEffect(() => {
+    setExpanded(defaultExpanded)
+  }, [defaultExpanded])
   const label = TOOL_LABELS[toolCall.name] ?? toolCall.name
   const paramLabels = TOOL_PARAM_LABELS[toolCall.name] ?? {}
   const hasResult = toolCall.status === 'completed' && toolCall.result !== undefined
