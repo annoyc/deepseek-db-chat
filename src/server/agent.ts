@@ -1,4 +1,5 @@
 import { createAgent, createModel } from '@/core'
+import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
 import { DEFAULT_MODEL } from '@/lib/constants'
@@ -9,6 +10,9 @@ interface AgentOptions {
   thinkingMode?: 'enabled' | 'disabled'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
+  lastConfirmedSql?: string
+  sqlExecutedCount?: number
+  maxSqlExecutions?: number
 }
 
 const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据用户的自然语言问题生成精确的SQL查询。
@@ -40,7 +44,8 @@ const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据
 - 调用 execute_sql 后必须立即停止，不要再调用任何工具，不要继续生成更多SQL
 - SQL执行结果会在用户确认执行后自动反馈给你，届时你再基于结果继续分析
 - 如果需要执行多个查询来回答用户问题，请分步进行：先执行第一个，等拿到结果后再决定下一步
-- list_tables 和 get_table_schema 可以在同一轮多次调用（用于了解数据库结构）
+- list_tables 和 get_table_schema 可以在同一轮多次调用（用于了解数据库结构），但每张表只需查一次
+- 【绝对禁止循环查询】如果你发现自己正在重复之前已经执行过的相同工具调用（相同的工具名和参数），必须立即停止重复，直接使用已有的结果继续下一步
 - 【禁止猜测自增ID】INSERT 执行后，结果中会返回真实的 insertId。后续如需 UPDATE/DELETE/SELECT 该记录，必须使用返回的 insertId 值，绝对不要假设自增ID从1开始或猜测任何ID值
 
 【INSERT 时自增 ID 的处理规则 — 必须严格执行】：
@@ -52,15 +57,16 @@ const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据
 你的工作流程：
 1. 理解用户的问题意图
 2. 使用 list_tables 查看有哪些表
-3. 【必须执行】使用 get_table_schema 查看所有相关表的完整结构，确认字段名、字段类型
+3. 【必须执行】使用 get_table_schema 查看所有相关表的完整结构，确认字段名、字段类型（每张表只查一次，禁止重复查询）
 4. 基于【确认过的真实字段名】，生成准确的SQL语句
 5. 调用 execute_sql 工具提交SQL → 立即停止回复
 6. 用户确认执行后，你会收到真实的查询结果，然后基于结果回答用户
 
 【最重要规则 - 违反将导致SQL执行失败】：
-- 禁止凭记忆或猜测使用字段名！每次生成SQL前，必须先调用 get_table_schema 确认真实字段名
-- 即使你之前查过表结构，如果本轮还未调用过 get_table_schema，必须重新调用
-- 常见错误：created_at vs created_time、phone vs phonenumber —— 这些差异只有查表结构才能确认
+- 禁止凭记忆或猜测使用字段名！生成SQL前，必须先调用 get_table_schema 确认真实字段名
+- 【严禁重复查询】同一张表的 get_table_schema 在本轮对话中只需调用一次！如果你之前已经查过某张表的结构，必须直接使用之前的结果，绝对禁止再次调用 get_table_schema 查询同一张表
+- 如果已经查过所有相关表的结构，就应该直接生成 SQL 并调用 execute_sql，不要再重复查询表结构
+- 常见错误：created_at vs created_time、phone vs phonenumber —— 这些差异只有查表结构才能确认，但查一次就够了
 
 注意事项：
 - SQL必须语法正确，适配MySQL语法
@@ -78,6 +84,7 @@ const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据
 - 用中文回答用户的问题
 - 拿到SQL执行结果后，如果数据已足够回答用户问题，请直接给出完整的最终答案，不要再生成SQL
 - 只有在当前数据确实不够回答问题时，才继续生成新的SQL查询
+- 本会话有 SQL 执行次数上限，请高效利用每次查询，避免不必要的重复查询
 - 最终答案要简洁明了，突出关键数据和有价值的洞察`
 
 export function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
@@ -93,9 +100,17 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
   }
 
   const model = createModel(modelConfig as any)
-  const { tools, resultStore } = createDbTools(connection, options?.sqlPermission)
+  const { tools, resultStore } = createDbTools(connection, options?.sqlPermission, options?.lastConfirmedSql, options?.sqlExecutedCount, options?.maxSqlExecutions)
 
   let systemPrompt = SYSTEM_PROMPT + `\n\n当前连接的数据库: ${connection.database} (${connection.host}:${connection.port})`
+
+  // Show remaining SQL execution quota
+  const maxExec = options?.maxSqlExecutions ?? SESSION_MAX_SQL_EXECUTIONS
+  const executed = options?.sqlExecutedCount ?? 0
+  const remaining = Math.max(0, maxExec - executed)
+  if (remaining <= 5) {
+    systemPrompt += `\n\n⚠️ 本会话 SQL 执行次数即将用尽：已执行 ${executed} 次，最多剩余 ${remaining} 次。请珍惜执行机会，尽快基于已有结果给出最终回复。`
+  }
 
   // Append execution log context if available
   const log = options?.executionLog

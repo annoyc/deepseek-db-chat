@@ -13,6 +13,9 @@ interface ChatInput {
   thinkingMode?: 'enabled' | 'disabled'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
+  lastConfirmedSql?: string
+  sqlExecutedCount?: number
+  maxSqlExecutions?: number
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -34,6 +37,9 @@ export const chatStream = createServerFn({ method: 'POST' })
             thinkingMode: data.thinkingMode,
             sqlPermission: data.sqlPermission,
             executionLog: data.executionLog,
+            lastConfirmedSql: data.lastConfirmedSql,
+            sqlExecutedCount: data.sqlExecutedCount,
+            maxSqlExecutions: data.maxSqlExecutions,
           })
           const agentStream = agent.stream({
             prompt: data.message,

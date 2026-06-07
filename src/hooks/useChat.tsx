@@ -134,12 +134,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const abortControllerRef = useRef<AbortController | null>(null)
   
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
-  const { model, apiKey, thinkingMode, sqlPermission } = useSettings()
+  const { model, apiKey, thinkingMode, sqlPermission, maxSqlExecutions } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
   const titleGeneratedSessionsRef = useRef<Set<string>>(new Set())
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
+  const lastConfirmedSqlRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!initialLoadDone.current) return
@@ -277,7 +278,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const executionLog = currentSession?.executionLog
 
     const response = await chatStream({
-      data: { connection, message, history, model, apiKey: apiKey || undefined, thinkingMode, sqlPermission, executionLog },
+      data: {
+        connection, message, history, model,
+        apiKey: apiKey || undefined,
+        thinkingMode, sqlPermission, executionLog,
+        lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
+        sqlExecutedCount: executionLog?.length ?? 0,
+        maxSqlExecutions,
+      },
     })
 
     for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current?.signal)) {
@@ -433,7 +441,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     return hasSqlConfirm
-  }, [updateSession, model, apiKey, thinkingMode, sqlPermission, getFullConnection])
+  }, [updateSession, model, apiKey, thinkingMode, sqlPermission, maxSqlExecutions, getFullConnection])
 
   processStreamRef.current = processStream
 
@@ -680,6 +688,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       const result = execResult.data
+
+      // Track last confirmed SQL for cross-round dedup
+      lastConfirmedSqlRef.current = message.sqlConfirm!.sql
 
       updateSession(activeSessionId, (s) => {
         const messages = s.messages.map((m) => {

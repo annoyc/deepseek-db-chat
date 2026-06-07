@@ -9,6 +9,23 @@ import { AgentError, classifyError } from '@/core/errors'
 import { generateStructuredOutput } from './generate-structured-output'
 import { buildMessage, emptyUsage, HookRunner, lastAssistantMsg, mergeUsage, StopLoop } from './generate-utils'
 
+function normalizeArgs(args: string): string {
+  try {
+    const parsed = JSON.parse(args)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return JSON.stringify(Object.keys(parsed).sort().reduce((acc: Record<string, unknown>, key) => {
+        acc[key] = parsed[key]
+        return acc
+      }, {}))
+    }
+  } catch {}
+  return args
+}
+
+function makeToolCallKey(toolCall: ChatCompletionTool): string {
+  return `${toolCall.function?.name ?? ''}::${normalizeArgs(toolCall.function?.arguments ?? '{}')}`
+}
+
 async function executeToolCalls(
   toolCalls: ChatCompletionTool[],
   tools: Tool[],
@@ -45,6 +62,8 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
 
   let currentModel = model
   let lastPromptTokens = 0
+  const seenToolCallKeys = new Set<string>()
+  let consecutiveDuplicateSteps = 0
 
   while (stepRef.value < maxSteps) {
     stepRef.value++
@@ -111,6 +130,33 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
 
       if (stepResult.toolCalls.length > 0 && currentTools.length > 0) {
         yield { type: 'tool-call', step: stepRef.value, toolCalls: stepResult.toolCalls }
+
+        // --- Tool call deduplication: detect and break infinite loops ---
+        const currentStepKeys = stepResult.toolCalls.map(tc => makeToolCallKey(tc))
+        const allDuplicate = currentStepKeys.every(key => seenToolCallKeys.has(key))
+
+        if (allDuplicate) {
+          consecutiveDuplicateSteps++
+        } else {
+          consecutiveDuplicateSteps = 0
+        }
+
+        currentStepKeys.forEach(key => seenToolCallKeys.add(key))
+
+        if (consecutiveDuplicateSteps >= 2) {
+          // Model is stuck repeating the same tool calls — force stop
+          for (const toolCall of stepResult.toolCalls) {
+            currentMessages.push({
+              role: 'tool',
+              content: JSON.stringify({
+                success: false,
+                error: `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`,
+              }),
+              tool_call_id: toolCall.id,
+            })
+          }
+          return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+        }
 
         const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks)
         for (const { tool_call_id, content } of toolResults) {

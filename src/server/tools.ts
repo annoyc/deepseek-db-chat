@@ -2,14 +2,23 @@ import { tool } from '@/core'
 import { z } from 'zod'
 import { listTables, getTableSchema } from './database'
 import { validateSql } from '@/lib/sql-guard'
+import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection } from '@/lib/types'
 
 export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
 
 export type ResultStore = Map<string, string[]>
 
-export function createDbTools(connection: DatabaseConnection, sqlPermission: 'readonly' | 'write' = 'readonly') {
+export function createDbTools(
+  connection: DatabaseConnection,
+  sqlPermission: 'readonly' | 'write' = 'readonly',
+  lastConfirmedSql?: string,
+  sqlExecutedCount: number = 0,
+  maxSqlExecutions: number = SESSION_MAX_SQL_EXECUTIONS,
+) {
   const resultStore: ResultStore = new Map()
+  const schemaCache = new Map<string, string>()
+  const submittedSqlSet = new Set<string>()
 
   function pushResult(name: string, result: string) {
     const queue = resultStore.get(name) ?? []
@@ -22,14 +31,21 @@ export function createDbTools(connection: DatabaseConnection, sqlPermission: 're
     pushResult(name, TOOL_ERROR_PREFIX + msg)
   }
 
+  let tablesCache: string | null = null
+
   const listTablesTool = tool({
     name: 'list_tables',
     description: '列出当前数据库中的所有表名。当用户询问数据库有哪些表、或需要了解数据库结构时使用。',
     schema: z.object({}),
     execute: async () => {
       try {
+        if (tablesCache !== null) {
+          pushResult('list_tables', tablesCache)
+          return tablesCache
+        }
         const tables = await listTables(connection)
         const result = tables.join('\n')
+        tablesCache = result
         pushResult('list_tables', result)
         return result
       } catch (err) {
@@ -48,7 +64,15 @@ export function createDbTools(connection: DatabaseConnection, sqlPermission: 're
     }),
     execute: async ({ table_name }: { table_name: string }) => {
       try {
+        // Return cached schema if already queried in this agent run
+        const cached = schemaCache.get(table_name)
+        if (cached) {
+          pushResult('get_table_schema', cached)
+          return cached
+        }
+
         const result = await getTableSchema(connection, table_name)
+        schemaCache.set(table_name, result)
         pushResult('get_table_schema', result)
         return result
       } catch (err) {
@@ -67,6 +91,39 @@ export function createDbTools(connection: DatabaseConnection, sqlPermission: 're
       explanation: z.string().describe('对该SQL的简要说明，解释查询的目的和逻辑'),
     }),
     execute: async ({ sql, explanation }) => {
+      // Session-level execution limit check
+      if (sqlExecutedCount >= maxSqlExecutions) {
+        const limitMsg = JSON.stringify({
+          status: 'limit_reached',
+          message: `本会话已执行 ${maxSqlExecutions} 条 SQL，达到上限。请基于已有的查询结果给出最终回复，不再生成新的 SQL。`,
+        })
+        pushResult('execute_sql', limitMsg)
+        return limitMsg
+      }
+
+      // Dedup: block duplicate SQL within the same agent run
+      const normalizedSql = sql.trim().replace(/\s+/g, ' ')
+      if (submittedSqlSet.has(normalizedSql)) {
+        const dupMsg = JSON.stringify({
+          status: 'duplicate_blocked',
+          message: '此 SQL 与本轮已提交的 SQL 完全相同，已被阻止重复提交。请直接基于已有结果给出最终回复，不要再重复生成相同的 SQL。',
+        })
+        pushResult('execute_sql', dupMsg)
+        return dupMsg
+      }
+
+      // Dedup: block SQL identical to last user-confirmed SQL (cross-round)
+      if (lastConfirmedSql && normalizedSql === lastConfirmedSql.trim().replace(/\s+/g, ' ')) {
+        const dupMsg = JSON.stringify({
+          status: 'duplicate_blocked',
+          message: '此 SQL 与上一轮用户已确认执行的 SQL 完全相同，已被阻止。你已经拿到了执行结果，请直接分析结果并给出最终回复，不要再重复提交相同的 SQL。',
+        })
+        pushResult('execute_sql', dupMsg)
+        return dupMsg
+      }
+
+      submittedSqlSet.add(normalizedSql)
+
       // 工具层安全校验：拦截危险 SQL
       const validation = validateSql(sql, sqlPermission)
       if (!validation.allowed) {

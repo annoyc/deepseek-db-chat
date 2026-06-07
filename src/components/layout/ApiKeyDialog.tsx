@@ -20,7 +20,13 @@ async function hasEncryptedKey(): Promise<boolean> {
 }
 
 export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
-  const { setApiKey, clearApiKey, thinkingCollapseMode, setThinkingCollapseMode, toolCallCollapseMode, setToolCallCollapseMode } = useSettings()
+  const {
+    setApiKey, clearApiKey,
+    thinkingCollapseMode, setThinkingCollapseMode,
+    toolCallCollapseMode, setToolCallCollapseMode,
+    maxSqlExecutions, setMaxSqlExecutions,
+  } = useSettings()
+
   const [inputValue, setInputValue] = useState('')
   const [hasSavedKey, setHasSavedKey] = useState(false)
   const [showKey, setShowKey] = useState(false)
@@ -30,11 +36,22 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     maskedKey: '',
   })
 
+  // Local state for settings — only committed on save
+  const [localThinkingCollapse, setLocalThinkingCollapse] = useState<'expanded' | 'collapsed'>('collapsed')
+  const [localToolCallCollapse, setLocalToolCallCollapse] = useState<'expanded' | 'collapsed'>('collapsed')
+  const [localMaxSqlExecutions, setLocalMaxSqlExecutions] = useState(20)
+
   useEffect(() => {
     if (open) {
       setInputValue('')
-      hasEncryptedKey().then(setHasSavedKey)
+      setHasSavedKey(false)
       setShowKey(false)
+      setSaving(false)
+      // Initialize local state from current settings
+      setLocalThinkingCollapse(thinkingCollapseMode)
+      setLocalToolCallCollapse(toolCallCollapseMode)
+      setLocalMaxSqlExecutions(maxSqlExecutions)
+      hasEncryptedKey().then(setHasSavedKey)
       getEnvApiKeyStatus().then(setEnvStatus).catch(() => {})
     }
   }, [open])
@@ -42,17 +59,25 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   if (!open) return null
 
   const handleSave = async () => {
-    const trimmed = inputValue.trim()
-    if (!trimmed) return
     setSaving(true)
     try {
-      const { encrypted } = await encryptPasswordFn({ data: { password: trimmed } })
-      setApiKey(encrypted)
-      setHasSavedKey(true)
-      setInputValue('')
+      // Save API key only if user entered one
+      const trimmed = inputValue.trim()
+      if (trimmed) {
+        const { encrypted } = await encryptPasswordFn({ data: { password: trimmed } })
+        setApiKey(encrypted)
+        setHasSavedKey(true)
+        setInputValue('')
+      }
+
+      // Commit all settings
+      setThinkingCollapseMode(localThinkingCollapse)
+      setToolCallCollapseMode(localToolCallCollapse)
+      setMaxSqlExecutions(localMaxSqlExecutions)
+
       onClose()
     } catch (err) {
-      console.error('[ApiKeyDialog] Encrypt failed:', err)
+      console.error('[ApiKeyDialog] Save failed:', err)
     } finally {
       setSaving(false)
     }
@@ -148,9 +173,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               <span className="text-sm text-gray-600">思考过程</span>
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button
-                  onClick={() => setThinkingCollapseMode('expanded')}
+                  onClick={() => setLocalThinkingCollapse('expanded')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    thinkingCollapseMode === 'expanded'
+                    localThinkingCollapse === 'expanded'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -158,9 +183,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   展开
                 </button>
                 <button
-                  onClick={() => setThinkingCollapseMode('collapsed')}
+                  onClick={() => setLocalThinkingCollapse('collapsed')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    thinkingCollapseMode === 'collapsed'
+                    localThinkingCollapse === 'collapsed'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -174,9 +199,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               <span className="text-sm text-gray-600">工具调用</span>
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button
-                  onClick={() => setToolCallCollapseMode('expanded')}
+                  onClick={() => setLocalToolCallCollapse('expanded')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    toolCallCollapseMode === 'expanded'
+                    localToolCallCollapse === 'expanded'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -184,9 +209,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   展开
                 </button>
                 <button
-                  onClick={() => setToolCallCollapseMode('collapsed')}
+                  onClick={() => setLocalToolCallCollapse('collapsed')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    toolCallCollapseMode === 'collapsed'
+                    localToolCallCollapse === 'collapsed'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -194,6 +219,31 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   折叠
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* SQL 执行限制 */}
+          <div className="border-t border-gray-200 pt-4 space-y-3">
+            <div className="text-sm font-medium text-gray-700">SQL 执行限制</div>
+            <p className="text-xs text-gray-400 -mt-1">
+              每个会话中最多允许执行的 SQL 次数，防止 AI 过度查询
+            </p>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">最大执行次数</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={localMaxSqlExecutions}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10)
+                  if (!isNaN(v)) {
+                    setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
+                  }
+                }}
+                className="w-20 px-3 py-1.5 text-sm text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all tabular-nums"
+              />
             </div>
           </div>
 
@@ -206,11 +256,11 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving || !inputValue.trim()}
+              disabled={saving}
               className="px-6 py-2.5 text-sm font-medium text-white bg-green-700 rounded-xl hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? '加密保存中...' : '保存'}
+              {saving ? '保存中...' : '保存'}
             </button>
           </div>
         </div>
