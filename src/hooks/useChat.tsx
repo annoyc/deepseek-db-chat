@@ -401,6 +401,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     // Detect hallucination: check if assistant's text contains fabricated execution results
     // isContinuation: true when processStream is called after a real SQL execution result
+    // (the message is the formatted SQL result/error summary sent back to the agent)
+    // Sources: formatSqlResultForAI → "以下SQL已执行完成：", continueWithSqlError → "以下SQL执行失败："
     const isContinuation = /^以下SQL(?:已执行完成|执行失败)/.test(message)
     if (retryCount < 1 && !hasSqlConfirm && assistantContent.length > 30) {
       try {
