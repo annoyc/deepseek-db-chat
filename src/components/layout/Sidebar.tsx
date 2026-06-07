@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Database, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plus, Settings } from 'lucide-react'
+import { Database, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, ChevronDown, ChevronRight, Server } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DatabaseList } from './DatabaseList'
 import { ChatHistory } from './ChatHistory'
@@ -16,14 +16,25 @@ interface SidebarProps {
 export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
-  const { createNewSession } = useChatStore()
-  const { editingConnection } = useDatabaseStore()
+  const [dbSectionCollapsed, setDbSectionCollapsed] = useState(false)
+  const [chatSectionCollapsed, setChatSectionCollapsed] = useState(false)
+  const { createNewSession, sessions, activeSessionId, setActiveSession } = useChatStore()
+  const { editingConnection, connections, activeConnectionId } = useDatabaseStore()
 
   useEffect(() => {
     if (editingConnection) {
       setShowAddDialog(true)
     }
   }, [editingConnection])
+
+  // Get active connection name for collapsed tooltip
+  const activeConn = connections.find(c => c.id === activeConnectionId)
+
+  // Get recent session titles for collapsed display
+  const recentSessions = [...sessions]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 3)
+    .filter(s => s.title !== '新对话' || s.messages.length > 0)
 
   return (
     <>
@@ -75,54 +86,125 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
 
         {/* Content area */}
         <div className={cn('flex-1 overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
-          {/* Database section */}
-          <div className={cn('flex items-center gap-2 py-1.5', collapsed ? 'justify-center' : 'px-2')}>
+          {/* Database section - collapsible */}
+          <div
+            className={cn('flex items-center gap-2 py-1.5 cursor-pointer select-none', collapsed ? 'justify-center' : 'px-2')}
+            onClick={() => !collapsed && setDbSectionCollapsed(!dbSectionCollapsed)}
+          >
             <Database className="w-4 h-4 text-gray-500" />
             {!collapsed && (
-              <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">数据库连接</span>
+              <>
+                <span className="text-xs font-medium text-gray-700 uppercase tracking-wider flex-1">数据库连接</span>
+                <div className={cn(
+                  'transition-transform duration-200',
+                  dbSectionCollapsed ? '-rotate-90' : ''
+                )}>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                </div>
+              </>
             )}
           </div>
-          {!collapsed && <DatabaseList />}
+          {!collapsed && !dbSectionCollapsed && <DatabaseList />}
 
-          {/* Chat section */}
-          <div className={cn('flex items-center py-1.5', collapsed ? 'justify-center' : 'justify-between px-2')}>
+          {/* Collapsed: show active DB indicator */}
+          {collapsed && activeConn && (
+            <div
+              className="flex justify-center py-1"
+              title={activeConn.name}
+            >
+              <div className="w-7 h-7 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center text-green-700">
+                <Server className="w-3.5 h-3.5" />
+              </div>
+            </div>
+          )}
+
+          {/* Divider between sections */}
+          {!collapsed && (
+            <div className="my-2 border-t border-gray-200/60" />
+          )}
+
+          {/* Chat section - collapsible */}
+          <div
+            className={cn('flex items-center py-1.5', collapsed ? 'justify-center' : 'justify-between px-2 cursor-pointer select-none')}
+            onClick={() => !collapsed && setChatSectionCollapsed(!chatSectionCollapsed)}
+          >
             <div className="flex items-center gap-1.5">
               <MessageSquarePlus className="w-4 h-4 text-gray-500" />
               {!collapsed && (
-                <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">对话历史</span>
+                <>
+                  <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">对话历史</span>
+                  <div className={cn(
+                    'transition-transform duration-200',
+                    chatSectionCollapsed ? '-rotate-90' : ''
+                  )}>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  </div>
+                </>
               )}
             </div>
             {!collapsed && (
               <button
-                onClick={createNewSession}
-                className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-green-700 transition-colors"
+                onClick={(e) => { e.stopPropagation(); createNewSession() }}
+                className="p-0.5 hover:bg-green-100 rounded text-gray-500 hover:text-green-700 transition-colors"
                 title="新对话"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
               </button>
             )}
           </div>
-          {!collapsed && <ChatHistory />}
+          {!collapsed && !chatSectionCollapsed && <ChatHistory />}
+
+          {/* Collapsed: show recent sessions as tooltips */}
+          {collapsed && recentSessions.length > 0 && (
+            <div className="flex flex-col items-center gap-1 mt-1">
+              {recentSessions.map(session => (
+                <button
+                  key={session.id}
+                  onClick={() => setActiveSession(session.id)}
+                  className={cn(
+                    'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
+                    activeSessionId === session.id
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-transparent'
+                  )}
+                  title={session.title}
+                >
+                  {session.title.slice(0, 1).toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="border-t border-gray-200">
           {collapsed ? (
-            <button
-              onClick={() => setShowApiKeyDialog(true)}
-              className="w-full flex justify-center p-3 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
-              title="设置"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex flex-col items-center gap-1 py-2">
+              <button
+                onClick={() => setShowApiKeyDialog(true)}
+                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                title="设置"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={onToggleCollapse}
+                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                title="展开侧边栏"
+              >
+                <PanelLeftOpen className="w-3.5 h-3.5" />
+              </button>
+            </div>
           ) : (
-            <button
-              onClick={() => setShowApiKeyDialog(true)}
-              className="w-full flex items-center gap-2 p-3 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              设置
-            </button>
+            <div className="flex items-center justify-between px-3">
+              <button
+                onClick={() => setShowApiKeyDialog(true)}
+                className="flex items-center gap-2 p-3 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                设置
+              </button>
+            </div>
           )}
         </div>
       </aside>

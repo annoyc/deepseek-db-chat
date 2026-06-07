@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Database, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useDatabaseStore } from '@/hooks/useDatabase'
+import type { DbEnv } from '@/lib/types'
+
+const envOptions: { value: DbEnv; label: string; description: string }[] = [
+  { value: 'dev', label: '开发环境 DEV', description: '日常开发和调试使用' },
+  { value: 'test', label: '测试环境 PRE', description: 'QA 测试和集成验证' },
+  { value: 'staging', label: '预发布环境 UAT', description: '上线前最终验证' },
+  { value: 'prod', label: '生产环境 PROD', description: '正式线上环境，谨慎操作' },
+]
 
 interface AddConnectionDialogProps {
   open: boolean
@@ -20,6 +28,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
     user: 'root',
     password: '',
     database: '',
+    env: 'dev' as DbEnv,
   })
 
   useEffect(() => {
@@ -31,9 +40,10 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
         user: editingConnection.user,
         password: '',
         database: editingConnection.database,
+        env: editingConnection.env || 'dev',
       })
     } else {
-      setForm({ name: '', host: 'localhost', port: 3306, user: 'root', password: '', database: '' })
+      setForm({ name: '', host: 'localhost', port: 3306, user: 'root', password: '', database: '', env: 'dev' })
     }
   }, [editingConnection])
 
@@ -52,7 +62,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
       }
       onClose()
       if (!isEdit) {
-        setForm({ name: '', host: 'localhost', port: 3306, user: 'root', password: '', database: '' })
+        setForm({ name: '', host: 'localhost', port: 3306, user: 'root', password: '', database: '', env: 'dev' })
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '连接失败')
@@ -82,18 +92,38 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-3">
-          <Field label="连接名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="My Database" />
+          <Field label="连接名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="My Database" required />
+          {/* Environment selector */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">连接环境 <span className="text-red-500">*</span></label>
+            <div className="grid grid-cols-4 gap-2">
+              {envOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, env: opt.value })}
+                  className={cnEnvButton(form.env === opt.value, opt.value)}
+                  title={opt.description}
+                >
+                  {opt.label.split(' ')[1]}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {envOptions.find(o => o.value === form.env)?.description}
+            </p>
+          </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} />
+              <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} required />
             </div>
-            <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) || 3306 })} />
+            <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) || 3306 })} required />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="用户名" value={form.user} onChange={(v) => setForm({ ...form, user: v })} />
+            <Field label="用户名" value={form.user} onChange={(v) => setForm({ ...form, user: v })} required />
             <PasswordField label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} showPassword={showPassword} onTogglePassword={() => setShowPassword(!showPassword)} placeholder={isEdit ? '留空则不修改密码' : ''} />
           </div>
-          <Field label="数据库名" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="my_database" />
+          <Field label="数据库名" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="my_database" required />
 
           {error && (
             <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
@@ -109,7 +139,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
             </button>
             <button
               type="submit"
-              disabled={loading || !form.name || !form.database}
+              disabled={loading || !form.name || !form.host || !form.database || !form.user || !form.env || (!isEdit && !form.password)}
               className="px-5 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 disabled:opacity-50 transition-colors"
             >
               {loading ? (
@@ -132,16 +162,20 @@ function Field({
   onChange,
   placeholder,
   type = 'text',
+  required = false,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   type?: string
+  required?: boolean
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-gray-500 mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <input
         type={type}
         value={value}
@@ -160,6 +194,7 @@ function PasswordField({
   placeholder,
   showPassword,
   onTogglePassword,
+  required = false,
 }: {
   label: string
   value: string
@@ -167,6 +202,7 @@ function PasswordField({
   placeholder?: string
   showPassword: boolean
   onTogglePassword: () => void
+  required?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -178,7 +214,9 @@ function PasswordField({
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-gray-500 mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <div className="relative">
         <input
           ref={inputRef}
@@ -198,4 +236,28 @@ function PasswordField({
       </div>
     </div>
   )
+}
+
+function cnEnvButton(selected: boolean, env: DbEnv): string {
+  const colorMap: Record<DbEnv, { active: string; inactive: string }> = {
+    dev: {
+      active: 'bg-green-50 border-green-400 text-green-700 ring-1 ring-green-400/30',
+      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-green-50/40 hover:border-green-300 hover:text-green-600',
+    },
+    test: {
+      active: 'bg-blue-50 border-blue-400 text-blue-700 ring-1 ring-blue-400/30',
+      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50/40 hover:border-blue-300 hover:text-blue-600',
+    },
+    staging: {
+      active: 'bg-yellow-50 border-yellow-400 text-yellow-700 ring-1 ring-yellow-400/30',
+      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-yellow-50/40 hover:border-yellow-300 hover:text-yellow-600',
+    },
+    prod: {
+      active: 'bg-red-50 border-red-400 text-red-700 ring-1 ring-red-400/30',
+      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-red-50/40 hover:border-red-300 hover:text-red-600',
+    },
+  }
+  const base = 'px-2 py-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer'
+  const colors = selected ? colorMap[env].active : colorMap[env].inactive
+  return `${base} ${colors}`
 }

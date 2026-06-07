@@ -5,6 +5,7 @@ import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
 import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
 import { classifyHallucination } from '@/server/functions/classify-hallucination'
+import { generateAiTitle } from '@/server/functions/generate-title'
 import { db } from '@/lib/db'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
@@ -17,6 +18,7 @@ interface ChatState {
   setActiveSession: (id: string) => void
   createNewSession: () => void
   deleteSession: (id: string) => void
+  renameSession: (id: string, title: string) => void
   sendMessage: (content: string) => Promise<void>
   stopStreaming: () => void
   clearMessages: () => void
@@ -113,6 +115,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           loadingSessionConnIdRef.current = loaded[0].connectionId
           setActiveConnection(loaded[0].connectionId)
         }
+        // Mark all existing sessions with messages as already having titles generated
+        loaded.forEach((s) => {
+          if (s.messages.length > 0) {
+            titleGeneratedSessionsRef.current.add(s.id)
+          }
+        })
       }
       initialLoadDone.current = true
     })
@@ -125,6 +133,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
+  const titleGeneratedSessionsRef = useRef<Set<string>>(new Set())
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
@@ -205,6 +214,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setActiveSessionId(null)
     }
   }, [activeSessionId])
+
+  const renameSession = useCallback((id: string, title: string) => {
+    setSessions((prev) => {
+      const updated = prev.map((s) => s.id === id ? { ...s, title, updatedAt: new Date().toISOString() } : s)
+      saveSessionsToStorage(updated)
+      return updated
+    })
+  }, [])
 
   const handleSetActiveSession = useCallback((id: string) => {
     const session = sessions.find((s) => s.id === id)
@@ -415,6 +432,37 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   processStreamRef.current = processStream
 
+  const generateAiTitleForSession = useCallback(async (sessionId: string) => {
+    if (titleGeneratedSessionsRef.current.has(sessionId)) return
+
+    const session = sessionsRef.current.find((s) => s.id === sessionId)
+    if (!session || session.messages.length < 2) return
+
+    titleGeneratedSessionsRef.current.add(sessionId)
+
+    const userMsg = session.messages.find((m) => m.role === 'user')
+    const assistantMsg = session.messages.find((m) => m.role === 'assistant')
+    if (!userMsg || !assistantMsg) return
+
+    try {
+      const title = await generateAiTitle({
+        data: {
+          userMessage: userMsg.content,
+          assistantContent: assistantMsg.content || '数据库查询操作',
+          model,
+          apiKey: apiKey || undefined,
+        },
+      })
+      updateSession(sessionId, (s) => {
+        // Only overwrite if the title hasn't been manually renamed
+        if (s.title !== userMsg.content.slice(0, 20)) return s
+        return { ...s, title, updatedAt: new Date().toISOString() }
+      })
+    } catch {
+      // Title generation failed, keep the initial truncated title
+    }
+  }, [updateSession, model, apiKey])
+
   const markTaskComplete = useCallback((sessionId: string) => {
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
@@ -493,6 +541,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       if (!hasSqlConfirm) {
         markTaskComplete(sessionId)
+        generateAiTitleForSession(sessionId)
       }
     } catch (err) {
       updateSession(sessionId, (s) => {
@@ -505,7 +554,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsStreaming(false)
     }
-  }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, getFullConnection])
+  }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
 
   const continueWithSqlResult = useCallback(async (sessionId: string, connectionId: string, sql: string, result: SqlResultInfo): Promise<boolean> => {
     const resultSummary = formatSqlResultForAI(sql, result)
@@ -617,6 +666,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           const hasSqlConfirm = await continueWithSqlError(activeSessionId, activeConnectionId, message.sqlConfirm.sql, execResult.error)
           if (!hasSqlConfirm) {
             markTaskComplete(activeSessionId)
+            generateAiTitleForSession(activeSessionId)
           }
         } finally {
           setIsStreaming(false)
@@ -653,6 +703,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const hasSqlConfirm = await continueWithSqlResult(activeSessionId, activeConnectionId, message.sqlConfirm.sql, result)
         if (!hasSqlConfirm) {
           markTaskComplete(activeSessionId)
+          generateAiTitleForSession(activeSessionId)
         }
       } finally {
         setIsStreaming(false)
@@ -670,7 +721,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return { ...s, messages }
       })
     }
-  }, [activeSessionId, activeConnectionId, updateSession, continueWithSqlResult, continueWithSqlError, markTaskComplete, getFullConnection, confirmAndExecuteSql, sqlPermission])
+  }, [activeSessionId, activeConnectionId, updateSession, continueWithSqlResult, continueWithSqlError, markTaskComplete, generateAiTitleForSession, getFullConnection, confirmAndExecuteSql, sqlPermission])
 
   const cancelSql = useCallback((messageId: string) => {
     if (!activeSessionId) return
@@ -739,6 +790,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveSession: handleSetActiveSession,
     createNewSession,
     deleteSession,
+    renameSession,
     sendMessage,
     stopStreaming,
     clearMessages,

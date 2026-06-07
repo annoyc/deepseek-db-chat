@@ -1,3 +1,5 @@
+export type DbEnv = 'dev' | 'test' | 'staging' | 'prod'
+
 export interface DatabaseConnection {
   id: string
   name: string
@@ -6,6 +8,7 @@ export interface DatabaseConnection {
   user: string
   password: string
   database: string
+  env: DbEnv
   createdAt: string
 }
 
