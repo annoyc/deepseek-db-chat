@@ -20,7 +20,7 @@ async function hasEncryptedKey(): Promise<boolean> {
 }
 
 export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
-  const { setApiKey, clearApiKey, blockCollapseMode, setBlockCollapseMode } = useSettings()
+  const { setApiKey, clearApiKey, thinkingCollapseMode, setThinkingCollapseMode, toolCallCollapseMode, setToolCallCollapseMode } = useSettings()
   const [inputValue, setInputValue] = useState('')
   const [hasSavedKey, setHasSavedKey] = useState(false)
   const [showKey, setShowKey] = useState(false)
@@ -70,7 +70,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-5 pb-2">
-          <h2 className="text-lg font-bold text-gray-900">API Key 设置</h2>
+          <h2 className="text-lg font-bold text-gray-900">设置</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-5 h-5 text-gray-500" />
           </button>
@@ -117,9 +117,17 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           </div>
 
           {hasSavedKey && (
-            <div className="flex items-center gap-1.5 text-xs text-green-600">
-              <Lock className="w-3.5 h-3.5" />
-              <span>已加密保存 API Key（AES-256-GCM），浏览器无法查看明文</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-green-600">
+                <Lock className="w-3.5 h-3.5" />
+                <span>已加密保存 API Key（AES-256-GCM），浏览器无法查看明文</span>
+              </div>
+              <button
+                onClick={handleClear}
+                className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
+              >
+                清除
+              </button>
             </div>
           )}
 
@@ -130,14 +138,19 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           )}
 
           {/* 显示设置 */}
-          <div className="border-t border-gray-200 pt-4">
+          <div className="border-t border-gray-200 pt-4 space-y-3">
+            <div className="text-sm font-medium text-gray-700">默认折叠状态</div>
+            <p className="text-xs text-gray-400 -mt-1">
+              控制聊天中对应模块的初始展开/折叠状态
+            </p>
+
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700">思考过程 & 工具调用默认状态</div>
+              <span className="text-sm text-gray-600">思考过程</span>
               <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                 <button
-                  onClick={() => setBlockCollapseMode('expanded')}
+                  onClick={() => setThinkingCollapseMode('expanded')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    blockCollapseMode === 'expanded'
+                    thinkingCollapseMode === 'expanded'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -145,9 +158,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   展开
                 </button>
                 <button
-                  onClick={() => setBlockCollapseMode('collapsed')}
+                  onClick={() => setThinkingCollapseMode('collapsed')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    blockCollapseMode === 'collapsed'
+                    thinkingCollapseMode === 'collapsed'
                       ? 'bg-white text-green-700 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
@@ -156,20 +169,35 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-1.5">
-              控制聊天中思考过程和工具调用模块的初始展开/折叠状态
-            </p>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">工具调用</span>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                <button
+                  onClick={() => setToolCallCollapseMode('expanded')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    toolCallCollapseMode === 'expanded'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  展开
+                </button>
+                <button
+                  onClick={() => setToolCallCollapseMode('collapsed')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    toolCallCollapseMode === 'collapsed'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  折叠
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            {hasSavedKey && (
-              <button
-                onClick={handleClear}
-                className="px-6 py-2.5 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors mr-auto"
-              >
-                清除
-              </button>
-            )}
             <button
               onClick={onClose}
               className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"

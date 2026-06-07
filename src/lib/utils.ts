@@ -90,5 +90,5 @@ export function getDbTypeFromConnection(conn: { host: string; port: number; data
   const db = conn.database?.toLowerCase() ?? ''
   if (db.includes('mysql') || db.includes('maria')) return 'MySQL'
   if (db.includes('postgres') || db.includes('pg')) return 'PostgreSQL'
-  return 'SQL'
+  return 'MySQL'
 }

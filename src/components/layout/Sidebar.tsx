@@ -85,7 +85,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
         </div>
 
         {/* Content area */}
-        <div className={cn('flex-1 overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('flex-1 w-full overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
           {/* Database section - collapsible */}
           <div
             className={cn('flex items-center gap-2 py-1.5 cursor-pointer select-none', collapsed ? 'justify-center' : 'px-2')}

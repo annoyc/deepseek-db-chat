@@ -68,13 +68,18 @@ async function loadSessionsFromStorage(): Promise<ChatSession[]> {
   if (typeof window === 'undefined') return []
   try {
     const sessions = await db.chatSessions.toArray()
-    if (sessions.length > 0) return sessions
+    if (sessions.length > 0) {
+      // 按 updatedAt 降序排列，确保最近活跃的 session 排在首位
+      sessions.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      return sessions
+    }
 
     // IndexedDB 为空时尝试从旧版 localStorage 迁移残留数据
     const raw = window.localStorage.getItem('deepseek-chat-sessions')
     if (raw) {
       const restored: ChatSession[] = JSON.parse(raw)
       if (Array.isArray(restored) && restored.length > 0) {
+        restored.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
         await db.chatSessions.bulkPut(restored)
         return restored
       }

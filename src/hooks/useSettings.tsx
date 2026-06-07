@@ -9,13 +9,15 @@ interface SettingsState {
   model: string
   thinkingMode: 'enabled' | 'disabled'
   sqlPermission: 'readonly' | 'write'
-  blockCollapseMode: 'expanded' | 'collapsed'
+  thinkingCollapseMode: 'expanded' | 'collapsed'
+  toolCallCollapseMode: 'expanded' | 'collapsed'
   setApiKey: (key: string) => void
   clearApiKey: () => void
   setModel: (model: string) => void
   setThinkingMode: (mode: 'enabled' | 'disabled') => void
   setSqlPermission: (mode: 'readonly' | 'write') => void
-  setBlockCollapseMode: (mode: 'expanded' | 'collapsed') => void
+  setThinkingCollapseMode: (mode: 'expanded' | 'collapsed') => void
+  setToolCallCollapseMode: (mode: 'expanded' | 'collapsed') => void
 }
 
 const SettingsContext = createContext<SettingsState | null>(null)
@@ -28,9 +30,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     'enabled'
   )
   const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
-  const [blockCollapseMode, setBlockCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
-    'block-collapse-mode',
-    'expanded'
+  const [thinkingCollapseMode, setThinkingCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
+    'thinking-collapse-mode',
+    'collapsed'
+  )
+  const [toolCallCollapseMode, setToolCallCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
+    'toolcall-collapse-mode',
+    'collapsed'
   )
 
   // 确保默认值为 'enabled'（思考模式）
@@ -55,13 +61,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     model,
     thinkingMode,
     sqlPermission,
-    blockCollapseMode,
+    thinkingCollapseMode,
+    toolCallCollapseMode,
     setApiKey,
     clearApiKey: () => clearApiKey(),
     setModel,
     setThinkingMode,
     setSqlPermission,
-    setBlockCollapseMode,
+    setThinkingCollapseMode,
+    setToolCallCollapseMode,
   }
 
   return (

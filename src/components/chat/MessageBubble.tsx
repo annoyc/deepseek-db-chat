@@ -9,7 +9,8 @@ import { useSettings } from '@/hooks/useSettings'
 interface MessageBubbleProps {
   message: ChatMessage
   isStreaming?: boolean
-  defaultExpanded?: boolean
+  thinkingExpanded?: boolean
+  toolCallExpanded?: boolean
 }
 
 function StreamingIndicator() {
@@ -22,7 +23,7 @@ function StreamingIndicator() {
   )
 }
 
-function AssistantPartsView({ message, isStreaming, defaultExpanded }: MessageBubbleProps) {
+function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
@@ -45,12 +46,12 @@ function AssistantPartsView({ message, isStreaming, defaultExpanded }: MessageBu
           case 'thinking': {
             const idx = ++thinkingIdx
             const thinkingStreaming = isLastThinking && idx === lastThinkingIndex
-            return <ThinkingBlock key={`t-${i}`} content={part.content} index={idx} isStreaming={thinkingStreaming} defaultExpanded={defaultExpanded} />
+            return <ThinkingBlock key={`t-${i}`} content={part.content} index={idx} isStreaming={thinkingStreaming} defaultExpanded={thinkingExpanded} />
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
             if (!tc || tc.name === 'execute_sql') return null
-            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={defaultExpanded} />
+            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
           }
           case 'text':
             return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} /> : null
@@ -70,7 +71,7 @@ function AssistantPartsView({ message, isStreaming, defaultExpanded }: MessageBu
   )
 }
 
-function AssistantLegacyView({ message, isStreaming, defaultExpanded }: MessageBubbleProps) {
+function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0
@@ -83,13 +84,13 @@ function AssistantLegacyView({ message, isStreaming, defaultExpanded }: MessageB
   return (
     <div className="space-y-3">
       {hasThinking && (
-        <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
+        <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={thinkingExpanded} />
       )}
 
       {hasToolCalls && (
         <div className="space-y-3">
           {nonSqlToolCalls.map((tc, idx) => (
-            <ToolCallStatus key={idx} toolCall={tc} defaultExpanded={defaultExpanded} />
+            <ToolCallStatus key={idx} toolCall={tc} defaultExpanded={toolCallExpanded} />
           ))}
         </div>
       )}
@@ -110,8 +111,9 @@ function AssistantLegacyView({ message, isStreaming, defaultExpanded }: MessageB
 }
 
 export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
-  const { blockCollapseMode } = useSettings()
-  const defaultExpanded = blockCollapseMode === 'expanded'
+  const { thinkingCollapseMode, toolCallCollapseMode } = useSettings()
+  const thinkingExpanded = thinkingCollapseMode === 'expanded'
+  const toolCallExpanded = toolCallCollapseMode === 'expanded'
 
   if (message.role === 'user') {
     return (
@@ -137,8 +139,8 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   }
 
   if (message.parts && message.parts.length > 0) {
-    return <AssistantPartsView message={message} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
+    return <AssistantPartsView message={message} isStreaming={isStreaming} thinkingExpanded={thinkingExpanded} toolCallExpanded={toolCallExpanded} />
   }
 
-  return <AssistantLegacyView message={message} isStreaming={isStreaming} defaultExpanded={defaultExpanded} />
+  return <AssistantLegacyView message={message} isStreaming={isStreaming} thinkingExpanded={thinkingExpanded} toolCallExpanded={toolCallExpanded} />
 }

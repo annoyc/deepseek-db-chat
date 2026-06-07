@@ -37,30 +37,26 @@ export function DatabaseList() {
         const env: DbEnv = conn.env || 'dev'
         const envInfo = envConfig[env]
         const dbType = getDbTypeFromConnection(conn)
-        const hostInfo = `${dbType} · ${conn.host}`
+        const subInfo = `${dbType} · ${conn.database}`
 
         return (
           <div
             key={conn.id}
             className={cn(
-              'group flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border',
+              'group relative flex items-center px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border',
               isActive
                 ? 'bg-green-50 text-green-800 border-green-200/80'
                 : 'text-gray-600 hover:bg-gray-100/80 border-transparent',
             )}
             onClick={() => setActiveConnection(conn.id)}
           >
-            {/* Status dot + icon */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <div className={cn(
-                'w-2 h-2 rounded-full',
-                isActive ? dotColor : 'bg-gray-300'
-              )} />
-            </div>
-
-            {/* Name + meta */}
+            {/* Main content */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <div className={cn(
+                  'w-2 h-2 rounded-full flex-shrink-0',
+                  isActive ? dotColor : 'bg-gray-300'
+                )} />
                 <span className="truncate font-medium">{conn.name}</span>
                 {envInfo.label && (
                   <span className={cn(
@@ -71,13 +67,13 @@ export function DatabaseList() {
                   </span>
                 )}
               </div>
-              <div className="text-[10px] text-gray-400 mt-0.5 truncate">
-                {hostInfo}
+              <div className="text-[10px] text-gray-400 truncate ml-[14px]">
+                {subInfo}
               </div>
             </div>
 
-            {/* Actions on hover */}
-            <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions on hover — positioned absolutely to not occupy layout space */}
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingConnection(conn) }}
                 className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-blue-600 transition-colors"
