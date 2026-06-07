@@ -26,7 +26,8 @@ const features = [
     title: '安全可靠',
     description: '敏感密码及密钥AES-256加密存储，SQL经正则黑名单、AST深度分析与人工确认三重校验，SELECT自动限流，危险操作全面拦截',
     color: 'text-green-600',
-    bg: 'bg-green-50',
+    bg: 'bg-green-50'
+    
   },
   {
     icon: Eye,

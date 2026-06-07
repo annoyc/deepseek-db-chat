@@ -400,10 +400,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Detect hallucination: check if assistant's text contains fabricated execution results
-    // isContinuation: true when processStream is called after a real SQL execution result
-    // (the message is the formatted SQL result/error summary sent back to the agent)
-    // Sources: formatSqlResultForAI → "以下SQL已执行完成：", continueWithSqlError → "以下SQL执行失败："
-    const isContinuation = /^以下SQL(?:已执行完成|执行失败)/.test(message)
+    // isContinuation: true when the model has access to real SQL execution data,
+    // either from the current message (SQL result feedback) or from previous executions
+    // in this session (the execution log is part of the model's system prompt context).
+    const isSqlResultMessage = /^以下SQL(?:已执行完成|执行失败)/.test(message)
+    const hasExecutionHistory = (executionLog?.length ?? 0) > 0
+    const isContinuation = isSqlResultMessage || hasExecutionHistory
     if (retryCount < 1 && !hasSqlConfirm && assistantContent.length > 30) {
       try {
         const classification = await classifyHallucination({
