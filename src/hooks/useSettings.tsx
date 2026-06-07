@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 import { useLocalStorage } from './useLocalStorage'
 import { DEFAULT_MODEL, AVAILABLE_MODELS } from '@/lib/constants'
 import { getEncryptedEnvApiKey } from '@/server/functions/settings'
@@ -25,7 +25,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     'deepseek-thinking-mode',
     'enabled'
   )
-  const [sqlPermission, setSqlPermission] = useState<'readonly' | 'write'>('readonly')
+  const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
 
   // 确保默认值为 'enabled'（思考模式）
   useEffect(() => {

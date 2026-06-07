@@ -44,14 +44,10 @@ const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据
 - 【禁止猜测自增ID】INSERT 执行后，结果中会返回真实的 insertId。后续如需 UPDATE/DELETE/SELECT 该记录，必须使用返回的 insertId 值，绝对不要假设自增ID从1开始或猜测任何ID值
 
 【INSERT 时自增 ID 的处理规则 — 必须严格执行】：
-- 当表结构显示 id 列为自增主键（AUTO_INCREMENT）时，你必须在 INSERT 之前先查询下一个可用 ID：
-  SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM 表名
-- 拿到 next_id 后，根据 id 列的类型生成合适的值：
-  - INT / BIGINT / TINYINT 等整数类型：直接使用查询到的 next_id 数值
-  - VARCHAR / CHAR 等字符串类型：根据业务规则或用户要求生成合适的字符串 ID（如 UUID），不要简单使用数字
-  - 其他类型：根据 get_table_schema 返回的类型信息判断合适的值
-- 将计算好的 id 值显式包含在 INSERT 语句中，不要省略 id 列
-- 这样做的好处是：你在 INSERT 前就已经知道新记录的 ID，方便后续操作引用
+- 当表结构显示 id 列为自增主键（AUTO_INCREMENT）时，INSERT 语句中必须省略 id 列，让数据库自动分配
+- 绝对不要先查询 MAX(id) 再手动指定 id 值，这样做既多余又可能因数据脱敏导致拿到错误的值
+- INSERT 执行成功后，结果中会返回真实的 insertId，后续如需引用该记录（UPDATE/DELETE/SELECT），必须使用此 insertId
+- 对于非自增的字符串类型主键（如 VARCHAR/CHAR），根据业务规则或用户要求生成合适的值（如 UUID）
 
 你的工作流程：
 1. 理解用户的问题意图
@@ -68,10 +64,10 @@ const SYSTEM_PROMPT = `你是一个专业的数据库分析助手，擅长根据
 
 注意事项：
 - SQL必须语法正确，适配MySQL语法
-- INSERT 语句中如果表有自增主键 id，必须先用 SELECT COALESCE(MAX(id), 0) + 1 查询下一个可用 ID，然后根据 id 类型生成合适的值并显式写入 INSERT
+- INSERT 语句中如果表有自增主键 id（AUTO_INCREMENT），必须省略 id 列，让数据库自动分配，禁止先查询 MAX(id) 再手动指定
 - INSERT 语句中每个列名只能出现一次，禁止重复列名
-- 如果需要插入多条记录，每条 INSERT 的 id 必须各自独立查询或递增，确保不冲突
-- 参考已执行记录中的 insertId 了解当前最大 ID，不要编造 ID 值
+- 如果需要插入多条记录，每条 INSERT 都省略自增 id 列即可，数据库会自动分配不同的 ID
+- INSERT 执行后返回的 insertId 就是新记录的真实 ID，后续操作必须引用此值，禁止编造 ID
 - 【删除操作默认使用软删除】除非用户明确要求"硬删除"、"物理删除"、"彻底删除"或"永久删除"，否则一律使用软删除（UPDATE 设置删除标记）。具体规则：
   - 先用 get_table_schema 查看表结构，找到软删除字段（常见的有：is_deleted、deleted、deleted_at、delete_time、is_remove 等）
   - 根据字段类型设置合适的值：布尔/整型字段设为 1，时间字段设为 NOW()，字符串字段设为 'Y'
@@ -125,7 +121,7 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
     }
 
     if (latestInsertId > 0) {
-      systemPrompt += `\n⚠️ 最近一次 INSERT 的真实 insertId = ${latestInsertId}。如需引用该记录请使用此 ID。后续 INSERT 请先用 SELECT COALESCE(MAX(id), 0) + 1 查询下一个可用 ID 后显式指定。\n`
+      systemPrompt += `\n⚠️ 最近一次 INSERT 的真实 insertId = ${latestInsertId}。如需引用该记录请使用此 ID。后续 INSERT 请继续省略自增 id 列，让数据库自动分配。\n`
     }
   }
 

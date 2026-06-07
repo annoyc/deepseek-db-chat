@@ -21,7 +21,7 @@ function StreamingIndicator() {
   )
 }
 
-function AssistantPartsView({ message, roundNumber }: MessageBubbleProps) {
+function AssistantPartsView({ message, roundNumber, isStreaming }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
@@ -32,7 +32,7 @@ function AssistantPartsView({ message, roundNumber }: MessageBubbleProps) {
         switch (part.type) {
           case 'thinking': {
             const idx = ++thinkingIdx
-            return <ThinkingBlock key={`t-${i}`} content={part.content} round={roundNumber} index={idx} />
+            return <ThinkingBlock key={`t-${i}`} content={part.content} round={roundNumber} index={idx} isStreaming={isStreaming} />
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
@@ -57,7 +57,7 @@ function AssistantPartsView({ message, roundNumber }: MessageBubbleProps) {
   )
 }
 
-function AssistantLegacyView({ message, roundNumber }: MessageBubbleProps) {
+function AssistantLegacyView({ message, roundNumber, isStreaming }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0
@@ -70,7 +70,7 @@ function AssistantLegacyView({ message, roundNumber }: MessageBubbleProps) {
   return (
     <div className="space-y-3">
       {hasThinking && (
-        <ThinkingBlock content={message.thinking!} round={roundNumber} />
+        <ThinkingBlock content={message.thinking!} round={roundNumber} isStreaming={isStreaming} />
       )}
 
       {hasToolCalls && (
@@ -121,8 +121,8 @@ export function MessageBubble({ message, roundNumber, isStreaming }: MessageBubb
   }
 
   if (message.parts && message.parts.length > 0) {
-    return <AssistantPartsView message={message} roundNumber={roundNumber} />
+    return <AssistantPartsView message={message} roundNumber={roundNumber} isStreaming={isStreaming} />
   }
 
-  return <AssistantLegacyView message={message} roundNumber={roundNumber} />
+  return <AssistantLegacyView message={message} roundNumber={roundNumber} isStreaming={isStreaming} />
 }

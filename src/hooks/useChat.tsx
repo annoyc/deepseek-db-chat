@@ -242,7 +242,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveSessionId(newSession.id)
   }, [activeConnectionId, sessions, activeSessionId])
 
-  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: { role: 'user' | 'assistant'; content: string }[], retryCount: number = 0): Promise<boolean> => {
+  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0): Promise<boolean> => {
     let hasSqlConfirm = false
     let pendingSqlConfirm: { sql: string; explanation: string } | null = null
     let hasToolCalls = false
@@ -483,9 +483,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }))
 
     try {
-      const history = sessionsRef.current.find((s) => s.id === sessionId)?.messages
-        .filter((m) => m.content)
-        .map((m) => ({ role: m.role, content: m.content })) ?? []
+      const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
+      const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
 
       const connection = getFullConnection(activeConnectionId)
       if (!connection) return
@@ -526,9 +525,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString(),
     }))
 
-    const history = sessionsRef.current.find((s) => s.id === sessionId)?.messages
-      .filter((m) => m.content)
-      .map((m) => ({ role: m.role, content: m.content })) ?? []
+    const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
+    const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
 
     return await processStream(sessionId, connectionId, resultSummary, history)
   }, [updateSession, processStream])
@@ -560,10 +558,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       updatedAt: new Date().toISOString(),
     }))
 
-    const history = sessionsRef.current.find((s) => s.id === sessionId)?.messages
-      .filter((m) => m.content)
-      .map((m) => ({ role: m.role, content: m.content })) ?? []
-
+    const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
+    const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
+    console.log('history', history)
     return await processStream(sessionId, connectionId, errorSummary, history)
   }, [updateSession, processStream])
 
@@ -756,6 +753,84 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * Convert app ChatMessage[] + ExecutionLogEntry[] into API-format
+ * history messages that include tool_calls and tool result messages.
+ * This ensures the model sees its previous tool-calling behavior
+ * in subsequent rounds, making it more likely to call tools again.
+ */
+function buildApiHistory(
+  messages: ChatMessage[],
+  executionLog?: ExecutionLogEntry[],
+): Array<Record<string, unknown>> {
+  const apiMessages: Array<Record<string, unknown>> = []
+  let callIdCounter = 0
+
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      if (msg.content) {
+        apiMessages.push({ role: 'user', content: msg.content })
+      }
+      continue
+    }
+
+    if (msg.role === 'assistant') {
+      const toolCalls = msg.toolCalls ?? []
+      const hasVisibleToolCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql').length > 0
+
+      if (hasVisibleToolCalls) {
+        // Assistant message with tool calls (excluding execute_sql which has a special flow)
+        const visibleCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql')
+        const syntheticToolCalls = visibleCalls.map((tc) => ({
+          id: `call_${++callIdCounter}`,
+          type: 'function',
+          function: {
+            name: tc.name,
+            arguments: JSON.stringify(tc.args),
+          },
+        }))
+
+        apiMessages.push({
+          role: 'assistant',
+          content: msg.content || null,
+          tool_calls: syntheticToolCalls,
+        })
+
+        // Tool result messages
+        for (let i = 0; i < visibleCalls.length; i++) {
+          const tc = visibleCalls[i]
+          apiMessages.push({
+            role: 'tool',
+            content: tc.result || tc.error || '工具调用完成',
+            tool_call_id: syntheticToolCalls[i].id,
+          })
+        }
+      } else if (msg.content) {
+        // Regular assistant message (text only, or execute_sql-only which follows a different flow)
+        apiMessages.push({ role: 'assistant', content: msg.content })
+      }
+    }
+  }
+
+  // Append execution log results as user messages so the model sees what SQL was executed
+  if (executionLog && executionLog.length > 0) {
+    for (const entry of executionLog) {
+      const status = entry.success ? '成功' : '失败'
+      apiMessages.push({
+        role: 'user',
+        content: `[系统提示：以下SQL已${status}执行]\nSQL: ${entry.sql}\n结果: ${entry.summary}`,
+      })
+      // Add a placeholder assistant ack so the message alternation is valid
+      apiMessages.push({
+        role: 'assistant',
+        content: '收到，我已了解以上SQL的执行结果。',
+      })
+    }
+  }
+
+  return apiMessages
+}
+
 function summarizeSqlResult(result: SqlResultInfo): string {
   if (result.rows.length > 0) {
     const row = result.rows[0]
@@ -786,6 +861,13 @@ function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
     }
     if (result.rows.length > 50) {
       lines.push(`... 还有 ${result.rows.length - 50} 行未展示`)
+    }
+
+    // Explicitly surface insertId for write operations (not masked, always reliable)
+    const insertId = Number(result.rows[0]?.insertId ?? 0)
+    if (insertId > 0) {
+      lines.push('')
+      lines.push(`⚠️ 本次 INSERT 的真实 insertId = ${insertId}。后续如需 UPDATE/DELETE/SELECT 该记录，请使用此 ID。`)
     }
   } else {
     lines.push('查询无返回数据。')
