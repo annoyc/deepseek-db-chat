@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document describes all configuration options for **DeepSeek-Native DB Chat2SQL Agent** — an AI-powered MySQL assistant that uses the DeepSeek API to translate natural language into SQL queries.
+This document describes all configuration options for **DBPilot** — an AI-powered MySQL assistant that uses the DeepSeek API to translate natural language into SQL queries.
 
 Configuration is split across environment variables, in-app settings (stored in the browser), and server-side files under `data/`.
 
@@ -54,7 +54,7 @@ baseURL: process.env.DEEPSEEK_API_BASE_URL || 'https://api.deepseek.com',
 
 ## API Key Configuration
 
-DeepSeek-Native DB Chat2SQL Agent supports two ways to provide an API key.
+DBPilot supports two ways to provide an API key.
 
 ### Method 1: Environment Variable
 
@@ -82,7 +82,7 @@ If the in-app key is set (non-empty), it is used. If the in-app key is empty or 
 
 ## Model Configuration
 
-DeepSeek-Native DB Chat2SQL Agent supports two models:
+DBPilot supports two models:
 
 | Model | Description |
 |-------|-------------|
@@ -223,7 +223,7 @@ The agent also receives the active database name and host/port appended to the s
 
 ## DeepSeek Cost Optimization
 
-DeepSeek-Native DB Chat2SQL Agent includes the inlined [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit) core (`src/core/`) with several built-in optimizations to reduce API cost and improve reliability.
+DBPilot includes the inlined [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit) core (`src/core/`) with several built-in optimizations to reduce API cost and improve reliability.
 
 ### 1. Zero-Redundancy Request Bodies
 

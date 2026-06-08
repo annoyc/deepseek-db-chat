@@ -1,9 +1,9 @@
 <p align="center">
-  <h1 align="center">DeepSeek-Native DB Chat2SQL Agent</h1>
+  <h1 align="center">DBPilot</h1>
 </p>
 
 <p align="center">
-  一个基于 DeepSeek 原生优化的 AI 数据库助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
+  基于 DeepSeek 原生优化的 AI 数据库领航助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
 </p>
 
 <p align="center">
@@ -19,9 +19,9 @@
 
 ---
 
-## 为什么选择 DeepSeek-Native DB Chat2SQL Agent？
+## 为什么选择 DBPilot？
 
-通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DeepSeek-Native DB Chat2SQL Agent 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
+通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DBPilot 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
 
 ### 极致成本
 

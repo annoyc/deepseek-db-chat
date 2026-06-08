@@ -1,9 +1,9 @@
 <p align="center">
-  <h1 align="center">DeepSeek-Native DB Chat2SQL Agent</h1>
+  <h1 align="center">DBPilot</h1>
 </p>
 
 <p align="center">
-  An AI-powered MySQL assistant with DeepSeek-native optimization — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
+  A DeepSeek-native AI database pilot — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
 </p>
 
 <p align="center">
@@ -19,9 +19,9 @@
 
 ---
 
-## Why DeepSeek-Native DB Chat2SQL Agent?
+## Why DBPilot?
 
-General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DeepSeek-Native DB Chat2SQL Agent is purpose-built for DeepSeek, solving problems other tools cannot.
+General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DBPilot is purpose-built for DeepSeek, solving problems other tools cannot.
 
 ### Ultimate Cost Efficiency
 

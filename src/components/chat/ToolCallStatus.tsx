@@ -11,7 +11,9 @@ interface ToolCallStatusProps {
 const TOOL_LABELS: Record<string, string> = {
   list_tables: '查看表列表',
   get_table_schema: '查看表结构',
+  get_database_overview: '查看数据库概览',
   execute_sql: 'SQL 查询',
+  explain_sql: 'SQL 评估',
 }
 
 const TOOL_PARAM_LABELS: Record<string, Record<string, string>> = {
@@ -51,14 +53,14 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
           showCollapse && 'hover:bg-gray-50/50',
         )}
       >
+        {showCollapse && (
+          expanded
+            ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            : <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+        )}
         <StatusIcon status={toolCall.status} />
         <span className="text-[13px] font-semibold text-gray-800">{label}</span>
         <StatusBadge status={toolCall.status} />
-        {showCollapse && (
-          expanded
-            ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto" />
-            : <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 ml-auto" />
-        )}
       </button>
 
       <div

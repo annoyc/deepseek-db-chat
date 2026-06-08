@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-Common questions about **DeepSeek-Native DB Chat2SQL Agent** — an AI-powered MySQL assistant.
+Common questions about **DBPilot** — an AI-powered MySQL assistant.
 
 ---
 

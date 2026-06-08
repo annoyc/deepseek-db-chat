@@ -49,10 +49,10 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer" onClick={onToggleCollapse}>
-                <img src="/logo.svg" alt="DB Chat2SQL" className="w-full h-full" />
+                <img src="/logo.svg" alt="DBPilot" className="w-full h-full" />
               </div>
               {!collapsed && (
-                <span className="font-semibold text-base text-gray-900 ml-2.5">DB Chat2SQL</span>
+                <span className="font-semibold text-base text-gray-900 ml-2.5">DBPilot</span>
               )}
             </div>
             {!collapsed && <button

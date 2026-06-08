@@ -1,33 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#16a34a"/>
-      <stop offset="100%" stop-color="#15803d"/>
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
     </linearGradient>
-    <linearGradient id="db" x1="30" y1="30" x2="98" y2="98" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#d1d5db"/>
-    </linearGradient>
-    <linearGradient id="sparkle" x1="72" y1="14" x2="110" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#fde047"/>
-      <stop offset="100%" stop-color="#facc15"/>
-    </linearGradient>
+    <radialGradient id="glow" cx="104" cy="28" r="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="f" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="1.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
-
-  <!-- Rounded square background -->
   <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
-
-  <!-- Database cylinder -->
-  <ellipse cx="64" cy="46" rx="34" ry="12" fill="url(#db)"/>
-  <rect x="30" y="46" width="68" height="38" fill="url(#db)"/>
-  <path d="M30 46 Q64 58 98 46" stroke="#9ca3af" stroke-width="1.5" fill="none"/>
-  <path d="M30 65 Q64 77 98 65" stroke="#d1d5db" stroke-width="1.5" fill="none"/>
-  <ellipse cx="64" cy="84" rx="34" ry="12" fill="url(#db)"/>
-  <path d="M30 84 Q64 96 98 84" stroke="#9ca3af" stroke-width="1.5" fill="none"/>
-
-  <!-- AI sparkle / chat indicator -->
-  <circle cx="88" cy="28" r="10" fill="url(#sparkle)"/>
-  <path d="M88 22v12M82 28h12" stroke="#16a34a" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="104" cy="48" r="4" fill="#fde047"/>
-  <circle cx="78" cy="20" r="2.5" fill="#fde047"/>
+  <circle cx="104" cy="28" r="18" fill="url(#glow)"/>
+  <path d="M104 19 C105.5 23.5 108.5 26.5 113 28 C108.5 29.5 105.5 32.5 104 37 C102.5 32.5 99.5 29.5 95 28 C99.5 26.5 102.5 23.5 104 19Z" fill="#fbbf24" filter="url(#f)"/>
+  <path d="M30 24h26c24.3 0 44 17.9 44 40s-19.7 40-44 40H30V24z M44 38h12c16.6 0 30 11.6 30 26s-13.4 26-30 26H44V38z" fill="white" fill-rule="evenodd"/>
 </svg>

@@ -1,4 +1,4 @@
-export const APP_NAME = 'DB Chat2SQL Agent'
+export const APP_NAME = 'DBPilot'
 export const DEFAULT_MODEL = 'deepseek-v4-flash'
 export const QUERY_TIMEOUT_MS = 30_000
 export const MAX_POOL_SIZE = 5

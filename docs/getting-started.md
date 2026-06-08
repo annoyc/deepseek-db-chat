@@ -1,14 +1,14 @@
 # Getting Started
 
-Welcome to **DeepSeek-Native DB Chat2SQL Agent** — an AI-powered MySQL assistant that turns natural language into SQL, with real-time thinking visualization and human-in-the-loop safety.
+Welcome to **DBPilot** — an AI-powered MySQL assistant that turns natural language into SQL, with real-time thinking visualization and human-in-the-loop safety.
 
 ---
 
 ## Overview
 
-DeepSeek-Native DB Chat2SQL Agent lets you talk to your MySQL databases in plain language. Ask questions like *"What tables are in this database?"* or *"Show me the top 10 users by signup date"*, and the AI will explore your schema, generate SQL, and present results as interactive tables or charts.
+DBPilot lets you talk to your MySQL databases in plain language. Ask questions like *"What tables are in this database?"* or *"Show me the top 10 users by signup date"*, and the AI will explore your schema, generate SQL, and present results as interactive tables or charts.
 
-Unlike generic database tools, DeepSeek-Native DB Chat2SQL Agent is built on **deepseek-kit** internals (inlined in `src/core/`, MIT). It natively handles DeepSeek's thinking mode (`reasoning_content`) and tool-calling loop — so you see the AI reason step by step, and every SQL query requires your explicit confirmation before it runs.
+Unlike generic database tools, DBPilot is built on **deepseek-kit** internals (inlined in `src/core/`, MIT). It natively handles DeepSeek's thinking mode (`reasoning_content`) and tool-calling loop — so you see the AI reason step by step, and every SQL query requires your explicit confirmation before it runs.
 
 **Tech stack at a glance:**
 
@@ -49,7 +49,7 @@ cd deepseek-db-chat
 
 ### 2. Install dependencies
 
-DeepSeek-Native DB Chat2SQL Agent uses **pnpm** as its package manager. Install all dependencies with:
+DBPilot uses **pnpm** as its package manager. Install all dependencies with:
 
 ```bash
 pnpm install
@@ -95,7 +95,7 @@ Vite starts the app on port **3000**. Open your browser at:
 
 **[http://localhost:3000](http://localhost:3000)**
 
-You should see the DeepSeek-Native DB Chat2SQL Agent interface with an empty sidebar and a chat panel. Before sending your first message, add a database connection and configure your API key (if you did not set it in `.env`).
+You should see the DBPilot interface with an empty sidebar and a chat panel. Before sending your first message, add a database connection and configure your API key (if you did not set it in `.env`).
 
 > **Tip:** For production builds, run `pnpm build` followed by `pnpm start`. The preview server (`pnpm preview`) is useful for testing the built output locally.
 
@@ -250,7 +250,7 @@ Your selection is persisted in `IndexedDB` (`deepseek-model`) and applies to all
 
 ## Privacy & Security
 
-DeepSeek-Native DB Chat2SQL Agent is designed with a local-first, privacy-conscious architecture:
+DBPilot is designed with a local-first, privacy-conscious architecture:
 
 | Aspect | Behavior |
 |--------|----------|
