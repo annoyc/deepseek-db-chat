@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  基于 DeepSeek 原生优化的 AI 数据库领航助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
+  多模型 AI 数据库领航助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
 </p>
 
 <p align="center">
@@ -21,11 +21,11 @@
 
 ## 为什么选择 DBPilot？
 
-通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理 DeepSeek 独有的思考模式和缓存机制。DBPilot 针对 DeepSeek 从底层深度优化，解决了其他工具无法解决的问题。
+通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理各厂商独有的思考模式和缓存机制。DBPilot 支持多家大模型厂商（DeepSeek、阿里云百炼），深度集成各厂商特性，解决了其他工具无法解决的问题。
 
-### 极致成本
+### 多模型 & 极致成本
 
-基于 DeepSeek 前缀缓存优化，上下文复用降低 API 调用开销。确定性消息构建与零冗余请求体确保缓存命中率最大化，以最低成本获得最佳性能。
+支持 **DeepSeek**、**Kimi**、**Qwen**、**GLM** 等多款大模型，通过 DeepSeek 原生 API + 阿里云百炼（DashScope）双通道接入。内置 DeepSeek 前缀缓存优化与上下文复用，确定性消息构建确保缓存命中率最大化 — 自由切换模型的同时保持极致性价比。
 
 ### 安全可靠
 
@@ -43,8 +43,10 @@ AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都
 
 ## 核心特性
 
+- 🔀 **多模型支持** — DeepSeek / Kimi / Qwen / GLM 多款模型，通过 DeepSeek 原生 + 阿里云百炼双通道接入，界面内一键切换
 -  **极致成本** — DeepSeek 前缀缓存优化，上下文复用，确定性消息构建，最大化缓存命中率
 -  **安全可靠** — AES-256 密码加密，SQL 三重校验（正则黑名单 + AST 深度分析 + 人工确认），危险操作多门拦截，PII 数据脱敏后再传输
+-  **智能筛选** — AI 驱动的交互式查询参数微调（时间范围、枚举筛选、聚合方式），SQL 生成前精准确认用户意图
 -  **数据库全景** — 一键扫描全部表结构，含行数统计、表注释和外键关系映射，为 JOIN 查询提供精准依据
 -  **外键感知** — Schema 检查自动提取 `INFORMATION_SCHEMA` 中的外键关系，AI 据此生成正确的多表 JOIN
 -  **EXPLAIN 预分析** — 执行前可选的查询计划检查，自动预警全表扫描
@@ -72,7 +74,7 @@ npm install
 
 # 设置环境变量
 cp .env.example .env
-# 编辑 .env 并填入你的 DeepSeek API Key
+# 编辑 .env 并填入你的 API Key（DeepSeek 或百炼）
 
 # 启动开发服务器
 npm run dev
@@ -89,7 +91,7 @@ npm run start
 | 层级 | 技术 |
 |------|------|
 | **框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI 核心** | DeepSeek Agent Engine（基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
+| **AI 核心** | 多模型 Agent Engine（DeepSeek + 百炼/DashScope，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
 | **数据库** | [mysql2](https://github.com/sidorares/node-mysql2) |
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
 | **图表** | [Recharts](https://recharts.org/) |
@@ -104,10 +106,11 @@ npm run start
 
 ```
 src/
-├── core/               # DeepSeek Agent 引擎
+├── core/               # 多模型 Agent 引擎
 │   ├── agent/          # Agent 创建与执行
 │   ├── client/         # HTTP 客户端、SSE 流式请求、重试
-│   ├── model/          # DeepSeek 模型封装
+│   ├── model/          # 模型封装（DeepSeek、百炼）
+│   ├── provider.ts     # Provider 注册与端点解析
 │   ├── tool/           # 工具定义与校验
 │   ├── generate/       # Agent 循环、流式生成、结构化输出
 │   ├── context/        # 上下文压缩

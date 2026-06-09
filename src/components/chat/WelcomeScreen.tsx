@@ -16,8 +16,8 @@ interface WelcomeScreenProps {
 const features = [
   {
     icon: Coins,
-    title: '极致成本',
-    description: 'DeepSeek 前缀缓存优化，上下文复用，智能控制 Token 消耗',
+    title: '多模型支持',
+    description: 'DeepSeek / Kimi / Qwen / GLM 多模型自由切换，前缀缓存优化极致性价比',
     color: 'text-yellow-600',
     bg: 'bg-yellow-50',
   },

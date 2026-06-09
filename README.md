@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A DeepSeek-native AI database pilot — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
+  AI database pilot with multi-model support — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
 </p>
 
 <p align="center">
@@ -21,11 +21,11 @@
 
 ## Why DBPilot?
 
-General-purpose AI database tools rely on universal LLM SDKs that ignore DeepSeek's unique thinking mode and caching mechanisms. DBPilot is purpose-built for DeepSeek, solving problems other tools cannot.
+General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DBPilot supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
 
-### Ultimate Cost Efficiency
+### Multi-Model & Cost Efficiency
 
-Built on DeepSeek prefix caching optimization, context reuse minimizes API call overhead. Deterministic message construction and zero-redundancy request bodies ensure maximum cache hit rates — intelligent token control at the lowest possible cost.
+Supports **DeepSeek**, **Kimi**, **Qwen**, **GLM** and more via multiple providers (DeepSeek native + Alibaba Cloud Bailian). Built-in DeepSeek prefix caching optimization and context reuse minimize API call overhead. Deterministic message construction ensures maximum cache hit rates — switch models freely while maintaining the lowest possible cost.
 
 ### Rock-Solid Security
 
@@ -43,8 +43,10 @@ All data and conversation history are stored entirely on your local machine. No 
 
 ## Features
 
+- 🔀 **Multi-Provider Support** — DeepSeek / Kimi / Qwen / GLM via DeepSeek native API + Alibaba Cloud Bailian (DashScope), switch models freely in the UI
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
 -  **Security** — AES-256 encrypted passwords, triple-layer SQL validation (regex blacklist + AST analysis + human confirmation), dangerous operations blocked at all gates, PII auto-masking before AI transmission
+-  **Smart Filter** — AI-driven interactive query parameter tuning (date ranges, enum selects, aggregation options) before SQL generation
 -  **Database Overview** — One-click full database structure scan with table row counts, comments, and foreign key relationship mapping for accurate JOIN queries
 -  **Foreign Key Awareness** — Schema inspection includes FK relationships extracted from `INFORMATION_SCHEMA`, enabling the AI to generate correct multi-table JOINs
 -  **EXPLAIN Pre-Analysis** — Optional query plan inspection with full table scan warnings before execution
@@ -72,7 +74,7 @@ npm install
 
 # Set environment variables
 cp .env.example .env
-# Edit .env and fill in your DeepSeek API key
+# Edit .env and fill in your API key (DeepSeek or Bailian)
 
 # Start development server
 npm run dev
@@ -95,7 +97,7 @@ npm run start
 | Layer | Technology |
 |-------|------------|
 | **Framework** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI Core** | DeepSeek Agent Engine (based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
+| **AI Core** | Multi-provider Agent Engine (DeepSeek + Bailian/DashScope, based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
 | **Database** | [mysql2](https://github.com/sidorares/node-mysql2) |
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
 | **Charts** | [Recharts](https://recharts.org/) |
@@ -110,10 +112,11 @@ npm run start
 
 ```
 src/
-├── core/               # DeepSeek Agent engine
+├── core/               # Multi-provider Agent engine
 │   ├── agent/          # Agent creation and execution
 │   ├── client/         # HTTP client, SSE streaming, retry
-│   ├── model/          # DeepSeek model wrapper
+│   ├── model/          # Model wrapper (DeepSeek, Bailian)
+│   ├── provider.ts     # Provider registry and endpoint resolution
 │   ├── tool/           # Tool definition and validation
 │   ├── generate/       # Agent loop, streaming, structured output
 │   ├── context/        # Context compaction
