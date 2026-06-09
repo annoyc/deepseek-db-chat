@@ -1,20 +1,32 @@
-import { createContext, useContext, useEffect } from 'react'
+import { createContext, useContext, useEffect, useCallback, useRef } from 'react'
 import { useLocalStorage } from './useLocalStorage'
-import { DEFAULT_MODEL, AVAILABLE_MODELS } from '@/lib/constants'
+import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDERS, getDefaultModelForProvider } from '@/lib/constants'
+import type { ModelProvider } from '@/lib/constants'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { getEncryptedEnvApiKey } from '@/server/functions/settings'
 import { db } from '@/lib/db'
 
-interface SettingsState {
+export interface ProviderConfig {
   apiKey: string
+  baseURL: string
+}
+
+type ProviderConfigs = Record<string, ProviderConfig>
+
+interface SettingsState {
+  provider: ModelProvider
+  apiKey: string
+  baseURL: string
+  providerConfigs: ProviderConfigs
   model: string
   thinkingMode: 'enabled' | 'disabled'
   sqlPermission: 'readonly' | 'write'
   maxSqlExecutions: number
   thinkingCollapseMode: 'expanded' | 'collapsed'
   toolCallCollapseMode: 'expanded' | 'collapsed'
-  setApiKey: (key: string) => void
-  clearApiKey: () => void
+  setProvider: (provider: ModelProvider) => void
+  setProviderConfig: (providerId: string, config: Partial<ProviderConfig>) => void
+  clearProviderApiKey: (providerId: string) => void
   setModel: (model: string) => void
   setThinkingMode: (mode: 'enabled' | 'disabled') => void
   setSqlPermission: (mode: 'readonly' | 'write') => void
@@ -25,11 +37,14 @@ interface SettingsState {
 
 const SettingsContext = createContext<SettingsState | null>(null)
 
+const EMPTY_CONFIG: ProviderConfig = { apiKey: '', baseURL: '' }
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [apiKey, setApiKey, clearApiKey] = useLocalStorage<string>('deepseek-api-key', '')
-  const [model, setModel] = useLocalStorage<string>('deepseek-model', DEFAULT_MODEL)
+  const [provider, setProviderRaw] = useLocalStorage<ModelProvider>('ai-provider', DEFAULT_PROVIDER as ModelProvider)
+  const [providerConfigs, setProviderConfigs] = useLocalStorage<ProviderConfigs>('provider-configs', {})
+  const [model, setModel] = useLocalStorage<string>('selected-model', DEFAULT_MODEL)
   const [thinkingMode, setThinkingMode] = useLocalStorage<'enabled' | 'disabled'>(
-    'deepseek-thinking-mode',
+    'thinking-mode',
     'enabled'
   )
   const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
@@ -43,14 +58,36 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     'collapsed'
   )
 
-  // 确保默认值为 'enabled'（思考模式）
+
+  const activeConfig = providerConfigs[provider] ?? EMPTY_CONFIG
+  const apiKey = activeConfig.apiKey
+  const baseURL = activeConfig.baseURL
+
+  const setProvider = useCallback((newProvider: ModelProvider) => {
+    setProviderRaw(newProvider)
+    setModel(getDefaultModelForProvider(newProvider))
+  }, [setProviderRaw, setModel])
+
+  const setProviderConfig = useCallback((providerId: string, partial: Partial<ProviderConfig>) => {
+    setProviderConfigs((prev) => {
+      const existing = prev[providerId] ?? EMPTY_CONFIG
+      return { ...prev, [providerId]: { ...existing, ...partial } }
+    })
+  }, [setProviderConfigs])
+
+  const clearProviderApiKey = useCallback((providerId: string) => {
+    setProviderConfigs((prev) => {
+      const existing = prev[providerId] ?? EMPTY_CONFIG
+      return { ...prev, [providerId]: { ...existing, apiKey: '' } }
+    })
+  }, [setProviderConfigs])
+
   useEffect(() => {
     if (thinkingMode !== 'enabled' && thinkingMode !== 'disabled') {
       setThinkingMode('enabled')
     }
   }, [thinkingMode, setThinkingMode])
 
-  // 确保 maxSqlExecutions 在合理范围内
   useEffect(() => {
     if (typeof maxSqlExecutions !== 'number' || maxSqlExecutions < 1) {
       setMaxSqlExecutions(1)
@@ -59,26 +96,39 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [maxSqlExecutions, setMaxSqlExecutions])
 
-  // 当 IndexedDB 没有 key 时，自动从 env 获取并加密保存
+  // Auto-fetch env keys once on mount (not on every providerConfigs change)
+  const envFetched = useRef(false)
   useEffect(() => {
-    if (apiKey) return
-    getEncryptedEnvApiKey().then(({ encrypted }) => {
-      if (encrypted) {
-        setApiKey(encrypted)
-      }
-    }).catch(() => {})
-  }, [apiKey, setApiKey])
+    if (envFetched.current) return
+    envFetched.current = true
+
+    for (const p of PROVIDERS) {
+      getEncryptedEnvApiKey({ data: { provider: p.id } }).then(({ encrypted }) => {
+        if (encrypted) {
+          setProviderConfigs((prev) => {
+            if (prev[p.id]?.apiKey) return prev
+            const existing = prev[p.id] ?? EMPTY_CONFIG
+            return { ...prev, [p.id]: { ...existing, apiKey: encrypted } }
+          })
+        }
+      }).catch(() => {})
+    }
+  }, [setProviderConfigs])
 
   const value: SettingsState = {
+    provider,
     apiKey,
+    baseURL,
+    providerConfigs,
     model,
     thinkingMode,
     sqlPermission,
     maxSqlExecutions,
     thinkingCollapseMode,
     toolCallCollapseMode,
-    setApiKey,
-    clearApiKey: () => clearApiKey(),
+    setProvider,
+    setProviderConfig,
+    clearProviderApiKey,
     setModel,
     setThinkingMode,
     setSqlPermission,

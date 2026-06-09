@@ -136,7 +136,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const abortControllerRef = useRef<AbortController | null>(null)
   
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
-  const { model, apiKey, thinkingMode, sqlPermission, maxSqlExecutions } = useSettings()
+  const { provider, model, apiKey, baseURL, thinkingMode, sqlPermission, maxSqlExecutions } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
@@ -283,8 +283,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const response = await chatStream({
       data: {
-        connection, message, history, model,
+        connection, message, history, provider, model,
         apiKey: apiKey || undefined,
+        baseURL: baseURL || undefined,
         thinkingMode, sqlPermission, executionLog,
         lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
         sqlExecutedCount: executionLog?.length ?? 0,
@@ -300,6 +301,17 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           explanation: String(chunk.args?.explanation ?? ''),
         }
         break
+      }
+
+      if (chunk.type === 'tool-call-start' && chunk.name === 'smart_filter') {
+        // Show loading state immediately for smart_filter
+        updateSession(sessionId, (s) => {
+          const messages = [...s.messages]
+          const lastMsg = { ...messages[messages.length - 1] }
+          lastMsg.smartFilterConfirm = { suggestedFilters: [], status: 'loading' as const }
+          messages[messages.length - 1] = lastMsg
+          return { ...s, messages }
+        })
       }
 
       if (chunk.type === 'smart-filter-confirm') {
@@ -414,6 +426,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
+    // Clean up any tool calls still in 'calling' state
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
       const lastMsg = { ...messages[messages.length - 1] }
@@ -422,15 +435,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
         )
       }
-      if (pendingSqlConfirm) {
-        lastMsg.sqlConfirm = { ...pendingSqlConfirm, status: 'pending' as const }
-      }
-      if (pendingSmartFilterFilters) {
-        lastMsg.smartFilterConfirm = { suggestedFilters: pendingSmartFilterFilters, status: 'pending' as const }
-      }
       messages[messages.length - 1] = lastMsg
       return { ...s, messages }
     })
+
+    if (pendingSqlConfirm || pendingSmartFilterFilters) {
+      updateSession(sessionId, (s) => {
+        const messages = [...s.messages]
+        const lastMsg = { ...messages[messages.length - 1] }
+        if (pendingSqlConfirm) {
+          lastMsg.sqlConfirm = { ...pendingSqlConfirm, status: 'pending' as const }
+        }
+        if (pendingSmartFilterFilters) {
+          lastMsg.smartFilterConfirm = { suggestedFilters: pendingSmartFilterFilters, status: 'pending' as const }
+        }
+        messages[messages.length - 1] = lastMsg
+        return { ...s, messages }
+      })
+    }
 
     // Detect hallucination: check if assistant's text contains fabricated execution results
     // isContinuation: true when the model has access to real SQL execution data,
@@ -446,8 +468,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             assistantContent,
             hasToolCalls,
             isContinuation,
+            provider,
             model,
             apiKey: apiKey || undefined,
+            baseURL: baseURL || undefined,
           },
         })
 
@@ -499,8 +523,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         data: {
           userMessage: userMsg.content,
           assistantContent: assistantMsg.content || '数据库查询操作',
+          provider,
           model,
           apiKey: apiKey || undefined,
+          baseURL: baseURL || undefined,
         },
       })
       updateSession(sessionId, (s) => {
@@ -842,6 +868,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsStreaming(true)
     abortControllerRef.current = new AbortController()
 
+    updateSession(activeSessionId, (s) => {
+      const messages = s.messages.map((m) => {
+        if (m.id === messageId && m.smartFilterConfirm?.status === 'confirmed') {
+          return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'done' as const } }
+        }
+        return m
+      })
+      return { ...s, messages }
+    })
+
     try {
       const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
       const history = buildApiHistory(currentSession?.messages ?? [])
@@ -855,15 +891,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       setIsStreaming(false)
-      updateSession(activeSessionId, (s) => {
-        const messages = s.messages.map((m) => {
-          if (m.id === messageId && m.smartFilterConfirm?.status === 'confirmed') {
-            return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'done' as const } }
-          }
-          return m
-        })
-        return { ...s, messages }
-      })
     }
   }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
 

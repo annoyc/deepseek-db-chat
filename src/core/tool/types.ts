@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import type { Model } from '@/core/model/types'
+import type { Model, ModelProvider } from '@/core/model/types'
 
 export type ToolResult = unknown
 
@@ -22,6 +22,7 @@ export type ToolResultType = ToolSuccess | ToolFailure
 export interface ToolCompactConfig {
   threshold?: number
   model?: Model
+  provider?: ModelProvider
 }
 
 export interface StrictToolDefinition<T extends z.ZodObject> {

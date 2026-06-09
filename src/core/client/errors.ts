@@ -29,7 +29,7 @@ export class ApiRequestError extends Error {
   public readonly retryAfter?: number
 
   constructor(error: ApiError) {
-    super(`DeepSeek API error ${error.status}: ${error.message}`)
+    super(`API error ${error.status}: ${error.message}`)
     this.name = 'ApiRequestError'
     this.status = error.status
     this.retryAfter = error.retryAfter

@@ -23,10 +23,15 @@ export function lastAssistantMsg(messages: ChatMessage[]) {
 export function mergeUsage(target: Usage, source: Usage): void {
   target.completion_tokens += source.completion_tokens
   target.prompt_tokens += source.prompt_tokens
-  target.prompt_cache_hit_tokens += source.prompt_cache_hit_tokens
-  target.prompt_cache_miss_tokens += source.prompt_cache_miss_tokens
+  target.prompt_cache_hit_tokens = (target.prompt_cache_hit_tokens ?? 0) + (source.prompt_cache_hit_tokens ?? 0)
+  target.prompt_cache_miss_tokens = (target.prompt_cache_miss_tokens ?? 0) + (source.prompt_cache_miss_tokens ?? 0)
   target.total_tokens += source.total_tokens
-  target.completion_tokens_details.reasoning_tokens += source.completion_tokens_details?.reasoning_tokens ?? 0
+  if (source.completion_tokens_details) {
+    if (!target.completion_tokens_details) {
+      target.completion_tokens_details = { reasoning_tokens: 0 }
+    }
+    target.completion_tokens_details.reasoning_tokens += source.completion_tokens_details.reasoning_tokens ?? 0
+  }
 }
 
 export function buildMessage(prompt?: string, system?: string, messages?: ChatMessage[], fewShot?: ChatMessage[]): ChatMessage[] {
@@ -55,10 +60,7 @@ export function emptyUsage(): Usage {
   return {
     completion_tokens: 0,
     prompt_tokens: 0,
-    prompt_cache_hit_tokens: 0,
-    prompt_cache_miss_tokens: 0,
     total_tokens: 0,
-    completion_tokens_details: { reasoning_tokens: 0 },
   }
 }
 

@@ -1,6 +1,7 @@
-import type { AssistantMessage, ChatMessage, Model, ToolMessage } from '@/core/model/types'
+import type { AssistantMessage, ChatMessage, Model, ModelProvider, ToolMessage } from '@/core/model/types'
 import type { ToolCompactConfig } from '@/core/tool/types'
 import crypto from 'node:crypto'
+import { getProvider } from '@/core/provider'
 import { createModel } from '@/core/model'
 
 const DEFAULT_TOOL_MESSAGE_THRESHOLD = 1500
@@ -57,6 +58,7 @@ export class CompactTool {
   private readonly cache = new Map<string, string>()
   private _threshold: number = DEFAULT_TOOL_MESSAGE_THRESHOLD
   private model: Model = 'deepseek-v4-flash'
+  private provider: ModelProvider = 'deepseek'
 
   private constructor() {}
 
@@ -77,6 +79,12 @@ export class CompactTool {
     }
     if (config.model !== undefined) {
       this.model = config.model
+    }
+    if (config.provider !== undefined) {
+      this.provider = config.provider
+      if (config.model === undefined) {
+        this.model = getProvider(this.provider).defaultModel
+      }
     }
     return this
   }
@@ -118,14 +126,13 @@ export class CompactTool {
   ): Promise<string> {
     const toolContext = `Tool name: ${toolName}\nTool description: ${description}`
     const userPrompt = `${toolContext}\n\nOriginal content:\n\n${content}`
-    const deepseek = createModel({
+    const llm = createModel({
+      provider: this.provider,
       model: this.model,
-      thinking: {
-        type: 'disabled',
-      },
+      thinking: { type: 'disabled' },
     })
 
-    const response = await deepseek.invoke({
+    const response = await llm.invoke({
       messages: [
         { role: 'system', content: COMPACT_SYSTEM_PROMPT },
         { role: 'user', content: userPrompt },
@@ -145,6 +152,7 @@ export interface AgentCompactConfig {
   threshold?: number
   keepRecentRounds?: number
   model?: Model
+  provider?: ModelProvider
   contextWindowSize?: number
 }
 
@@ -171,12 +179,14 @@ export class CompactMessage {
   private readonly _threshold: number
   private readonly keepRecentRounds: number
   private readonly model: Model
+  private readonly provider: ModelProvider
   private readonly contextWindowSize: number
 
   constructor(config: AgentCompactConfig = {}) {
     this._threshold = config.threshold ?? DEFAULT_COMPACT_THRESHOLD
     this.keepRecentRounds = config.keepRecentRounds ?? DEFAULT_KEEP_RECENT_ROUNDS
-    this.model = config.model ?? 'deepseek-v4-flash'
+    this.provider = config.provider ?? 'deepseek'
+    this.model = config.model ?? getProvider(this.provider).defaultModel
     this.contextWindowSize = config.contextWindowSize ?? DEFAULT_CONTEXT_WINDOW_SIZE
   }
 
@@ -295,14 +305,13 @@ export class CompactMessage {
       })
       .join('\n\n')
 
-    const deepseek = createModel({
+    const llm = createModel({
+      provider: this.provider,
       model: this.model,
-      thinking: {
-        type: 'disabled',
-      },
+      thinking: { type: 'disabled' },
     })
 
-    const response = await deepseek.invoke({
+    const response = await llm.invoke({
       messages: [
         { role: 'system', content: MESSAGE_COMPACT_SYSTEM_PROMPT },
         { role: 'user', content: conversationText },

@@ -8,8 +8,10 @@ interface ChatInput {
   connection: DatabaseConnection
   message: string
   history?: { role: 'user' | 'assistant'; content: string }[]
+  provider?: string
   model?: string
   apiKey?: string
+  baseURL?: string
   thinkingMode?: 'enabled' | 'disabled'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
@@ -56,8 +58,10 @@ export const chatStream = createServerFn({ method: 'POST' })
           const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
           const effectiveSqlPermission = decryptedConnection.env === 'prod' ? 'readonly' : data.sqlPermission
           const { agent, resultStore } = createDbAgent(decryptedConnection, {
+            provider: data.provider as any,
             model: data.model,
             apiKey: decryptedApiKey,
+            baseURL: data.baseURL,
             thinkingMode: data.thinkingMode,
             sqlPermission: effectiveSqlPermission,
             executionLog: data.executionLog,

@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@/lib/types'
-import { User } from 'lucide-react'
+import { Loader2, User } from 'lucide-react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallStatus } from './ToolCallStatus'
 import { SqlConfirmBlock } from './SqlConfirmBlock'
@@ -16,10 +16,18 @@ interface MessageBubbleProps {
 
 function StreamingIndicator() {
   return (
-    <div className="flex items-center gap-1.5 py-2">
-      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+    <div className="flex items-center gap-1.5 py-1 text-gray-400">
+      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      <span className="text-xs">处理中...</span>
+    </div>
+  )
+}
+
+function StreamingTailIndicator() {
+  return (
+    <div className="flex items-center gap-1.5 py-1 text-gray-400">
+      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      <span className="text-xs">处理中...</span>
     </div>
   )
 }
@@ -29,9 +37,9 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
 
-  // 只有最后一个 part 是 thinking 类型时，该 thinking 块才处于流式状态
   const lastPart = parts[parts.length - 1]
   const isLastThinking = isStreaming && lastPart?.type === 'thinking'
+  const isLastText = isStreaming && lastPart?.type === 'text'
   const lastThinkingIndex = (() => {
     let idx = 0
     for (let i = 0; i < parts.length; i++) {
@@ -39,6 +47,14 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
     }
     return idx
   })()
+
+  const hasConfirmBlock = Boolean(message.sqlConfirm || message.smartFilterConfirm)
+  const isLastToolCallActive = (() => {
+    if (!isStreaming || lastPart?.type !== 'tool-call') return false
+    const tc = toolCalls[lastPart.toolCallIndex]
+    return tc?.status === 'calling'
+  })()
+  const showTailIndicator = isStreaming && !isLastThinking && !isLastText && !hasConfirmBlock && !isLastToolCallActive
 
   return (
     <div className="space-y-3 min-w-0 max-w-full">
@@ -60,6 +76,8 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
             return null
         }
       })}
+
+      {showTailIndicator && <StreamingTailIndicator />}
 
       {message.sqlConfirm && (
         <SqlConfirmBlock
@@ -90,6 +108,10 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
 
   if (!hasAnyContent) return null
 
+  const hasConfirmBlock = hasSqlConfirm || hasSmartFilterConfirm
+  const hasActiveToolCall = nonSqlToolCalls.some((tc) => tc.status === 'calling')
+  const showTailIndicator = isStreaming && !hasConfirmBlock && !hasContent && !hasActiveToolCall
+
   return (
     <div className="space-y-3 min-w-0 max-w-full">
       {hasThinking && (
@@ -107,6 +129,8 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
       {hasContent && (
         <MarkdownContent content={message.content} />
       )}
+
+      {showTailIndicator && <StreamingTailIndicator />}
 
       {hasSqlConfirm && (
         <SqlConfirmBlock

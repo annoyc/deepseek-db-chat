@@ -12,7 +12,7 @@ const textStepInvoker: StepInvoker = async function* (model, params) {
 
   const choice = response.choices[0]
   if (!choice) {
-    throw new Error('DeepSeek API returned empty choices')
+    throw new Error('API returned empty choices')
   }
 
   const message = choice.message

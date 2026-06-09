@@ -14,10 +14,14 @@ export async function* apiStreamRequest(
     'Authorization': `Bearer ${apiKey}`,
   }
 
-  const timeoutSignal = timeout ? AbortSignal.timeout(timeout) : undefined
-  const combinedSignal = signal && timeoutSignal
-    ? AbortSignal.any([signal, timeoutSignal])
-    : (signal || timeoutSignal)
+  // Timeout only applies to the initial connection (waiting for first byte).
+  // Once streaming starts, the connection stays alive — only the caller's
+  // abort signal can cancel it.
+  const controller = new AbortController()
+  const timeoutId = timeout ? setTimeout(() => controller.abort(new DOMException('Timed out waiting for response', 'TimeoutError')), timeout) : undefined
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal
 
   const response = await fetch(url, {
     method: 'POST',
@@ -26,12 +30,15 @@ export async function* apiStreamRequest(
     signal: combinedSignal,
   })
 
+  // Connection established — cancel the timeout so streaming can run indefinitely
+  if (timeoutId) clearTimeout(timeoutId)
+
   if (!response.ok) {
     throw new ApiRequestError(await handleErrorResponse(response))
   }
 
   if (!response.body) {
-    throw new Error('DeepSeek API error: response body is null')
+    throw new Error('API error: response body is null')
   }
 
   const reader = response.body.getReader()

@@ -1,13 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
-import { createModel, generateText } from '@/core'
+import { createModel, generateText, getProvider } from '@/core'
 import { decrypt } from '@/server/crypto'
 
 interface ClassifyInput {
   assistantContent: string
   hasToolCalls: boolean
   isContinuation: boolean
+  provider?: string
   model?: string
   apiKey?: string
+  baseURL?: string
 }
 
 const CLASSIFIER_PROMPT = `你是一个幻觉检测分类器。判断数据库助手的回复是否包含编造的内容。
@@ -42,10 +44,14 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
     async ({ data }): Promise<{ hasFakeResult: boolean }> => {
       try {
         const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
+        const provider = data.provider ?? 'deepseek'
+        const providerDef = getProvider(provider)
         const model = createModel({
-          model: data.model || 'deepseek-v4-flash',
+          provider: provider as any,
+          model: data.model || providerDef.defaultModel,
           thinking: { type: 'disabled' },
-          apiKey: decryptedApiKey || process.env.DEEPSEEK_API_KEY,
+          apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
+          baseURL: data.baseURL || undefined,
         } as any)
 
         const result = await generateText({

@@ -28,6 +28,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   const cancelRef = useRef(cancelSmartFilter)
   cancelRef.current = cancelSmartFilter
 
+  const isLoading = info.status === 'loading'
   const isPending = info.status === 'pending'
   const isConfirmed = info.status === 'confirmed'
   const isDone = info.status === 'done'
@@ -96,6 +97,22 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
     cancelSmartFilter(messageId)
   }, [cancelSmartFilter, messageId])
 
+  if (isLoading) {
+    return (
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100">
+          <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
+          <span className="text-[13px] font-semibold text-gray-800">查询参数微调</span>
+          <span className="text-xs text-gray-400 ml-0.5">分析中...</span>
+        </div>
+        <div className="px-3 py-2.5 space-y-2">
+          <div className="h-6 bg-gray-50 border border-gray-200 rounded-lg animate-pulse" />
+          <div className="h-6 bg-gray-50 border border-gray-200 rounded-lg animate-pulse w-3/4" />
+        </div>
+      </div>
+    )
+  }
+
   if (!info.suggestedFilters.length) return null
 
   return (
@@ -132,7 +149,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
       <div className="px-3 py-2.5 space-y-0.5">
         {info.suggestedFilters.map((filter, index) => (
           <FilterControlRow
-            key={`${filter.type}-${filter.table}-${filter.column}`}
+            key={`${index}-${filter.type}-${filter.table}-${filter.column}`}
             filter={filter}
             index={index}
             value={filterValues[index]}
@@ -306,8 +323,14 @@ function DateRangeControl({ label, value, onChange, disabled }: DateRangeControl
     [onChange],
   )
 
-  const formattedStart = useMemo(() => format(startDate, 'M月d日', { locale: zhCN }), [startDate])
-  const formattedEnd = useMemo(() => format(endDate, 'M月d日', { locale: zhCN }), [endDate])
+  const formatDate = useCallback((date: Date) => {
+    const now = new Date()
+    return date.getFullYear() === now.getFullYear()
+      ? format(date, 'M月d日', { locale: zhCN })
+      : format(date, 'yyyy年M月d日', { locale: zhCN })
+  }, [])
+  const formattedStart = useMemo(() => formatDate(startDate), [startDate, formatDate])
+  const formattedEnd = useMemo(() => formatDate(endDate), [endDate, formatDate])
 
   return (
     <div className="flex items-center gap-2 py-1.5">
@@ -321,7 +344,7 @@ function DateRangeControl({ label, value, onChange, disabled }: DateRangeControl
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={startDate} onSelect={handleStartSelect} captionLayout="dropdown" />
+            <Calendar key={startDate.toISOString()} mode="single" selected={startDate} onSelect={handleStartSelect} defaultMonth={startDate} captionLayout="dropdown" />
           </PopoverContent>
         </Popover>
 
@@ -335,7 +358,7 @@ function DateRangeControl({ label, value, onChange, disabled }: DateRangeControl
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar mode="single" selected={endDate} onSelect={handleEndSelect} captionLayout="dropdown" />
+            <Calendar key={endDate.toISOString()} mode="single" selected={endDate} onSelect={handleEndSelect} defaultMonth={endDate} captionLayout="dropdown" />
           </PopoverContent>
         </Popover>
       </div>

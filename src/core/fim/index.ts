@@ -6,7 +6,7 @@ export async function fim(params: FIMParams) {
   const choices = response.choices
 
   if (!choices || choices.length === 0) {
-    throw new Error('DeepSeek FIM API returned empty choices')
+    throw new Error('FIM API returned empty choices')
   }
 
   return {

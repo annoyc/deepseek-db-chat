@@ -1,13 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
-import { createModel, generateText } from '@/core'
+import { createModel, generateText, getProvider } from '@/core'
 import { decrypt } from '@/server/crypto'
 import { listTables, getPool } from '@/server/database'
 import type { DatabaseConnection } from '@/lib/types'
 
 interface GenerateSuggestionsInput {
   connection: DatabaseConnection
+  provider?: string
   model?: string
   apiKey?: string
+  baseURL?: string
 }
 
 const SUGGESTION_PROMPT = `你是一个数据库分析专家。根据以下数据库信息，为用户生成4个快捷提问建议。
@@ -68,10 +70,14 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
 
       // 3. 调用 AI 生成建议
       const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
+      const provider = data.provider ?? 'deepseek'
+      const providerDef = getProvider(provider)
       const model = createModel({
-        model: data.model || 'deepseek-v4-flash',
+        provider: provider as any,
+        model: data.model || providerDef.defaultModel,
         thinking: { type: 'disabled' },
-        apiKey: decryptedApiKey || process.env.DEEPSEEK_API_KEY,
+        apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
+        baseURL: data.baseURL || undefined,
       } as any)
 
       const result = await generateText({

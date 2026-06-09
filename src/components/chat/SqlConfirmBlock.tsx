@@ -19,6 +19,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   const cancelSqlRef = useRef(cancelSql)
   cancelSqlRef.current = cancelSql
 
+  const isLoading = info.status === 'loading'
   const isExecuted = info.status === 'executed'
   const isPending = info.status === 'pending'
   const isConfirmed = info.status === 'confirmed'
@@ -39,6 +40,21 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
     }, 1000)
     return () => clearInterval(interval)
   }, [isPending, messageId])
+
+  if (isLoading) {
+    return (
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100">
+          <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
+          <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
+          <span className="text-xs text-gray-400 ml-0.5">准备中...</span>
+        </div>
+        <div className="px-3 py-2.5">
+          <div className="h-10 bg-gray-50 border border-gray-200 rounded-lg animate-pulse" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`border rounded-xl overflow-hidden bg-white ${isError ? 'border-red-200' : 'border-gray-200'}`}>

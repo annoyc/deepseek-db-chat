@@ -3,12 +3,13 @@ import type { ListModelsOptions } from './list'
 import type { InvokeParams, ModelOptions, ResolvedModelOptions } from './types'
 import type { FIMParams } from '@/core/fim/types'
 import process from 'node:process'
-import { toMerged } from '@/core/utils'
-import { DEEPSEEK_API_BASE_URL, DEEPSEEK_MODELS } from '@/core/constants'
+import { omitBy, toMerged } from '@/core/utils'
+import { getProvider } from '@/core/provider'
 import { getBalance } from './balance'
 import { fim } from './fim'
 import { invoke, invokeStream } from './invoke'
 import { listModels } from './list'
+
 export class DeepSeekModel {
   private readonly _config: ResolvedModelOptions
 
@@ -24,6 +25,9 @@ export class DeepSeekModel {
   }
 
   public enableBeta(): this {
+    const providerDef = getProvider(this._config.provider)
+    if (!providerDef.supportsBeta) return this
+
     const base = this._config.baseURL
     if (base.endsWith('/beta') || base.endsWith('/beta/')) {
       return this
@@ -67,25 +71,30 @@ export class DeepSeekModel {
 }
 
 export function resolveConfig(options: ModelOptions): ResolvedModelOptions {
+  const providerDef = getProvider(options.provider ?? 'deepseek')
+
+  const cleaned = omitBy(options, v => v === undefined || v === '')
+
   const resolved = toMerged(
     {
-      apiKey: process.env.DEEPSEEK_API_KEY,
-      baseURL: process.env.DEEPSEEK_API_BASE_URL || DEEPSEEK_API_BASE_URL,
+      provider: providerDef.id,
+      apiKey: process.env[providerDef.envApiKeyName],
+      baseURL: process.env[providerDef.envBaseURLName] || providerDef.defaultBaseURL,
       thinking: {
         type: 'enabled',
       },
       reasoningEffort: options.thinking?.type === 'disabled' ? undefined : 'high',
       strict: false,
     },
-    options,
+    cleaned,
   ) as ResolvedModelOptions
 
   if (!resolved.apiKey) {
-    throw new Error('DEEPSEEK_API_KEY is required')
+    throw new Error(`${providerDef.envApiKeyName} is required`)
   }
 
   if (!resolved.model) {
-    throw new Error(`model is required, available models: ${DEEPSEEK_MODELS.join(', ')}`)
+    throw new Error(`model is required`)
   }
 
   return resolved

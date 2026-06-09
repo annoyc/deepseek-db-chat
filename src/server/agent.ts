@@ -1,4 +1,5 @@
-import { createAgent, createModel } from '@/core'
+import { createAgent, createModel, getProvider } from '@/core'
+import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
@@ -6,8 +7,10 @@ import { createDbTools } from './tools'
 import { DEFAULT_MODEL } from '@/lib/constants'
 
 interface AgentOptions {
+  provider?: ModelProvider
   model?: string
   apiKey?: string
+  baseURL?: string
   thinkingMode?: 'enabled' | 'disabled'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
@@ -127,15 +130,21 @@ const SYSTEM_PROMPT_ADDITIONAL = `
 // ────────────────────────────────────────────────────────────
 
 export function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
+  const provider = options?.provider ?? 'deepseek'
+  const providerDef = getProvider(provider)
   const modelName = options?.model || DEFAULT_MODEL
-  const apiKey = options?.apiKey || process.env.DEEPSEEK_API_KEY
+  const apiKey = options?.apiKey || process.env[providerDef.envApiKeyName]
 
   const modelConfig: Record<string, unknown> = {
+    provider,
     model: modelName,
     thinking: { type: options?.thinkingMode ?? 'enabled' },
   }
   if (apiKey) {
     modelConfig.apiKey = apiKey
+  }
+  if (options?.baseURL) {
+    modelConfig.baseURL = options.baseURL
   }
 
   const model = createModel(modelConfig as any)

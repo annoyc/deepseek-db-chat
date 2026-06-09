@@ -6,7 +6,7 @@ import { WelcomeScreen } from './WelcomeScreen'
 import { useChatStore } from '@/hooks/useChat'
 import { useSettings } from '@/hooks/useSettings'
 import { useDatabaseStore } from '@/hooks/useDatabase'
-import { AVAILABLE_MODELS } from '@/lib/constants'
+import { AVAILABLE_MODELS, PROVIDERS } from '@/lib/constants'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -17,11 +17,13 @@ export function MessageList({ messages }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { sendMessage, isStreaming } = useChatStore()
   const { activeConnection, activeConnectionId, connectionStatus, connectionError } = useDatabaseStore()
-  const { model } = useSettings()
+  const { provider, model } = useSettings()
   const shouldAutoScrollRef = useRef(true)
   const prevLengthRef = useRef(messages.length)
 
-  const currentModelName = AVAILABLE_MODELS.find((m) => m.id === model)?.id ?? model
+  const providerName = PROVIDERS.find((p) => p.id === provider)?.name ?? provider
+  const modelEntry = AVAILABLE_MODELS.find((m) => m.id === model && m.provider === provider)
+  const currentModelName = modelEntry ? `${providerName} / ${modelEntry.name}` : model
 
   // Track if user manually scrolled up
   const handleScroll = useCallback(() => {
@@ -61,13 +63,20 @@ export function MessageList({ messages }: MessageListProps) {
     )
   }
 
+  const lastAssistantId = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return messages[i].id
+    }
+    return null
+  })()
+
   return (
     <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden px-[10%] py-4 space-y-4">
       {messages.map((message) => (
         <Fragment key={message.id}>
           <MessageBubble
             message={message}
-            isStreaming={isStreaming}
+            isStreaming={isStreaming && message.id === lastAssistantId}
           />
           {message.role === 'assistant' && message.answerDuration != null && (
             <TaskCompleteIndicator

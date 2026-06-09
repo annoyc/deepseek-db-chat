@@ -63,7 +63,7 @@ export interface ToolCallInfo {
 
 export interface SmartFilterConfirmInfo {
   suggestedFilters: SuggestedFilter[]
-  status: 'pending' | 'confirmed' | 'done' | 'cancelled'
+  status: 'loading' | 'pending' | 'confirmed' | 'done' | 'cancelled'
   error?: string
 }
 
@@ -95,7 +95,7 @@ export interface FilterValue {
 export interface SqlConfirmInfo {
   sql: string
   explanation: string
-  status: 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'error'
+  status: 'loading' | 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'error'
   error?: string
 }
 

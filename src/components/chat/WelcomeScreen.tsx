@@ -49,7 +49,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const cacheRef = useRef<Map<string, string[]>>(new Map())
   const { getFullConnection } = useDatabaseStore()
-  const { model, apiKey } = useSettings()
+  const { provider, model, apiKey, baseURL } = useSettings()
 
   useEffect(() => {
     if (connectionStatus !== 'success' || !activeConnectionId) {
@@ -69,7 +69,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
     setLoadingSuggestions(true)
 
     generateSuggestions({
-      data: { connection: conn, model, apiKey: apiKey || undefined },
+      data: { connection: conn, provider, model, apiKey: apiKey || undefined, baseURL: baseURL || undefined },
     })
       .then((result) => {
         if (cancelled) return
@@ -85,7 +85,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
       })
 
     return () => { cancelled = true }
-  }, [activeConnectionId, connectionStatus, getFullConnection, model, apiKey])
+  }, [activeConnectionId, connectionStatus, getFullConnection, provider, model, apiKey, baseURL])
 
   return (
     <div className="h-full overflow-y-auto">

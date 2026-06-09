@@ -4,24 +4,19 @@ import { getChatEndpoint } from '@/core/client/endpoints'
 import { apiRequest } from '@/core/client/request'
 import { withRetry } from '@/core/client/retry'
 import { apiStreamRequest } from '@/core/client/stream-request'
+import { getProvider } from '@/core/provider'
 import { buildToolParameters, validateToolConsistency } from '@/core/tool'
 
 function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const { messages, response_format, tools = [] } = params
   const { toolParameters, toolChoice } = buildToolParameters(tools, config.strict)
-
-  const thinking = config.thinking
-    ? omitBy({
-        type: config.thinking.type,
-        reasoning_effort: config.reasoningEffort,
-      }, v => v === undefined)
-    : undefined
+  const provider = getProvider(config.provider ?? 'deepseek')
+  const thinkingParams = provider.buildThinkingParams(config.thinking, config.reasoningEffort)
 
   return omitBy({
     messages,
     model: config.model,
-    user_id: config.userId,
-    thinking,
+    ...thinkingParams,
     max_tokens: config.maxTokens,
     temperature: config.temperature,
     top_p: config.topP,

@@ -1,12 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
-import { createModel, generateText } from '@/core'
+import { createModel, generateText, getProvider } from '@/core'
 import { decrypt } from '@/server/crypto'
 
 interface GenerateTitleInput {
   userMessage: string
   assistantContent: string
+  provider?: string
   model?: string
   apiKey?: string
+  baseURL?: string
 }
 
 const TITLE_PROMPT = `你是一个标题生成器。根据以下对话内容，生成一个简短的中文标题。
@@ -23,10 +25,24 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
   .handler(async ({ data }): Promise<string> => {
     try {
       const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
+      const provider = data.provider ?? 'deepseek'
+      const providerDef = getProvider(provider)
+      console.log('providerDef', providerDef)
+      console.log('data.model', data.model)
+      console.log('providerDef.defaultModel', providerDef.defaultModel)
+      console.log('data.baseURL', data.baseURL)
+      console.log('process.env[providerDef.envApiKeyName]', process.env[providerDef.envApiKeyName])
+      console.log('decryptedApiKey', decryptedApiKey)
+      console.log('data.apiKey', data.apiKey)
+      console.log('data.userMessage', data.userMessage)
+      console.log('data.assistantContent', data.assistantContent)
+      console.log('TITLE_PROMPT', TITLE_PROMPT)
       const model = createModel({
-        model: data.model || 'deepseek-v4-flash',
+        provider: provider as any,
+        model: data.model || providerDef.defaultModel,
         thinking: { type: 'disabled' },
-        apiKey: decryptedApiKey || process.env.DEEPSEEK_API_KEY,
+        apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
+        baseURL: data.baseURL || undefined,
       } as any)
 
       const result = await generateText({

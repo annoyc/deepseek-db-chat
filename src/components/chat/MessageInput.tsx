@@ -3,7 +3,7 @@ import { ArrowUp, Square, Atom, ChevronDown, Shield, AlertTriangle } from 'lucid
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
-import { AVAILABLE_MODELS } from '@/lib/constants'
+import { PROVIDERS, getModelsForProvider } from '@/lib/constants'
 
 export function MessageInput() {
   const [input, setInput] = useState('')
@@ -12,7 +12,7 @@ export function MessageInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId, stopStreaming } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { model, setModel, thinkingMode, setThinkingMode, sqlPermission, setSqlPermission } = useSettings()
+  const { provider, setProvider, model, setModel, thinkingMode, setThinkingMode, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -22,7 +22,9 @@ export function MessageInput() {
     }
   }, [activeSessionId])
 
-  const currentModel = AVAILABLE_MODELS.find((m) => m.id === model) ?? AVAILABLE_MODELS[0]
+  const providerModels = getModelsForProvider(provider)
+  const currentModel = providerModels.find((m) => m.id === model) ?? providerModels[0]
+  const currentProvider = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
   const canSend = input.trim() && !isStreaming && activeConnectionId
 
   const handleSubmit = useCallback(() => {
@@ -81,17 +83,32 @@ export function MessageInput() {
                   className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
                 >
                   <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  <span>{currentModel.name}</span>
+                  <span>{currentProvider.name} / {currentModel.name}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
 
                 {showModelMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                    <div className="absolute bottom-full left-0 mb-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-48">
-                      {AVAILABLE_MODELS.map((m) => (
+                    <div className="absolute bottom-full left-0 mb-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-56">
+                      <div className="flex border-b border-gray-100">
+                        {PROVIDERS.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setProvider(p.id)}
+                            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                              p.id === provider
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            {p.name}
+                          </button>
+                        ))}
+                      </div>
+                      {providerModels.map((m) => (
                         <button
-                          key={m.id}
+                          key={`${m.provider}-${m.id}`}
                           onClick={() => { setModel(m.id); setShowModelMenu(false) }}
                           className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between ${
                             m.id === model ? 'text-primary font-medium' : 'text-gray-700'
