@@ -49,7 +49,15 @@ export function MessageInput() {
     el.style.height = Math.min(el.scrollHeight, 200) + 'px'
   }
 
-  const connectionName = activeConnectionId ? getFullConnection(activeConnectionId)?.name : ''
+  const activeConnection = activeConnectionId ? getFullConnection(activeConnectionId) : null
+  const connectionName = activeConnection?.name ?? ''
+  const isProd = activeConnection?.env === 'prod'
+
+  useEffect(() => {
+    if (isProd && sqlPermission !== 'readonly') {
+      setSqlPermission('readonly')
+    }
+  }, [isProd, sqlPermission, setSqlPermission])
 
   return (
     <div className="px-[10%] pb-4 pt-2 bg-[#f5f5f0]">
@@ -115,24 +123,26 @@ export function MessageInput() {
                 <span>深度思考</span>
               </button>
 
-              <button
-                onClick={() => {
-                  if (sqlPermission === 'readonly') {
-                    setShowSqlWarning(true)
-                  } else {
-                    setSqlPermission('readonly')
-                  }
-                }}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
-                  sqlPermission === 'write'
-                    ? 'border-amber-500 text-amber-600'
-                    : 'border-gray-300 text-gray-500'
-                }`}
-                title={sqlPermission === 'write' ? '已允许写操作（INSERT/UPDATE/DELETE），AI 生成的写 SQL 需二次确认' : '仅允许查询操作'}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                <span>{sqlPermission === 'write' ? '可写入' : '仅查询'}</span>
-              </button>
+              {!isProd && (
+                <button
+                  onClick={() => {
+                    if (sqlPermission === 'readonly') {
+                      setShowSqlWarning(true)
+                    } else {
+                      setSqlPermission('readonly')
+                    }
+                  }}
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
+                    sqlPermission === 'write'
+                      ? 'border-amber-500 text-amber-600'
+                      : 'border-gray-300 text-gray-500'
+                  }`}
+                  title={sqlPermission === 'write' ? '已允许写操作（INSERT/UPDATE/DELETE），AI 生成的写 SQL 需二次确认' : '仅允许查询操作'}
+                >
+                  <Shield className="w-3.5 h-3.5" />
+                  <span>{sqlPermission === 'write' ? '可写入' : '仅查询'}</span>
+                </button>
+              )}
             </div>
 
             {isStreaming ? (
