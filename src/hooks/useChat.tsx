@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react'
-import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry } from '@/lib/types'
+import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry, FilterValue, SuggestedFilter } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
@@ -24,6 +24,8 @@ interface ChatState {
   clearMessages: () => void
   confirmSql: (messageId: string) => Promise<void>
   cancelSql: (messageId: string) => void
+  confirmSmartFilter: (messageId: string, filterValues: Record<number, FilterValue>) => Promise<void>
+  cancelSmartFilter: (messageId: string) => void
 }
 
 const ChatContext = createContext<ChatState | null>(null)
@@ -268,6 +270,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0): Promise<boolean> => {
     let hasSqlConfirm = false
     let pendingSqlConfirm: { sql: string; explanation: string } | null = null
+    let hasSmartFilterConfirm = false
+    let pendingSmartFilterFilters: SuggestedFilter[] | null = null
     let hasToolCalls = false
     let assistantContent = ''
 
@@ -298,6 +302,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         break
       }
 
+      if (chunk.type === 'smart-filter-confirm') {
+        hasSmartFilterConfirm = true
+        pendingSmartFilterFilters = chunk.suggestedFilters
+        break
+      }
+
       updateSession(sessionId, (s) => {
         const messages = [...s.messages]
         const lastMsg = { ...messages[messages.length - 1] }
@@ -306,24 +316,44 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const lastPart = parts.length > 0 ? parts[parts.length - 1] : null
 
         switch (chunk.type) {
-          case 'thinking':
+          case 'thinking': {
             lastMsg.thinking = (lastMsg.thinking ?? '') + chunk.content
             if (lastPart && lastPart.type === 'thinking') {
               parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
             } else {
-              parts.push({ type: 'thinking', content: chunk.content })
+              let merged = false
+              for (let j = parts.length - 1; j >= 0; j--) {
+                if (parts[j].type === 'thinking') {
+                  parts[j] = { type: 'thinking', content: (parts[j] as { type: 'thinking'; content: string }).content + chunk.content }
+                  merged = true
+                  break
+                }
+                if (parts[j].type === 'tool-call') break
+              }
+              if (!merged) parts.push({ type: 'thinking', content: chunk.content })
             }
             break
+          }
 
-          case 'text':
+          case 'text': {
             lastMsg.content = (lastMsg.content ?? '') + chunk.content
             assistantContent += chunk.content
             if (lastPart && lastPart.type === 'text') {
               parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
             } else {
-              parts.push({ type: 'text', content: chunk.content })
+              let merged = false
+              for (let j = parts.length - 1; j >= 0; j--) {
+                if (parts[j].type === 'text') {
+                  parts[j] = { type: 'text', content: (parts[j] as { type: 'text'; content: string }).content + chunk.content }
+                  merged = true
+                  break
+                }
+                if (parts[j].type === 'tool-call') break
+              }
+              if (!merged) parts.push({ type: 'text', content: chunk.content })
             }
             break
+          }
 
           case 'tool-call-start': {
             hasToolCalls = true
@@ -395,6 +425,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       if (pendingSqlConfirm) {
         lastMsg.sqlConfirm = { ...pendingSqlConfirm, status: 'pending' as const }
       }
+      if (pendingSmartFilterFilters) {
+        lastMsg.smartFilterConfirm = { suggestedFilters: pendingSmartFilterFilters, status: 'pending' as const }
+      }
       messages[messages.length - 1] = lastMsg
       return { ...s, messages }
     })
@@ -406,7 +439,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const isSqlResultMessage = /^以下SQL(?:已执行完成|执行失败)/.test(message)
     const hasExecutionHistory = (executionLog?.length ?? 0) > 0
     const isContinuation = isSqlResultMessage || hasExecutionHistory
-    if (retryCount < 1 && !hasSqlConfirm && assistantContent.length > 30) {
+    if (retryCount < 1 && !hasSqlConfirm && !hasSmartFilterConfirm && assistantContent.length > 30) {
       try {
         const classification = await classifyHallucination({
           data: {
@@ -444,7 +477,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    return hasSqlConfirm
+    return hasSqlConfirm || hasSmartFilterConfirm
   }, [updateSession, model, apiKey, thinkingMode, sqlPermission, maxSqlExecutions, getFullConnection])
 
   processStreamRef.current = processStream
@@ -549,7 +582,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
-      const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
+      const history = buildApiHistory(currentSession?.messages ?? [])
 
       const connection = getFullConnection(activeConnectionId)
       if (!connection) return
@@ -592,7 +625,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }))
 
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
-    const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
+    const history = buildApiHistory(currentSession?.messages ?? [])
 
     return await processStream(sessionId, connectionId, resultSummary, history)
   }, [updateSession, processStream])
@@ -634,7 +667,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }))
 
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
-    const history = buildApiHistory(currentSession?.messages ?? [], currentSession?.executionLog)
+    const history = buildApiHistory(currentSession?.messages ?? [])
     return await processStream(sessionId, connectionId, errorSummary, history)
   }, [updateSession, processStream])
 
@@ -765,6 +798,124 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     markTaskComplete(activeSessionId)
   }, [activeSessionId, updateSession, markTaskComplete])
 
+  // ── Smart Filter confirm/cancel ──
+  const confirmSmartFilter = useCallback(async (messageId: string, filterValues: Record<number, FilterValue>) => {
+    if (!activeSessionId || !activeConnectionId) return
+
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    const message = session?.messages.find((m) => m.id === messageId)
+    if (!message?.smartFilterConfirm) return
+
+    const msgIndex = session?.messages.findIndex((m) => m.id === messageId) ?? -1
+    const userMsg = msgIndex > 0 ? session?.messages[msgIndex - 1] : null
+    const originalQuery = userMsg?.role === 'user' ? userMsg.content : ''
+
+    // Update status to confirmed and store values
+    updateSession(activeSessionId, (s) => {
+      const messages = s.messages.map((m) => {
+        if (m.id === messageId && m.smartFilterConfirm) {
+          return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'confirmed' as const }, smartFilterValues: filterValues }
+        }
+        return m
+      })
+      return { ...s, messages }
+    })
+
+    // Build enhanced prompt from filter values
+    const enhancedPrompt = buildEnhancedPrompt(originalQuery, message.smartFilterConfirm.suggestedFilters, filterValues)
+
+    const assistantMessage: ChatMessage = {
+      id: generateId(),
+      role: 'assistant',
+      content: '',
+      thinking: '',
+      toolCalls: [],
+      timestamp: new Date().toISOString(),
+    }
+
+    updateSession(activeSessionId, (s) => ({
+      ...s,
+      messages: [...s.messages, assistantMessage],
+      updatedAt: new Date().toISOString(),
+    }))
+
+    setIsStreaming(true)
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
+      const history = buildApiHistory(currentSession?.messages ?? [])
+      const connection = getFullConnection(activeConnectionId)
+      if (!connection) return
+
+      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, enhancedPrompt, history)
+      if (!hasSqlConfirm) {
+        markTaskComplete(activeSessionId)
+        generateAiTitleForSession(activeSessionId)
+      }
+    } finally {
+      setIsStreaming(false)
+      updateSession(activeSessionId, (s) => {
+        const messages = s.messages.map((m) => {
+          if (m.id === messageId && m.smartFilterConfirm?.status === 'confirmed') {
+            return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'done' as const } }
+          }
+          return m
+        })
+        return { ...s, messages }
+      })
+    }
+  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+
+  const cancelSmartFilter = useCallback(async (messageId: string) => {
+    if (!activeSessionId || !activeConnectionId) return
+
+    // Update status to cancelled
+    updateSession(activeSessionId, (s) => {
+      const messages = s.messages.map((m) => {
+        if (m.id === messageId && m.smartFilterConfirm) {
+          return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'cancelled' as const } }
+        }
+        return m
+      })
+      return { ...s, messages }
+    })
+
+    // Continue conversation without filter parameters
+    const assistantMessage: ChatMessage = {
+      id: generateId(),
+      role: 'assistant',
+      content: '',
+      thinking: '',
+      toolCalls: [],
+      timestamp: new Date().toISOString(),
+    }
+
+    updateSession(activeSessionId, (s) => ({
+      ...s,
+      messages: [...s.messages, assistantMessage],
+      updatedAt: new Date().toISOString(),
+    }))
+
+    setIsStreaming(true)
+    abortControllerRef.current = new AbortController()
+
+    try {
+      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
+      const history = buildApiHistory(currentSession?.messages ?? [])
+      const connection = getFullConnection(activeConnectionId)
+      if (!connection) return
+
+      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, '请继续帮我查询，不需要调整筛选参数。', history)
+      if (!hasSqlConfirm) {
+        markTaskComplete(activeSessionId)
+        generateAiTitleForSession(activeSessionId)
+      }
+    } finally {
+      setIsStreaming(false)
+    }
+  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
@@ -824,6 +975,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     clearMessages,
     confirmSql,
     cancelSql,
+    confirmSmartFilter,
+    cancelSmartFilter,
   }
 
   return (
@@ -834,14 +987,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Convert app ChatMessage[] + ExecutionLogEntry[] into API-format
- * history messages that include tool_calls and tool result messages.
- * This ensures the model sees its previous tool-calling behavior
- * in subsequent rounds, making it more likely to call tools again.
+ * Convert app ChatMessage[] into API-format history messages that
+ * include tool_calls and tool result messages.
+ * Execution log is injected via system prompt in agent.ts, not here.
  */
 function buildApiHistory(
   messages: ChatMessage[],
-  executionLog?: ExecutionLogEntry[],
 ): Array<Record<string, unknown>> {
   const apiMessages: Array<Record<string, unknown>> = []
   let callIdCounter = 0
@@ -856,11 +1007,11 @@ function buildApiHistory(
 
     if (msg.role === 'assistant') {
       const toolCalls = msg.toolCalls ?? []
-      const hasVisibleToolCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql').length > 0
+      const hasVisibleToolCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter').length > 0
 
       if (hasVisibleToolCalls) {
-        // Assistant message with tool calls (excluding execute_sql which has a special flow)
-        const visibleCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql')
+        // Assistant message with tool calls (excluding execute_sql and smart_filter which have special flows)
+        const visibleCalls = toolCalls.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter')
         const syntheticToolCalls = visibleCalls.map((tc) => ({
           id: `call_${++callIdCounter}`,
           type: 'function',
@@ -892,22 +1043,6 @@ function buildApiHistory(
     }
   }
 
-  // Append execution log results as user messages so the model sees what SQL was executed
-  if (executionLog && executionLog.length > 0) {
-    for (const entry of executionLog) {
-      const status = entry.success ? '成功' : '失败'
-      apiMessages.push({
-        role: 'user',
-        content: `[系统提示：以下SQL已${status}执行]\nSQL: ${entry.sql}\n结果: ${entry.summary}`,
-      })
-      // Add a placeholder assistant ack so the message alternation is valid
-      apiMessages.push({
-        role: 'assistant',
-        content: '收到，我已了解以上SQL的执行结果。',
-      })
-    }
-  }
-
   return apiMessages
 }
 
@@ -924,6 +1059,55 @@ function summarizeSqlResult(result: SqlResultInfo): string {
     return `返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`
   }
   return '查询无返回数据'
+}
+
+/**
+ * Build an enhanced prompt from smart filter values.
+ * Formats user-adjusted filter parameters as structured text
+ * that the AI agent can use to generate more precise SQL.
+ */
+function buildEnhancedPrompt(originalQuery: string, filters: SuggestedFilter[], values: Record<number, FilterValue>): string {
+  const paramLines: string[] = []
+
+  for (const [index, filter] of filters.entries()) {
+    const fv = values[index]
+    if (!fv) continue
+
+    switch (filter.type) {
+      case 'date_range':
+        if (fv.dateRange) {
+          paramLines.push(`- 时间范围: ${filter.table}.${filter.column} BETWEEN '${fv.dateRange.start}' AND '${fv.dateRange.end}'`)
+        }
+        break
+      case 'enum_select':
+        if (fv.enumValue) {
+          paramLines.push(`- 筛选条件: ${filter.table}.${filter.column} = '${fv.enumValue}'`)
+        }
+        break
+      case 'option_select':
+        if (fv.optionValue) {
+          paramLines.push(`- ${filter.label}: ${fv.optionValue}`)
+        }
+        break
+      case 'aggregation':
+        if (fv.aggregation) {
+          const groupByHint: Record<string, string> = {
+            '按日': `DATE(${filter.table}.${filter.column})`,
+            '按周': `YEARWEEK(${filter.table}.${filter.column})`,
+            '按月': `DATE_FORMAT(${filter.table}.${filter.column}, '%Y-%m')`,
+            '按季度': `CONCAT(YEAR(${filter.table}.${filter.column}), '-Q', QUARTER(${filter.table}.${filter.column}))`,
+            '按年': `YEAR(${filter.table}.${filter.column})`,
+          }
+          const groupExpr = groupByHint[fv.aggregation] ?? fv.aggregation
+          paramLines.push(`- 聚合方式: ${fv.aggregation} (GROUP BY ${groupExpr})`)
+        }
+        break
+    }
+  }
+
+  if (paramLines.length === 0) return '请继续帮我查询。'
+
+  return `用户已确认筛选参数，请基于以下结构化参数生成精确的 SQL 查询：\n\n原始查询: ${originalQuery}\n\n[筛选参数]\n${paramLines.join('\n')}`
 }
 
 function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {

@@ -3,6 +3,7 @@ import { User } from 'lucide-react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallStatus } from './ToolCallStatus'
 import { SqlConfirmBlock } from './SqlConfirmBlock'
+import { SmartFilterConfirmBlock } from './SmartFilterConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
 import { useSettings } from '@/hooks/useSettings'
 
@@ -50,7 +51,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
-            if (!tc || tc.name === 'execute_sql') return null
+            if (!tc || tc.name === 'execute_sql' || tc.name === 'smart_filter') return null
             return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
           }
           case 'text':
@@ -67,17 +68,25 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
           result={message.sqlResult}
         />
       )}
+
+      {message.smartFilterConfirm && (
+        <SmartFilterConfirmBlock
+          info={message.smartFilterConfirm}
+          messageId={message.id}
+        />
+      )}
     </div>
   )
 }
 
 function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
-  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql') ?? []
+  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0
   const hasSqlConfirm = Boolean(message.sqlConfirm)
+  const hasSmartFilterConfirm = Boolean(message.smartFilterConfirm)
   const hasContent = Boolean(message.content)
-  const hasAnyContent = hasThinking || hasToolCalls || hasSqlConfirm || hasContent
+  const hasAnyContent = hasThinking || hasToolCalls || hasSqlConfirm || hasSmartFilterConfirm || hasContent
 
   if (!hasAnyContent) return null
 
@@ -106,6 +115,13 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
           result={message.sqlResult}
         />
       )}
+
+      {hasSmartFilterConfirm && (
+        <SmartFilterConfirmBlock
+          info={message.smartFilterConfirm!}
+          messageId={message.id}
+        />
+      )}
     </div>
   )
 }
@@ -132,7 +148,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
 
   // Show loading indicator when streaming and message has no content yet
   const hasContent = message.parts && message.parts.length > 0
-  const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm
+  const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm || message.smartFilterConfirm
 
   if (isStreaming && !hasContent && !hasLegacyContent) {
     return <StreamingIndicator />

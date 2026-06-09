@@ -1,6 +1,6 @@
 import { tool } from '@/core'
 import { z } from 'zod'
-import { listTables, getTableSchema, getDatabaseOverview, explainQuery } from './database'
+import { listTables, getTableSchema, getDatabaseOverview, explainQuery, getColumnFilterData } from './database'
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection } from '@/lib/types'
@@ -116,7 +116,7 @@ export function createDbTools(
     execute: async ({ sql }: { sql: string }) => {
       try {
         // Basic validation: only SELECT statements
-        if (!/^\s*(SELECT|WITH)\b/i.test(sql.trim())) {
+        if (!/^(SELECT|WITH)\b/i.test(sql.trim())) {
           return 'EXPLAIN 仅支持 SELECT 语句。'
         }
         const result = await explainQuery(connection, sql)
@@ -191,5 +191,57 @@ export function createDbTools(
     },
   })
 
-  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, explainSqlTool, executeSqlTool], resultStore }
+  const smartFilterTool = tool({
+    name: 'smart_filter',
+    description: `当用户查询存在需要确认或可调整的参数时，必须调用此工具以交互控件形式让用户选择，禁止以文本提问代替。支持四种筛选类型：
+- date_range: 时间范围筛选（如"最近"、"上个月"），系统自动查询日期边界
+- enum_select: 基于数据库列值的枚举筛选（如"按状态筛选"），系统自动查询去重值
+- option_select: 自定义选项（如"查询哪张表"、"使用哪种统计口径"），由你直接提供选项列表
+- aggregation: 聚合粒度选择（如"按日/周/月统计"）
+调用后必须立即停止回复，等待用户确认后继续。`,
+    schema: z.object({
+      filters: z.array(z.object({
+        type: z.enum(['date_range', 'enum_select', 'option_select', 'aggregation']).describe('筛选维度类型'),
+        table: z.string().describe('涉及的表名（option_select 可填空字符串）'),
+        column: z.string().describe('涉及的列名（option_select 可填空字符串）'),
+        label: z.string().describe('中文显示标签，如"查询范围"、"订单日期"、"订单状态"'),
+        options: z.array(z.string()).optional().describe('option_select 的选项列表，如["esmp_user (小程序用户)", "sys_user (系统用户)", "全部"]'),
+        defaultRange: z.string().optional().describe('日期范围推荐: 7d/30d/90d/1y'),
+        aggregationOptions: z.array(z.string()).optional().describe('聚合选项，如["按日","按周","按月"]'),
+        defaultValue: z.string().optional().describe('推荐的初始值'),
+      })),
+    }),
+    execute: async ({ filters }) => {
+      const enrichedFilters = await Promise.all(
+        filters.map(async (f) => {
+          if (f.type === 'option_select') {
+            return { ...f, dataType: '', options: f.options ?? [] }
+          }
+          try {
+            const data = await getColumnFilterData(connection, f.table, f.column)
+            return {
+              ...f,
+              dataType: '',
+              enumValues: data.distinctValues ?? [],
+              dateMin: data.dateMin,
+              dateMax: data.dateMax,
+              rowCount: data.rowCount,
+            }
+          } catch {
+            return { ...f, dataType: '' }
+          }
+        }),
+      )
+
+      const result = JSON.stringify({
+        status: 'pending',
+        filters: enrichedFilters,
+        message: '已将筛选建议提交给用户确认。请立即停止回复，等待用户确认筛选参数后继续。',
+      })
+      pushResult('smart_filter', result)
+      return result
+    },
+  })
+
+  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, explainSqlTool, executeSqlTool, smartFilterTool], resultStore }
 }

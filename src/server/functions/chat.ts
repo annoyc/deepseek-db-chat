@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { createDbAgent } from '@/server/agent'
-import { TOOL_ERROR_PREFIX } from '@/server/tools'
+import { TOOL_ERROR_PREFIX, type ResultStore } from '@/server/tools'
 import { decrypt } from '@/server/crypto'
 import type { DatabaseConnection, StreamChunk, ExecutionLogEntry } from '@/lib/types'
 
@@ -16,6 +16,29 @@ interface ChatInput {
   lastConfirmedSql?: string
   sqlExecutedCount?: number
   maxSqlExecutions?: number
+}
+
+function drainToolResults(
+  pendingNames: string[],
+  resultStore: ResultStore,
+  encoder: TextEncoder,
+  controller: ReadableStreamDefaultController,
+): string | undefined {
+  let smartFilterResult: string | undefined
+  for (const name of pendingNames) {
+    const queue = resultStore.get(name)
+    const result = queue?.shift() ?? ''
+    if (queue?.length === 0) resultStore.delete(name)
+    if (name === 'smart_filter') smartFilterResult = result
+    const isError = result.startsWith(TOOL_ERROR_PREFIX)
+    const isSmartFilter = name === 'smart_filter'
+    const displayResult = (name === 'execute_sql' || isSmartFilter) ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
+    const chunk: StreamChunk = isError
+      ? { type: 'tool-call-end', name, result: '', error: displayResult }
+      : { type: 'tool-call-end', name, result: displayResult }
+    controller.enqueue(encoder.encode(formatSSE(chunk)))
+  }
+  return smartFilterResult
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -48,6 +71,8 @@ export const chatStream = createServerFn({ method: 'POST' })
 
           let pendingToolNames: string[] = []
           let executeSqlDetected = false
+          let smartFilterDetected = false
+          let shouldBreak = false
 
           for await (const event of agentStream) {
             let chunk: StreamChunk | null = null
@@ -62,7 +87,6 @@ export const chatStream = createServerFn({ method: 'POST' })
                 break
 
               case 'tool-call': {
-                pendingToolNames = []
                 for (const tc of event.toolCalls) {
                   let args: Record<string, unknown> = {}
                   try {
@@ -74,22 +98,36 @@ export const chatStream = createServerFn({ method: 'POST' })
                   if (name === 'execute_sql') {
                     executeSqlDetected = true
                   }
+                  if (name === 'smart_filter') {
+                    smartFilterDetected = true
+                  }
                 }
                 break
               }
 
               case 'step': {
-                for (const name of pendingToolNames) {
-                  const queue = resultStore.get(name)
-                  const result = queue?.shift() ?? ''
-                  if (queue?.length === 0) resultStore.delete(name)
-                  const isError = result.startsWith(TOOL_ERROR_PREFIX)
-                  const displayResult = name === 'execute_sql' ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
-                  const chunk: StreamChunk = isError
-                    ? { type: 'tool-call-end', name, result: '', error: displayResult }
-                    : { type: 'tool-call-end', name, result: displayResult }
-                  controller.enqueue(encoder.encode(formatSSE(chunk)))
+                const smartFilterResult = drainToolResults(pendingToolNames, resultStore, encoder, controller)
+
+                if (smartFilterDetected && smartFilterResult) {
+                  try {
+                    let suggestedFilters: Record<string, unknown>[] = []
+                    if (!smartFilterResult.startsWith(TOOL_ERROR_PREFIX)) {
+                      const parsed = JSON.parse(smartFilterResult)
+                      suggestedFilters = parsed.filters ?? []
+                    }
+                    controller.enqueue(encoder.encode(formatSSE({
+                      type: 'smart-filter-confirm',
+                      suggestedFilters: suggestedFilters as any,
+                    })))
+                  } catch {
+                    controller.enqueue(encoder.encode(formatSSE({
+                      type: 'smart-filter-confirm',
+                      suggestedFilters: [],
+                    })))
+                  }
+                  shouldBreak = true
                 }
+
                 pendingToolNames = []
                 break
               }
@@ -102,21 +140,10 @@ export const chatStream = createServerFn({ method: 'POST' })
               controller.enqueue(encoder.encode(formatSSE(chunk)))
             }
 
-            if (executeSqlDetected) break
+            if (executeSqlDetected || shouldBreak) break
           }
 
-          for (const name of pendingToolNames) {
-            const queue = resultStore.get(name)
-            const result = queue?.shift() ?? ''
-            if (queue?.length === 0) resultStore.delete(name)
-            const isError = result.startsWith(TOOL_ERROR_PREFIX)
-            const displayResult = name === 'execute_sql' ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
-            const chunk: StreamChunk = isError
-              ? { type: 'tool-call-end', name, result: '', error: displayResult }
-              : { type: 'tool-call-end', name, result: displayResult }
-            controller.enqueue(encoder.encode(formatSSE(chunk)))
-          }
-
+          drainToolResults(pendingToolNames, resultStore, encoder, controller)
           controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
         } catch (err) {
           console.error('[chat] Agent stream error:', err)

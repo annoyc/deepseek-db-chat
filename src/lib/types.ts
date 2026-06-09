@@ -45,6 +45,8 @@ export interface ChatMessage {
   parts?: MessagePart[]
   sqlConfirm?: SqlConfirmInfo
   sqlResult?: SqlResultInfo
+  smartFilterConfirm?: SmartFilterConfirmInfo
+  smartFilterValues?: Record<number, FilterValue>
   timestamp: string
   answerDuration?: number
   answerQueryCount?: number
@@ -57,6 +59,37 @@ export interface ToolCallInfo {
   result?: string
   error?: string
   status: 'calling' | 'completed' | 'error'
+}
+
+export interface SmartFilterConfirmInfo {
+  suggestedFilters: SuggestedFilter[]
+  status: 'pending' | 'confirmed' | 'done' | 'cancelled'
+  error?: string
+}
+
+export interface SuggestedFilter {
+  type: 'date_range' | 'enum_select' | 'option_select' | 'aggregation'
+  table: string
+  column: string
+  label: string
+  dataType: string
+  enumValues?: string[]
+  options?: string[]
+  dateMin?: string
+  dateMax?: string
+  rowCount?: number
+  fkRelatedTable?: string
+  fkRelatedValues?: string[]
+  defaultRange?: string
+  aggregationOptions?: string[]
+  defaultValue?: string
+}
+
+export interface FilterValue {
+  dateRange?: { start: string; end: string }
+  enumValue?: string
+  optionValue?: string
+  aggregation?: string
 }
 
 export interface SqlConfirmInfo {
@@ -80,5 +113,6 @@ export type StreamChunk =
   | { type: 'tool-call-end'; name: string; result: string; error?: string }
   | { type: 'sql-confirm'; sql: string; explanation: string }
   | { type: 'sql-result'; data: SqlResultInfo }
+  | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }
   | { type: 'error'; message: string }
   | { type: 'finish' }

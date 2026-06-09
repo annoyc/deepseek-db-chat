@@ -330,3 +330,96 @@ export async function closePool(connectionId: string) {
     pools.delete(connectionId)
   }
 }
+
+/**
+ * Query actual data values for a specific column to drive Smart Filter UI controls.
+ * Returns MIN/MAX for date columns, DISTINCT values for ENUM/FK columns, and row count.
+ */
+/**
+ * Validate that a column exists in the given table.
+ * Used alongside `tableExists` to prevent SQL injection via column name parameters.
+ */
+async function columnExists(connection: DatabaseConnection, tableName: string, columnName: string): Promise<boolean> {
+  const pool = getPool(connection)
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [connection.database, tableName, columnName],
+  )
+  return ((rows as Record<string, unknown>[])[0]?.cnt as number) > 0
+}
+
+export async function getColumnFilterData(
+  connection: DatabaseConnection,
+  tableName: string,
+  columnName: string,
+): Promise<{
+  dateMin?: string
+  dateMax?: string
+  distinctValues?: string[]
+  rowCount?: number
+}> {
+  const pool = getPool(connection)
+
+  // Validate table AND column existence to prevent injection
+  if (!(await tableExists(connection, tableName))) {
+    throw new Error(`表 "${tableName}" 不存在`)
+  }
+  if (!(await columnExists(connection, tableName, columnName))) {
+    throw new Error(`列 "${columnName}" 不存在于表 "${tableName}" 中`)
+  }
+
+  const result: {
+    dateMin?: string
+    dateMax?: string
+    distinctValues?: string[]
+    rowCount?: number
+  } = {}
+
+  try {
+    // Always get row count
+    const [countRows] = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM \`${tableName}\``,
+    )
+    result.rowCount = Number((countRows as Record<string, unknown>[])[0]?.cnt ?? 0)
+
+    // Get column data type to determine which queries to run
+    const [colInfo] = await pool.query(
+      `SELECT DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [connection.database, tableName, columnName],
+    )
+    const info = (colInfo as Record<string, unknown>[])[0]
+    if (!info) return result
+
+    const dataType = (info.DATA_TYPE as string).toLowerCase()
+    const columnType = (info.COLUMN_TYPE as string).toLowerCase()
+    const isDateType = ['date', 'datetime', 'timestamp'].includes(dataType)
+    const isEnumType = columnType.startsWith('enum') || columnType.startsWith('set')
+
+    // MIN/MAX for date-like columns
+    if (isDateType) {
+      const [rangeRows] = await pool.query(
+        `SELECT MIN(\`${columnName}\`) AS min_val, MAX(\`${columnName}\`) AS max_val FROM \`${tableName}\``,
+      )
+      const range = (rangeRows as Record<string, unknown>[])[0]
+      if (range?.min_val) result.dateMin = String(range.min_val)
+      if (range?.max_val) result.dateMax = String(range.max_val)
+    }
+
+    // DISTINCT values for ENUM/SET columns or columns with low cardinality
+    if (isEnumType || !isDateType) {
+      const [distinctRows] = await pool.query(
+        `SELECT DISTINCT \`${columnName}\` AS val FROM \`${tableName}\`
+         WHERE \`${columnName}\` IS NOT NULL
+         ORDER BY val LIMIT 100`,
+      )
+      result.distinctValues = (distinctRows as Record<string, unknown>[])
+        .map(r => String(r.val))
+        .filter(v => v.length > 0)
+    }
+  } catch {
+    // Return partial results on error
+  }
+
+  return result
+}
