@@ -37,12 +37,12 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
   const showCollapse = (hasResult && !isEmptyResult) || hasError
 
   const borderClass = toolCall.status === 'calling'
-    ? 'border border-amber-300'
-    : toolCall.status === 'error' ? 'border border-red-300' : 'border border-gray-700'
+    ? 'border border-amber-200'
+    : toolCall.status === 'error' ? 'border border-red-200' : 'border border-gray-200'
 
   const headerBorderClass = toolCall.status === 'calling'
-    ? 'border-b border-b-amber-200 bg-amber-50/50'
-    : 'border-b border-b-gray-300'
+    ? 'border-b border-b-amber-100 bg-amber-50/50'
+    : 'border-b border-b-gray-100'
 
   return (
     <div className={`${borderClass} rounded-xl overflow-hidden bg-white`}>
@@ -51,7 +51,7 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
         className={cn(
           'w-full flex items-center gap-1.5 px-3 py-2 transition-colors',
           headerBorderClass,
-          showCollapse && 'hover:bg-gray-50/50',
+          showCollapse && 'hover:bg-gray-50',
         )}
       >
         {showCollapse && (
@@ -76,7 +76,7 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
               {Object.entries(toolCall.args).map(([key, value]) => (
                 <div key={key} className="flex items-center gap-1.5 text-[13px]">
                   <span className="text-gray-500">{paramLabels[key] ?? key}:</span>
-                  <span className="border border-gray-300 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-white">
+                  <span className="border border-gray-200 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-gray-50">
                     {formatValue(value)}
                   </span>
                 </div>

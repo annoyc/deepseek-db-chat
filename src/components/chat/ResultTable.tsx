@@ -16,16 +16,16 @@ export function ResultTable({ result }: ResultTableProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-300">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <span className="text-xs text-gray-400">{rowCount} 行结果</span>
-        <div className="flex items-center">
+        <div className="flex items-center rounded-md overflow-hidden border border-gray-200">
           <button
             onClick={() => setViewMode('table')}
             className={cn(
-              'px-2.5 py-0.5 text-xs font-medium border border-gray-700 transition-colors rounded-l',
+              'px-2.5 py-1 text-xs font-medium transition-colors',
               viewMode === 'table'
-                ? 'bg-gray-900 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
+                ? 'bg-gray-800 text-white'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
             )}
           >
             表格
@@ -33,10 +33,10 @@ export function ResultTable({ result }: ResultTableProps) {
           <button
             onClick={() => setViewMode('chart')}
             className={cn(
-              'px-2.5 py-0.5 text-xs font-medium border border-l-0 border-gray-700 transition-colors rounded-r',
+              'px-2.5 py-1 text-xs font-medium border-l border-gray-200 transition-colors',
               viewMode === 'chart'
-                ? 'bg-gray-900 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
+                ? 'bg-gray-800 text-white'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
             )}
           >
             图表
@@ -47,13 +47,13 @@ export function ResultTable({ result }: ResultTableProps) {
       {viewMode === 'table' ? (
         columns.length > 0 && rows.length > 0 ? (
           <div className="overflow-x-auto max-h-80 px-3 py-2">
-            <table className="w-full text-xs border border-gray-400">
+            <table className="w-full text-xs border-collapse">
               <thead className="sticky top-0">
                 <tr>
                   {columns.map((col) => (
                     <th
                       key={col}
-                      className="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-400 bg-transparent whitespace-nowrap"
+                      className="px-3 py-2 text-left font-semibold text-gray-700 border-b-2 border-gray-200 bg-gray-50/80 whitespace-nowrap"
                     >
                       {col}
                     </th>
@@ -62,11 +62,11 @@ export function ResultTable({ result }: ResultTableProps) {
               </thead>
               <tbody>
                 {displayRows.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50/30">
+                  <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
                     {columns.map((col) => (
                       <td
                         key={col}
-                        className="px-3 py-1.5 border border-gray-400 text-gray-600 whitespace-nowrap max-w-52 truncate"
+                        className="px-3 py-1.5 border-b border-gray-100 text-gray-600 whitespace-nowrap max-w-52 truncate"
                       >
                         {formatCell(row[col])}
                       </td>
@@ -88,7 +88,7 @@ export function ResultTable({ result }: ResultTableProps) {
       )}
 
       {viewMode === 'table' && rows.length > 100 && (
-        <div className="px-3 py-2 text-center text-xs text-gray-400 border-t border-gray-300">
+        <div className="px-3 py-2 text-center text-xs text-gray-400 border-t border-gray-100">
           显示前 100 行（共 {rowCount} 行）
         </div>
       )}

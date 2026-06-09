@@ -6,15 +6,27 @@ DBPilot is an AI-powered MySQL assistant that lets users ask natural-language qu
 
 ## Table of Contents
 
-1. [High-Level Architecture](#high-level-architecture)
-2. [Technology Stack](#technology-stack)
-3. [Request Flow](#request-flow)
-4. [Agent Architecture](#agent-architecture)
-5. [SSE Streaming Architecture](#sse-streaming-architecture)
-6. [Human-in-the-Loop SQL Flow](#human-in-the-loop-sql-flow)
-7. [Data Storage](#data-storage)
-8. [Key Design Decisions](#key-design-decisions)
-9. [Project Structure](#project-structure)
+- [DBPilot — Architecture](#dbpilot--architecture)
+  - [Table of Contents](#table-of-contents)
+  - [High-Level Architecture](#high-level-architecture)
+  - [Technology Stack](#technology-stack)
+  - [Request Flow](#request-flow)
+    - [Step-by-step](#step-by-step)
+  - [Agent Architecture](#agent-architecture)
+    - [Tools](#tools)
+    - [Agent loop](#agent-loop)
+  - [SSE Streaming Architecture](#sse-streaming-architecture)
+    - [Event mapping](#event-mapping)
+  - [Human-in-the-Loop SQL Flow](#human-in-the-loop-sql-flow)
+    - [Detailed flow](#detailed-flow)
+  - [Data Storage](#data-storage)
+  - [Key Design Decisions](#key-design-decisions)
+    - [1. Inlined deepseek-kit (`src/core/`)](#1-inlined-deepseek-kit-srccore)
+    - [2. SSE over WebSocket](#2-sse-over-websocket)
+    - [3. Human-in-the-loop SQL execution](#3-human-in-the-loop-sql-execution)
+    - [4. IndexedDB for user data](#4-indexeddb-for-user-data)
+  - [Project Structure](#project-structure)
+  - [Related Server Functions](#related-server-functions)
 
 ---
 
@@ -288,7 +300,7 @@ flowchart TB
    ```
 3. **Stream break** — `chatStream` sets `executeSqlDetected = true` and exits the event loop after emitting `tool-call-start` for `execute_sql`.
 4. **UI prompt** — `useChat.processStream` captures SQL args from the `tool-call-start` chunk and attaches `sqlConfirm: { status: "pending" }` to the assistant message. `SqlConfirmBlock` renders the proposal.
-5. **User confirms** — `confirmSql()` calls `confirmAndExecuteSql`, which runs the query through `executeQuery()` (with a 30-second timeout).
+5. **User confirms** — `confirmSql()` calls `confirmAndExecuteSql`, which runs the query through `executeQuery()` (with a 60-second timeout).
 6. **Result feedback** — On success, the result is stored on the message (`sqlResult`) and `continueWithSqlResult()` sends a synthetic user-style prompt containing the SQL, row count, and up to 50 rows of data back through `chatStream` for further analysis.
 7. **Error recovery** — On failure, `continueWithSqlError()` sends the error message so the agent can revise the SQL (typically after re-checking schema with `get_table_schema`).
 8. **Multi-step queries** — The system prompt instructs the agent to call `execute_sql` at most once per turn and wait for results before proposing the next query.

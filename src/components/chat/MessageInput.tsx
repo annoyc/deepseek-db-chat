@@ -86,7 +86,7 @@ export function MessageInput() {
                           key={m.id}
                           onClick={() => { setModel(m.id); setShowModelMenu(false) }}
                           className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                            m.id === model ? 'text-green-700 font-medium' : 'text-gray-700'
+                            m.id === model ? 'text-primary font-medium' : 'text-gray-700'
                           }`}
                         >
                           <div>
@@ -107,7 +107,7 @@ export function MessageInput() {
                 onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
                 className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
                   thinkingMode === 'enabled'
-                    ? 'border-green-500 text-green-600'
+                    ? 'border-primary/50 text-primary'
                     : 'border-gray-300 text-gray-400'
                 }`}
               >
@@ -148,7 +148,7 @@ export function MessageInput() {
                 disabled={!canSend}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                   canSend
-                    ? 'bg-gray-900 text-white hover:bg-gray-800 shadow-sm'
+                    ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }`}
               >

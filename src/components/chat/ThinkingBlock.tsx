@@ -57,10 +57,10 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
     : (index && index > 1) ? `思考过程 #${index}` : '思考过程'
 
   return (
-    <div className="border border-gray-700 rounded-xl overflow-hidden bg-white">
+    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-gray-50/50 transition-colors"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors border-b border-gray-100"
       >
         {isStreaming && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin flex-shrink-0" />}
         {expanded ? (
@@ -79,7 +79,7 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
         <div
           ref={scrollRef}
           onScroll={handleInnerScroll}
-          className="px-3 pb-3 text-[13px] text-gray-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto max-h-[500px] border-t border-gray-300"
+          className="px-3 pb-3 text-[13px] text-gray-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto max-h-[500px]"
         >
           <div className="pt-2">
             {renderInlineCode(content)}

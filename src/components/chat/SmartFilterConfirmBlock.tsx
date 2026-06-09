@@ -101,12 +101,12 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   return (
     <div className={cn(
       'border rounded-xl overflow-hidden bg-white',
-      isCancelled ? 'border-gray-300' : isConfirmed ? 'border-green-400' : 'border-gray-700',
+      isCancelled ? 'border-gray-200' : isConfirmed ? 'border-green-300' : 'border-gray-200',
     )}>
       {/* Header */}
       <div className={cn(
         'flex items-center gap-1.5 px-3 py-2 border-b',
-        isCancelled ? 'border-gray-200' : isConfirmed ? 'border-green-200' : 'border-gray-300',
+        isCancelled ? 'border-gray-100' : isConfirmed ? 'border-green-100' : 'border-gray-100',
       )}>
         {isDone ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
@@ -144,7 +144,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
       {/* Actions */}
       {isPending && (
-        <div className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-300 bg-gray-50/50">
+        <div className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-100 bg-gray-50/30">
           <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
             <Send className="size-3 mr-1" />
             确认筛选
