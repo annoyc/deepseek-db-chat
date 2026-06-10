@@ -171,6 +171,30 @@ export function createDbTools(
 
       submittedSqlSet.add(normalizedSql)
 
+      // Schema 校验：检查 SQL 引用的表名是否已通过 schema 确认
+      if (schemaCache.size > 0) {
+        const tablePattern = /(?:FROM|JOIN|INTO|UPDATE)\s+`?(\w+)`?/gi
+        let match: RegExpExecArray | null
+        const unknownTables: string[] = []
+        while ((match = tablePattern.exec(sql)) !== null) {
+          const tableName = match[1].toLowerCase()
+          if (tableName === 'dual' || tableName === 'select') continue
+          const knownLower = [...schemaCache.keys()].map((k) => k.toLowerCase())
+          if (!knownLower.includes(tableName)) {
+            unknownTables.push(match[1])
+          }
+        }
+        if (unknownTables.length > 0) {
+          const warnMsg = JSON.stringify({
+            status: 'schema_warning',
+            unknown_tables: unknownTables,
+            message: `SQL 引用了未经确认的表: ${unknownTables.join(', ')}。请先调用 get_table_schema 确认这些表的结构，再生成 SQL。已知表: ${[...schemaCache.keys()].join(', ')}`,
+          })
+          pushResult('execute_sql', warnMsg)
+          return warnMsg
+        }
+      }
+
       // 工具层安全校验：拦截危险 SQL
       const validation = validateSql(sql, sqlPermission)
       if (!validation.allowed) {
@@ -187,6 +211,67 @@ export function createDbTools(
         message: '已提交给用户确认。请立即停止，不要再调用任何工具。等待下一轮对话获取执行结果。',
       })
       pushResult('execute_sql', result)
+      return result
+    },
+  })
+
+  const planQueryTool = tool({
+    name: 'plan_query',
+    description: `面对复杂查询时，必须先调用此工具制定查询计划再执行 SQL。以下任一情况必须先规划：
+- 涉及 3 张及以上表的 JOIN
+- 需要子查询或 CTE（WITH 子句）
+- 需要多步查询（第二条 SQL 依赖第一条的结果）
+- 涉及 GROUP BY + HAVING 的复杂聚合
+- 涉及时间对比（环比、同比）
+- 用户问题本身包含多个子问题
+调用此工具会自动获取所有涉及表的完整字段结构（无需再单独调用 get_table_schema）。调用后直接按计划生成 SQL。`,
+    schema: z.object({
+      question: z.string().describe('用户的原始问题'),
+      complexity: z.enum(['moderate', 'complex']).describe('问题复杂度: moderate（2-3步）或 complex（4步以上）'),
+      involved_tables: z.array(z.string()).describe('涉及的表名列表'),
+      steps: z.array(z.object({
+        step: z.number().describe('步骤编号，从 1 开始'),
+        description: z.string().describe('该步骤的目标描述'),
+        sql_type: z.string().describe('SQL 类型，如 SELECT/JOIN/子查询/聚合/窗口函数'),
+        depends_on: z.array(z.number()).optional().describe('依赖的前置步骤编号'),
+      })),
+      total_queries: z.number().describe('预计需要执行的 SQL 数量'),
+      strategy_note: z.string().optional().describe('整体策略说明或优化思路'),
+    }),
+    execute: async (plan) => {
+      const schemas: Record<string, string> = {}
+      const missing: string[] = []
+      for (const table of plan.involved_tables) {
+        const cached = schemaCache.get(table)
+        if (cached) {
+          schemas[table] = cached
+        } else {
+          try {
+            const schema = await getTableSchema(connection, table)
+            schemaCache.set(table, schema)
+            schemas[table] = schema
+          } catch {
+            missing.push(table)
+          }
+        }
+      }
+
+      const parts: string[] = [
+        `查询计划已制定（${plan.steps.length} 个步骤，预计 ${plan.total_queries} 条 SQL）。`,
+      ]
+      if (missing.length > 0) {
+        parts.push(`⚠️ 以下表不存在或无法访问: ${missing.join(', ')}。请修正计划。`)
+      }
+      parts.push('以下是涉及表的完整字段信息，请严格基于这些字段生成 SQL：')
+      for (const [table, schema] of Object.entries(schemas)) {
+        parts.push(`\n--- ${table} ---\n${schema}`)
+      }
+
+      const result = JSON.stringify({
+        status: missing.length > 0 ? 'plan_warning' : 'plan_ready',
+        message: parts.join('\n'),
+      })
+      pushResult('plan_query', result)
       return result
     },
   })
@@ -243,5 +328,5 @@ export function createDbTools(
     },
   })
 
-  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, explainSqlTool, executeSqlTool, smartFilterTool], resultStore }
+  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, planQueryTool, explainSqlTool, executeSqlTool, smartFilterTool], resultStore }
 }

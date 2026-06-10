@@ -50,6 +50,7 @@ export interface ChatMessage {
   timestamp: string
   answerDuration?: number
   answerQueryCount?: number
+  answerModel?: string
 }
 
 export interface ToolCallInfo {

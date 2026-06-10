@@ -4,9 +4,7 @@ import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
 import { WelcomeScreen } from './WelcomeScreen'
 import { useChatStore } from '@/hooks/useChat'
-import { useSettings } from '@/hooks/useSettings'
 import { useDatabaseStore } from '@/hooks/useDatabase'
-import { AVAILABLE_MODELS, PROVIDERS } from '@/lib/constants'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -17,13 +15,8 @@ export function MessageList({ messages }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { sendMessage, isStreaming } = useChatStore()
   const { activeConnection, activeConnectionId, connectionStatus, connectionError } = useDatabaseStore()
-  const { provider, model } = useSettings()
   const shouldAutoScrollRef = useRef(true)
   const prevLengthRef = useRef(messages.length)
-
-  const providerName = PROVIDERS.find((p) => p.id === provider)?.name ?? provider
-  const modelEntry = AVAILABLE_MODELS.find((m) => m.id === model && m.provider === provider)
-  const currentModelName = modelEntry ? `${providerName} / ${modelEntry.name}` : model
 
   // Track if user manually scrolled up
   const handleScroll = useCallback(() => {
@@ -82,7 +75,7 @@ export function MessageList({ messages }: MessageListProps) {
             <TaskCompleteIndicator
               duration={message.answerDuration}
               queryCount={message.answerQueryCount ?? 0}
-              modelName={currentModelName}
+              modelName={message.answerModel ?? ''}
             />
           )}
         </Fragment>

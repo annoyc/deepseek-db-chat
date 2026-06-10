@@ -2,6 +2,7 @@ import type { ChatMessage } from '@/lib/types'
 import { Loader2, User } from 'lucide-react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallStatus } from './ToolCallStatus'
+import { QueryPlanBlock } from './QueryPlanBlock'
 import { SqlConfirmBlock } from './SqlConfirmBlock'
 import { SmartFilterConfirmBlock } from './SmartFilterConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
@@ -68,6 +69,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
             if (!tc || tc.name === 'execute_sql' || tc.name === 'smart_filter') return null
+            if (tc.name === 'plan_query') return <QueryPlanBlock key={`plan-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
             return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
           }
           case 'text':
@@ -98,9 +100,10 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
 }
 
 function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
-  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter') ?? []
+  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query') ?? []
+  const planToolCalls = message.toolCalls?.filter((tc) => tc.name === 'plan_query') ?? []
   const hasThinking = Boolean(message.thinking)
-  const hasToolCalls = nonSqlToolCalls.length > 0
+  const hasToolCalls = nonSqlToolCalls.length > 0 || planToolCalls.length > 0
   const hasSqlConfirm = Boolean(message.sqlConfirm)
   const hasSmartFilterConfirm = Boolean(message.smartFilterConfirm)
   const hasContent = Boolean(message.content)
@@ -120,6 +123,9 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
 
       {hasToolCalls && (
         <div className="space-y-3">
+          {planToolCalls.map((tc, idx) => (
+            <QueryPlanBlock key={`plan-${idx}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
+          ))}
           {nonSqlToolCalls.map((tc, idx) => (
             <ToolCallStatus key={idx} toolCall={tc} defaultExpanded={toolCallExpanded} />
           ))}

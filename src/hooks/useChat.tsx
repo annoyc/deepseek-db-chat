@@ -7,6 +7,7 @@ import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
 import { classifyHallucination } from '@/server/functions/classify-hallucination'
 import { generateAiTitle } from '@/server/functions/generate-title'
 import { db } from '@/lib/db'
+import { PROVIDERS, AVAILABLE_MODELS } from '@/lib/constants'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
 
@@ -540,6 +541,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   }, [updateSession, model, apiKey])
 
   const markTaskComplete = useCallback((sessionId: string) => {
+    const providerName = PROVIDERS.find((p) => p.id === provider)?.name ?? provider
+    const modelEntry = AVAILABLE_MODELS.find((m) => m.id === model && m.provider === provider)
+    const modelLabel = modelEntry ? `${providerName} / ${modelEntry.name}` : model
+
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
       const duration = Date.now() - (s.taskStartTime ?? Date.now())
@@ -565,6 +570,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ...messages[i],
             answerDuration: duration,
             answerQueryCount: queryCount,
+            answerModel: modelLabel,
           }
           break
         }
@@ -572,7 +578,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       return { ...s, messages, taskEndTime: Date.now() }
     })
-  }, [updateSession])
+  }, [updateSession, provider, model])
 
   const sendMessage = useCallback(async (content: string) => {
     if (!activeConnectionId || isStreaming) return

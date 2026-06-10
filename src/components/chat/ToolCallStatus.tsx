@@ -12,6 +12,7 @@ const TOOL_LABELS: Record<string, string> = {
   list_tables: '查看表列表',
   get_table_schema: '查看表结构',
   get_database_overview: '查看数据库概览',
+  plan_query: '查询规划',
   smart_filter: '智能筛选',
   execute_sql: 'SQL 查询',
   explain_sql: 'SQL 评估',
