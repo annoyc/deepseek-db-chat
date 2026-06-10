@@ -13,6 +13,7 @@ interface ChatInput {
   apiKey?: string
   baseURL?: string
   thinkingMode?: 'enabled' | 'disabled'
+  reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
   lastConfirmedSql?: string
@@ -63,6 +64,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             apiKey: decryptedApiKey,
             baseURL: data.baseURL,
             thinkingMode: data.thinkingMode,
+            reasoningEffort: data.reasoningEffort,
             sqlPermission: effectiveSqlPermission,
             executionLog: data.executionLog,
             lastConfirmedSql: data.lastConfirmedSql,

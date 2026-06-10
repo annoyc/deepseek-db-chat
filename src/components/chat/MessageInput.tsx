@@ -12,7 +12,7 @@ export function MessageInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId, stopStreaming } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { provider, setProvider, model, setModel, thinkingMode, setThinkingMode, sqlPermission, setSqlPermission } = useSettings()
+  const { provider, setProvider, model, setModel, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -128,17 +128,30 @@ export function MessageInput() {
                 )}
               </div>
 
-              <button
-                onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
-                className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
-                  thinkingMode === 'enabled'
-                    ? 'border-primary/50 text-primary'
-                    : 'border-gray-300 text-gray-400'
-                }`}
-              >
-                <Atom className="w-3.5 h-3.5" />
-                <span>深度思考</span>
-              </button>
+              <div className="flex items-center">
+                <button
+                  onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
+                  className={`flex items-center gap-1 border px-2.5 py-0.5 text-xs transition-all ${
+                    thinkingMode === 'enabled'
+                      ? 'border-primary/50 text-primary'
+                      : 'border-gray-300 text-gray-400'
+                  } ${thinkingMode === 'enabled' ? 'rounded-l-full border-r-0' : 'rounded-full'}`}
+                >
+                  <Atom className="w-3.5 h-3.5" />
+                  <span>深度思考</span>
+                </button>
+                {thinkingMode === 'enabled' && (
+                  <select
+                    value={reasoningEffort}
+                    onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
+                    className="appearance-none border border-primary/50 text-primary bg-transparent rounded-r-full pl-1.5 pr-4 py-0.5 text-xs outline-none cursor-pointer hover:bg-primary/5 transition-colors"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+                  >
+                    <option value="high">高</option>
+                    <option value="max">最大</option>
+                  </select>
+                )}
+              </div>
 
               {!isProd && (
                 <button

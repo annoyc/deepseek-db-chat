@@ -13,6 +13,8 @@ export interface ProviderConfig {
 
 type ProviderConfigs = Record<string, ProviderConfig>
 
+export type ReasoningEffort = 'high' | 'max'
+
 interface SettingsState {
   provider: ModelProvider
   apiKey: string
@@ -20,6 +22,7 @@ interface SettingsState {
   providerConfigs: ProviderConfigs
   model: string
   thinkingMode: 'enabled' | 'disabled'
+  reasoningEffort: ReasoningEffort
   sqlPermission: 'readonly' | 'write'
   maxSqlExecutions: number
   thinkingCollapseMode: 'expanded' | 'collapsed'
@@ -29,6 +32,7 @@ interface SettingsState {
   clearProviderApiKey: (providerId: string) => void
   setModel: (model: string) => void
   setThinkingMode: (mode: 'enabled' | 'disabled') => void
+  setReasoningEffort: (effort: ReasoningEffort) => void
   setSqlPermission: (mode: 'readonly' | 'write') => void
   setMaxSqlExecutions: (max: number) => void
   setThinkingCollapseMode: (mode: 'expanded' | 'collapsed') => void
@@ -46,6 +50,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [thinkingMode, setThinkingMode] = useLocalStorage<'enabled' | 'disabled'>(
     'thinking-mode',
     'enabled'
+  )
+  const [reasoningEffort, setReasoningEffort] = useLocalStorage<ReasoningEffort>(
+    'reasoning-effort',
+    'high'
   )
   const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
   const [maxSqlExecutions, setMaxSqlExecutions] = useLocalStorage<number>('max-sql-executions', SESSION_MAX_SQL_EXECUTIONS)
@@ -122,6 +130,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     providerConfigs,
     model,
     thinkingMode,
+    reasoningEffort,
     sqlPermission,
     maxSqlExecutions,
     thinkingCollapseMode,
@@ -131,6 +140,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     clearProviderApiKey,
     setModel,
     setThinkingMode,
+    setReasoningEffort,
     setSqlPermission,
     setMaxSqlExecutions,
     setThinkingCollapseMode,

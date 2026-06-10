@@ -12,6 +12,7 @@ interface AgentOptions {
   apiKey?: string
   baseURL?: string
   thinkingMode?: 'enabled' | 'disabled'
+  reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
   executionLog?: ExecutionLogEntry[]
   lastConfirmedSql?: string
@@ -195,6 +196,7 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
     provider,
     model: modelName,
     thinking: { type: options?.thinkingMode ?? 'enabled' },
+    reasoningEffort: options?.thinkingMode !== 'disabled' ? (options?.reasoningEffort ?? 'high') : undefined,
   }
   if (apiKey) {
     modelConfig.apiKey = apiKey

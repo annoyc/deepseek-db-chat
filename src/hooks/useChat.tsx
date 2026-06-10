@@ -137,7 +137,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const abortControllerRef = useRef<AbortController | null>(null)
   
   const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
-  const { provider, model, apiKey, baseURL, thinkingMode, sqlPermission, maxSqlExecutions } = useSettings()
+  const { provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
@@ -287,7 +287,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         connection, message, history, provider, model,
         apiKey: apiKey || undefined,
         baseURL: baseURL || undefined,
-        thinkingMode, sqlPermission, executionLog,
+        thinkingMode, reasoningEffort, sqlPermission, executionLog,
         lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
         sqlExecutedCount: executionLog?.length ?? 0,
         maxSqlExecutions,
@@ -503,7 +503,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     return hasSqlConfirm || hasSmartFilterConfirm
-  }, [updateSession, model, apiKey, thinkingMode, sqlPermission, maxSqlExecutions, getFullConnection])
+  }, [updateSession, model, apiKey, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions, getFullConnection])
 
   processStreamRef.current = processStream
 
