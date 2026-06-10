@@ -1,5 +1,5 @@
 export const APP_NAME = 'DBPilot'
-export const DEFAULT_MODEL = 'deepseek-v4-flash'
+export const DEFAULT_MODEL = 'deepseek-v4-pro'
 export const DEFAULT_PROVIDER = 'deepseek'
 export const QUERY_TIMEOUT_MS = 30_000
 export const MAX_POOL_SIZE = 5
@@ -15,8 +15,8 @@ export const MAX_EXECUTION_LOG_ENTRIES = 10
 export type ModelProvider = 'deepseek' | 'bailian'
 
 export const PROVIDERS = [
-  { id: 'deepseek' as const, name: 'DeepSeek', defaultModel: 'deepseek-v4-flash' },
-  { id: 'bailian' as const, name: '阿里云百炼', defaultModel: 'kimi-k2.6' },
+  { id: 'deepseek' as const, name: 'DeepSeek', defaultModel: 'deepseek-v4-pro' },
+  { id: 'bailian' as const, name: '阿里云百炼', defaultModel: 'qwen3.7-plus' },
 ] as const
 
 export interface ModelEntry {
@@ -29,9 +29,9 @@ export interface ModelEntry {
 export const AVAILABLE_MODELS: ModelEntry[] = [
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: 'deepseek', description: '快速响应' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'deepseek', description: '深度推理' },
-  { id: 'kimi-k2.6', name: 'Kimi 2.6', provider: 'bailian', description: 'Moonshot' },
   { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', provider: 'bailian', description: '通用对话' },
   { id: 'glm-5.1', name: 'GLM 5.1', provider: 'bailian', description: '智谱大模型' },
+  { id: 'kimi-k2.6', name: 'Kimi 2.6', provider: 'bailian', description: 'Moonshot' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro (百炼)', provider: 'bailian', description: '深度推理' },
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash (百炼)', provider: 'bailian', description: '快速响应' },
 ]

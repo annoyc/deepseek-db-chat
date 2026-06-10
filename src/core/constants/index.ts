@@ -14,7 +14,7 @@ export const BAILIAN_API_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-m
 export const BAILIAN_MODELS = ['kimi-k2.6', 'qwen3.7-plus', 'glm-5.1', 'deepseek-v4-pro', 'deepseek-v4-flash'] as const
 
 /** Bailian default model */
-export const BAILIAN_DEFAULT_MODEL = 'kimi-k2.6'
+export const BAILIAN_DEFAULT_MODEL = 'qwen3.7-plus'
 
 /** Agent Loop Max Steps */
 export const AGENT_LOOP_MAX_STEPS = 50

@@ -1143,6 +1143,29 @@ function buildEnhancedPrompt(originalQuery: string, filters: SuggestedFilter[], 
   return `用户已确认筛选参数，请基于以下结构化参数生成精确的 SQL 查询：\n\n原始查询: ${originalQuery}\n\n[筛选参数]\n${paramLines.join('\n')}`
 }
 
+function computeColumnStats(columns: string[], rows: Record<string, unknown>[]): string[] {
+  if (rows.length < 2) return []
+  const statsLines: string[] = []
+
+  for (const col of columns) {
+    const nums: number[] = []
+    for (const row of rows) {
+      const val = row[col]
+      if (val === null || val === undefined) continue
+      const n = Number(val)
+      if (!isNaN(n) && isFinite(n)) nums.push(n)
+    }
+    if (nums.length < 2 || nums.length < rows.length * 0.5) continue
+
+    const min = Math.min(...nums)
+    const max = Math.max(...nums)
+    const sum = nums.reduce((a, b) => a + b, 0)
+    const avg = sum / nums.length
+    statsLines.push(`  ${col}: 最小=${min}, 最大=${max}, 平均=${Number(avg.toFixed(2))}, 总和=${Number(sum.toFixed(2))}`)
+  }
+  return statsLines
+}
+
 function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
   const lines: string[] = [`以下SQL已执行完成：`, '```sql', sql, '```', '']
   lines.push(`执行耗时: ${result.executionTime}ms，返回 ${result.rowCount} 行`)
@@ -1160,11 +1183,17 @@ function formatSqlResultForAI(sql: string, result: SqlResultInfo): string {
       lines.push(`... 还有 ${result.rows.length - 50} 行未展示`)
     }
 
-    // Explicitly surface insertId for write operations (not masked, always reliable)
     const insertId = Number(result.rows[0]?.insertId ?? 0)
     if (insertId > 0) {
       lines.push('')
       lines.push(`⚠️ 本次 INSERT 的真实 insertId = ${insertId}。后续如需 UPDATE/DELETE/SELECT 该记录，请使用此 ID。`)
+    }
+
+    const statsLines = computeColumnStats(result.columns, result.rows)
+    if (statsLines.length > 0) {
+      lines.push('')
+      lines.push('统计摘要：')
+      lines.push(...statsLines)
     }
   } else {
     lines.push('查询无返回数据。')

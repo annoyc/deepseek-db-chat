@@ -170,6 +170,24 @@ const SYSTEM_PROMPT_FEW_SHOT = `
      { type: "aggregation", table: "orders", column: "created_at", label: "统计粒度", aggregationOptions: ["按日","按周","按月"], defaultValue: "按月" }
    ]`
 
+const SYSTEM_PROMPT_ANALYSIS = `
+【分析报告输出规范】
+当查询结果返回后，基于数据进行分析时，按照以下结构组织回复：
+
+1. **核心发现**（1-2句话概括最关键的结论）
+2. **数据分析**（结合具体数字进行解读，使用加粗标注关键指标）
+   - 对比分析：如有对比维度，指出差异倍数/百分比
+   - 趋势分析：如有时间序列，指出趋势方向和变化幅度
+   - 分布分析：如有分组数据，指出集中度和异常值
+3. **补充说明**（可选：数据局限性、建议的后续查询方向）
+
+格式要求：
+- 关键数字用 **加粗** 标注
+- 百分比变化标注 ↑/↓ 方向
+- 对于单值查询结果（如总数、平均值），直接给出数值和业务含义
+- 分析文字紧凑，避免重复罗列原始数据
+- 如果结果中附带了统计摘要，请直接引用摘要中的最大值/最小值/平均值等进行分析，无需重新计算`
+
 const SYSTEM_PROMPT_ADDITIONAL = `
 【补充规则】
 - INSERT 时自增主键（AUTO_INCREMENT）必须省略 id 列，禁止先查 MAX(id)。INSERT 后使用返回的 insertId 引用新记录。
@@ -213,6 +231,7 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
     SYSTEM_PROMPT_CORE,
     SYSTEM_PROMPT_WORKFLOW,
     SYSTEM_PROMPT_FEW_SHOT,
+    SYSTEM_PROMPT_ANALYSIS,
     SYSTEM_PROMPT_ADDITIONAL,
   ].join('\n')
 

@@ -53,6 +53,35 @@ function BlockPre({ text, variant }: { text: string; variant: 'diagram' | 'code'
   )
 }
 
+const TREND_RE = /([↑↓][\d,.%]*|[\d,.%]+[↑↓])/g
+
+function renderWithTrend(children: ReactNode): ReactNode {
+  if (typeof children !== 'string') return children
+  if (!TREND_RE.test(children)) return children
+  TREND_RE.lastIndex = 0
+
+  const parts: ReactNode[] = []
+  let lastIdx = 0
+  let match: RegExpExecArray | null
+  while ((match = TREND_RE.exec(children)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push(children.slice(lastIdx, match.index))
+    }
+    const text = match[0]
+    const isUp = text.includes('↑')
+    parts.push(
+      <span key={match.index} className={isUp ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+        {text}
+      </span>
+    )
+    lastIdx = match.index + text.length
+  }
+  if (lastIdx < children.length) {
+    parts.push(children.slice(lastIdx))
+  }
+  return parts.length > 0 ? <>{parts}</> : children
+}
+
 export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <div className="px-2 min-w-0 w-full max-w-full text-gray-800">
@@ -69,11 +98,17 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
             <h3 className="text-sm font-bold text-gray-900 mt-3 mb-1.5">{children}</h3>
           ),
           p: ({ children }) => (
-            <p className="text-sm leading-relaxed mb-2 last:mb-0">{children}</p>
+            <p className="text-sm leading-relaxed mb-2 last:mb-0">{renderWithTrend(children)}</p>
           ),
-          strong: ({ children }) => (
-            <strong className="font-bold text-gray-900">{children}</strong>
-          ),
+          strong: ({ children }) => {
+            const text = extractText(children)
+            const isMetric = /^[\d,.%¥$€↑↓+\-\s]+$/.test(text.trim())
+            return (
+              <strong className={isMetric ? 'font-bold text-primary' : 'font-bold text-gray-900'}>
+                {children}
+              </strong>
+            )
+          },
           ul: ({ children }) => (
             <ul className="list-disc list-inside text-sm space-y-1 mb-2">{children}</ul>
           ),
@@ -101,7 +136,16 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
               <table className="w-full text-xs border border-gray-400">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead>{children}</thead>,
+          thead: ({ children }) => <thead className="bg-gray-50/60">{children}</thead>,
+          tr: ({ children, ...props }) => {
+            const node = (props as { node?: { position?: { start?: { line?: number } } } }).node
+            const line = node?.position?.start?.line ?? 0
+            return (
+              <tr className={line % 2 === 0 ? 'bg-gray-50/30' : ''}>
+                {children}
+              </tr>
+            )
+          },
           th: ({ children }) => (
             <th className="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-400 bg-transparent whitespace-nowrap">
               {children}
