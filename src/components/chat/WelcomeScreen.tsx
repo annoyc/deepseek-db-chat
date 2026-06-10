@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { Coins, Shield, Eye, Lock, Loader2, Circle } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Coins, Shield, Eye, Lock, Loader2, Circle, RefreshCw } from 'lucide-react'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
 import { generateSuggestions } from '@/server/functions/generate-suggestions'
@@ -51,19 +51,14 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
   const { getFullConnection } = useDatabaseStore()
   const { provider, model, apiKey, baseURL } = useSettings()
 
-  useEffect(() => {
-    if (connectionStatus !== 'success' || !activeConnectionId) {
-      return
+  const fetchSuggestions = useCallback((connId: string, skipCache = false) => {
+    if (!skipCache && cacheRef.current.has(connId)) {
+      setSuggestions(cacheRef.current.get(connId)!)
+      return () => {}
     }
 
-    // Use cache if available
-    if (cacheRef.current.has(activeConnectionId)) {
-      setSuggestions(cacheRef.current.get(activeConnectionId)!)
-      return
-    }
-
-    const conn = getFullConnection(activeConnectionId)
-    if (!conn) return
+    const conn = getFullConnection(connId)
+    if (!conn) return () => {}
 
     let cancelled = false
     setLoadingSuggestions(true)
@@ -73,7 +68,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
     })
       .then((result) => {
         if (cancelled) return
-        cacheRef.current.set(activeConnectionId, result)
+        cacheRef.current.set(connId, result)
         setSuggestions(result)
       })
       .catch(() => {
@@ -85,7 +80,18 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
       })
 
     return () => { cancelled = true }
-  }, [activeConnectionId, connectionStatus, getFullConnection, provider, model, apiKey, baseURL])
+  }, [getFullConnection, provider, model, apiKey, baseURL])
+
+  useEffect(() => {
+    if (connectionStatus !== 'success' || !activeConnectionId) return
+    return fetchSuggestions(activeConnectionId)
+  }, [activeConnectionId, connectionStatus, fetchSuggestions])
+
+  const handleRefresh = useCallback(() => {
+    if (!activeConnectionId || loadingSuggestions) return
+    cacheRef.current.delete(activeConnectionId)
+    fetchSuggestions(activeConnectionId, true)
+  }, [activeConnectionId, loadingSuggestions, fetchSuggestions])
 
   return (
     <div className="h-full overflow-y-auto">
@@ -141,7 +147,18 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
         {/* Suggestions */}
         {connectionStatus === 'success' && (
           <div className="space-y-3 anim-up d-8">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">试试问我</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">试试问我</p>
+              {!loadingSuggestions && suggestions.length > 0 && (
+                <button
+                  onClick={handleRefresh}
+                  className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors rounded"
+                  title="换一批问题"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              )}
+            </div>
             {loadingSuggestions ? (
               <div className="flex items-center justify-center py-6 gap-2 text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
