@@ -1,0 +1,12 @@
+node_modules
+.output
+dist
+.git
+.gitignore
+*.md
+docs
+.env
+.env.local
+.env.*.local
+.cursor
+.vscode
