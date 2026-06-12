@@ -96,6 +96,8 @@ export interface FilterValue {
 export interface SqlConfirmInfo {
   sql: string
   explanation: string
+  intent_summary?: string
+  expected_shape?: string
   status: 'loading' | 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'error'
   error?: string
 }

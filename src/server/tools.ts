@@ -136,8 +136,10 @@ export function createDbTools(
     schema: z.object({
       sql: z.string().describe('要执行的SQL语句'),
       explanation: z.string().describe('对该SQL的简要说明，解释查询的目的和逻辑'),
+      intent_summary: z.string().optional().describe('用自然语言描述此SQL将做什么，例如"统计 users 表中 2026-05 新建用户数，按 create_time 过滤"。帮助用户确认SQL意图是否正确'),
+      expected_shape: z.string().optional().describe('预期结果形态，如"单值(总数)"、"多行(每日统计)"、"列表(用户明细)"'),
     }),
-    execute: async ({ sql, explanation }) => {
+    execute: async ({ sql, explanation, intent_summary, expected_shape }) => {
       // Session-level execution limit check
       if (sqlExecutedCount >= maxSqlExecutions) {
         const limitMsg = JSON.stringify({
@@ -204,12 +206,16 @@ export function createDbTools(
         return errorMsg
       }
 
-      const result = JSON.stringify({
+      const resultPayload: Record<string, unknown> = {
         status: 'pending_confirmation',
         sql,
         explanation,
         message: '已提交给用户确认。请立即停止，不要再调用任何工具。等待下一轮对话获取执行结果。',
-      })
+      }
+      if (intent_summary) resultPayload.intent_summary = intent_summary
+      if (expected_shape) resultPayload.expected_shape = expected_shape
+
+      const result = JSON.stringify(resultPayload)
       pushResult('execute_sql', result)
       return result
     },
@@ -234,6 +240,9 @@ export function createDbTools(
         description: z.string().describe('该步骤的目标描述'),
         sql_type: z.string().describe('SQL 类型，如 SELECT/JOIN/子查询/聚合/窗口函数'),
         depends_on: z.array(z.number()).optional().describe('依赖的前置步骤编号'),
+        expected_columns: z.array(z.string()).optional().describe('预期返回的列名列表'),
+        expected_row_type: z.enum(['single_value', 'few_rows', 'aggregated', 'detail_list']).optional().describe('预期结果类型'),
+        validation_hint: z.string().optional().describe('中间结果校验提示，如"若返回0行则无需执行后续步骤"'),
       })),
       total_queries: z.number().describe('预计需要执行的 SQL 数量'),
       strategy_note: z.string().optional().describe('整体策略说明或优化思路'),
@@ -262,10 +271,40 @@ export function createDbTools(
       if (missing.length > 0) {
         parts.push(`⚠️ 以下表不存在或无法访问: ${missing.join(', ')}。请修正计划。`)
       }
-      parts.push('以下是涉及表的完整字段信息，请严格基于这些字段生成 SQL：')
+
+      // Include step details with validation guidance
+      parts.push('\n查询步骤：')
+      for (const step of plan.steps) {
+        parts.push(`  步骤 ${step.step}: ${step.description} (${step.sql_type})`)
+        if (step.expected_columns?.length) {
+          parts.push(`    预期返回列: ${step.expected_columns.join(', ')}`)
+        }
+        if (step.expected_row_type) {
+          const rowTypeLabels: Record<string, string> = {
+            single_value: '单值结果',
+            few_rows: '少量行',
+            aggregated: '聚合结果',
+            detail_list: '明细列表',
+          }
+          parts.push(`    预期结果类型: ${rowTypeLabels[step.expected_row_type] ?? step.expected_row_type}`)
+        }
+        if (step.validation_hint) {
+          parts.push(`    ⚠️ 校验: ${step.validation_hint}`)
+        }
+        if (step.depends_on?.length) {
+          parts.push(`    依赖: 步骤 ${step.depends_on.join(', ')}`)
+        }
+      }
+
+      parts.push('\n以下是涉及表的完整字段信息，请严格基于这些字段生成 SQL：')
       for (const [table, schema] of Object.entries(schemas)) {
         parts.push(`\n--- ${table} ---\n${schema}`)
       }
+
+      parts.push('\n【执行指引】')
+      parts.push('- 每步执行后检查结果：若返回 0 行或全 NULL，考虑是否需要调整 WHERE 条件或 JOIN 方式')
+      parts.push('- 多步查询中，如果前一步结果不符预期，先修正再继续，不要盲目执行后续步骤')
+      parts.push('- SQL 中的表名和字段名必须与上方字段信息完全一致')
 
       const result = JSON.stringify({
         status: missing.length > 0 ? 'plan_warning' : 'plan_ready',

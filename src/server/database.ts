@@ -4,6 +4,148 @@ import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constant
 
 const pools = new Map<string, mysql.Pool>()
 
+// ── Dictionary table detection & caching ──
+
+interface DictEntry {
+  value: string
+  label: string
+}
+
+/** Cached dict mappings: dictType → [{ value, label }] */
+type DictCache = Map<string, DictEntry[]>
+
+/** Per-connection dict cache (populated once on first getTableSchema call) */
+const dictCaches = new Map<string, { cache: DictCache; tableInfo: DictTableInfo | null }>()
+
+interface DictTableInfo {
+  tableName: string
+  typeColumn: string
+  valueColumn: string
+  labelColumn: string
+}
+
+/**
+ * Common dictionary table naming patterns in Chinese enterprise systems.
+ * Ordered by popularity — first match wins.
+ */
+const DICT_TABLE_CANDIDATES = [
+  'sys_dict_data', 'sys_dict_item', 'sys_dict_detail',
+  'dict_data', 'dict_item', 'dict_detail',
+  'sys_dictionary_data', 'sys_dictionary_item',
+  't_dict_data', 't_dict_item',
+  'base_dict_data', 'base_dict_item',
+  'sys_dict', 'dict', 'sys_dictionary', 't_dict', 'base_dict',
+  'code_item', 'code_table', 'lookup_item', 'lookup',
+]
+
+/** Possible column names for each role in a dictionary table */
+const DICT_TYPE_COLS = ['dict_type', 'type', 'dict_code', 'code', 'type_code', 'category', 'dict_key', 'group_code', 'parent_code']
+const DICT_VALUE_COLS = ['dict_value', 'value', 'item_value', 'code_value', 'data_value', 'dict_sort', 'item_code']
+const DICT_LABEL_COLS = ['dict_label', 'label', 'name', 'item_text', 'item_name', 'dict_name', 'code_name', 'data_label', 'display_name', 'title']
+
+/**
+ * Detect if the database has a dictionary/lookup table and identify its structure.
+ * Returns null if no dictionary table is found.
+ */
+async function detectDictTable(pool: mysql.Pool, database: string, tableNames: string[]): Promise<DictTableInfo | null> {
+  const lowerSet = new Map(tableNames.map(t => [t.toLowerCase(), t]))
+
+  for (const candidate of DICT_TABLE_CANDIDATES) {
+    const actualName = lowerSet.get(candidate)
+    if (!actualName) continue
+
+    // Get columns of this candidate table
+    const [cols] = await pool.query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
+      [database, actualName],
+    )
+    const colNames = (cols as Record<string, unknown>[]).map(c => String(c.COLUMN_NAME).toLowerCase())
+
+    // Try to match the three required roles
+    const typeCol = DICT_TYPE_COLS.find(c => colNames.includes(c))
+    const valueCol = DICT_VALUE_COLS.find(c => colNames.includes(c))
+    const labelCol = DICT_LABEL_COLS.find(c => colNames.includes(c))
+
+    if (typeCol && valueCol && labelCol) {
+      return { tableName: actualName, typeColumn: typeCol, valueColumn: valueCol, labelColumn: labelCol }
+    }
+  }
+  return null
+}
+
+/**
+ * Load all dictionary entries into a cache, grouped by dict_type.
+ */
+async function loadDictCache(pool: mysql.Pool, info: DictTableInfo): Promise<DictCache> {
+  const cache: DictCache = new Map()
+  try {
+    const [rows] = await pool.query(
+      `SELECT \`${info.typeColumn}\` AS dict_type, \`${info.valueColumn}\` AS dict_value, \`${info.labelColumn}\` AS dict_label
+       FROM \`${info.tableName}\`
+       WHERE \`${info.typeColumn}\` IS NOT NULL AND \`${info.labelColumn}\` IS NOT NULL
+       ORDER BY \`${info.typeColumn}\`, \`${info.valueColumn}\`
+       LIMIT 2000`,
+    )
+    for (const row of rows as Record<string, unknown>[]) {
+      const type = String(row.dict_type)
+      const entry: DictEntry = { value: String(row.dict_value), label: String(row.dict_label) }
+      if (!cache.has(type)) cache.set(type, [])
+      cache.get(type)!.push(entry)
+    }
+  } catch { /* skip on error */ }
+  return cache
+}
+
+/**
+ * Get or initialize the dictionary cache for a connection.
+ */
+async function getOrInitDictCache(pool: mysql.Pool, connection: DatabaseConnection, tableNames: string[]): Promise<{ cache: DictCache; tableInfo: DictTableInfo | null }> {
+  const key = connection.id
+  if (dictCaches.has(key)) return dictCaches.get(key)!
+
+  const tableInfo = await detectDictTable(pool, connection.database, tableNames)
+  const cache = tableInfo ? await loadDictCache(pool, tableInfo) : new Map()
+  const result = { cache, tableInfo }
+  dictCaches.set(key, result)
+  return result
+}
+
+/**
+ * Try to find dictionary labels for a column by matching dict_type against:
+ *   1. Exact column name (e.g., dict_type='status' for column 'status')
+ *   2. table_column pattern (e.g., dict_type='order_status' for orders.status)
+ *   3. Fuzzy prefix match (e.g., dict_type='user_type' for column 'type' in users table)
+ */
+function lookupDictEntries(cache: DictCache, tableName: string, columnName: string): DictEntry[] | null {
+  const colLower = columnName.toLowerCase()
+  const tableLower = tableName.toLowerCase().replace(/^(sys_|t_|tb_|tbl_)/, '')
+
+  // Priority 1: exact match on column name
+  const exact = cache.get(colLower)
+  if (exact && exact.length > 0) return exact
+
+  // Priority 2: table_column compound key
+  const compound = cache.get(`${tableLower}_${colLower}`)
+  if (compound && compound.length > 0) return compound
+
+  // Priority 3: try without common column suffixes
+  // e.g., 'order_status' column → try dict_type='order_status'
+  const withoutSuffix = colLower.replace(/_(status|type|state|level|code|kind|mode|flag|category)$/, '')
+  if (withoutSuffix !== colLower) {
+    const suffixMatch = cache.get(colLower) ?? cache.get(`${tableLower}_${withoutSuffix}`)
+    if (suffixMatch && suffixMatch.length > 0) return suffixMatch
+  }
+
+  // Priority 4: scan all dict_types for a key that ends with the column name
+  for (const [dictType, entries] of cache) {
+    if (dictType.endsWith(`_${colLower}`) || dictType.endsWith(`.${colLower}`)) {
+      return entries
+    }
+  }
+
+  return null
+}
+
 export function getPool(connection: DatabaseConnection): mysql.Pool {
   if (pools.has(connection.id)) {
     return pools.get(connection.id)!
@@ -168,16 +310,56 @@ async function getForeignKeys(connection: DatabaseConnection, tableName: string)
   return fk
 }
 
-export async function getTableSchema(connection: DatabaseConnection, tableName: string): Promise<string> {
-  // Validate table name to prevent injection
+/**
+ * Extract value-to-meaning mappings from column comments.
+ * Common patterns in Chinese dev teams:
+ *   "状态：0=正常,1=禁用,2=注销"
+ *   "类型(1:普通 2:VIP 3:企业)"
+ *   "0-未审核 1-已审核 2-已拒绝"
+ */
+function extractValueMappings(comment: string): string | null {
+  // Match patterns like "0=正常", "1:VIP", "0-未审核"
+  const mappingPattern = /(\d+)\s*[=:：\-]\s*([^\d,;，；、\s][^,;，；、\d]*)/g
+  const mappings: string[] = []
+  let match: RegExpExecArray | null
+  while ((match = mappingPattern.exec(comment)) !== null) {
+    mappings.push(`${match[1]}=${match[2].trim()}`)
+  }
+  return mappings.length >= 2 ? mappings.join(', ') : null
+}
+
+/**
+ * Extract ENUM/SET option values from COLUMN_TYPE string.
+ * e.g. "enum('active','inactive','pending')" → ['active','inactive','pending']
+ */
+function parseEnumOptions(columnType: string): string[] | null {
+  const match = String(columnType).match(/^(?:enum|set)\(([^)]+)\)$/i)
+  if (!match) return null
+  return match[1]
+    .split(',')
+    .map(v => v.trim().replace(/^'|'$/g, ''))
+    .filter(v => v.length > 0)
+}
+
+export async function getTableSchema(connection: DatabaseConnection, tableName: string, dictCacheOverride?: DictCache): Promise<string> {
   if (!(await tableExists(connection, tableName))) {
     throw new Error(`表 "${tableName}" 不存在于数据库 "${connection.database}" 中`)
   }
 
   const pool = getPool(connection)
 
+  // Initialize or retrieve dictionary cache for this connection
+  let dictCache: DictCache = dictCacheOverride ?? new Map()
+  if (!dictCacheOverride) {
+    try {
+      const tables = await listTables(connection)
+      const { cache } = await getOrInitDictCache(pool, connection, tables)
+      dictCache = cache
+    } catch { /* proceed without dict */ }
+  }
+
   const [columns] = await pool.query(
-    `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT, EXTRA
+    `SELECT COLUMN_NAME, COLUMN_TYPE, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT, EXTRA
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
      ORDER BY ORDINAL_POSITION`,
@@ -186,15 +368,82 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
 
   const [indexes] = await pool.query(`SHOW INDEX FROM \`${tableName}\``)
 
-  let schema = `Table: ${tableName}\n\nColumns:\n`
+  // Get table row count for context
+  const [countResult] = await pool.query(
+    `SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+    [connection.database, tableName],
+  )
+  const approxRows = (countResult as Record<string, unknown>[])[0]?.TABLE_ROWS
+
+  let schema = `Table: ${tableName}`
+  if (approxRows != null) schema += ` (~${approxRows} rows)`
+  schema += '\n\nColumns:\n'
+
+  // Collect columns that behave as enums for distribution queries:
+  // 1. MySQL ENUM/SET types (parsed from COLUMN_TYPE)
+  // 2. Integer/varchar "status code" columns (detected by naming + type heuristics)
+  const enumLikeCols: { name: string; source: 'enum' | 'status_code' }[] = []
+  const dateCols: string[] = []
+
+  // Heuristic: column names that commonly encode status codes or categories
+  const STATUS_NAME_PATTERNS = /^(status|state|type|level|role|grade|category|kind|mode|phase|flag|is_|has_|can_)/i
+  const STATUS_CODE_TYPES = new Set(['tinyint', 'smallint', 'int', 'mediumint', 'bigint'])
+
   for (const col of columns as Record<string, unknown>[]) {
-    schema += `  - ${col.COLUMN_NAME} ${col.COLUMN_TYPE}`
-    if (col.COLUMN_KEY === 'PRI') schema += ' [PRIMARY KEY]'
+    const colName = String(col.COLUMN_NAME)
+    const colType = String(col.COLUMN_TYPE)
+    const dataType = String(col.DATA_TYPE).toLowerCase()
+    const comment = col.COLUMN_COMMENT ? String(col.COLUMN_COMMENT) : ''
+    const extra = col.EXTRA ? String(col.EXTRA) : ''
+    const isPK = col.COLUMN_KEY === 'PRI'
+    const isAutoInc = extra.includes('auto_increment')
+
+    schema += `  - ${colName} ${colType}`
+    if (isPK) schema += ' [PRIMARY KEY]'
     if (col.COLUMN_KEY === 'UNI') schema += ' [UNIQUE]'
     if (col.IS_NULLABLE === 'NO') schema += ' NOT NULL'
     if (col.COLUMN_DEFAULT !== null) schema += ` DEFAULT ${col.COLUMN_DEFAULT}`
-    if (col.EXTRA && String(col.EXTRA).includes('auto_increment')) schema += ' AUTO_INCREMENT'
-    if (col.COLUMN_COMMENT) schema += ` -- ${col.COLUMN_COMMENT}`
+    if (isAutoInc) schema += ' AUTO_INCREMENT'
+    if (comment) schema += ` -- ${comment}`
+
+    // 1. MySQL ENUM/SET: parse and display possible values
+    const enumVals = parseEnumOptions(colType)
+    if (enumVals && enumVals.length > 0) {
+      schema += ` [可选值: ${enumVals.join(', ')}]`
+      enumLikeCols.push({ name: colName, source: 'enum' })
+    }
+
+    // 2. Integer/varchar status code columns: detect by naming conventions
+    // Skip primary keys, auto-increment, and foreign key-like columns (*_id)
+    if (!enumVals && !isPK && !isAutoInc && !colName.toLowerCase().endsWith('_id')) {
+      const isStatusType = STATUS_CODE_TYPES.has(dataType) || dataType === 'varchar'
+      const hasStatusName = STATUS_NAME_PATTERNS.test(colName)
+      const hasValueMapping = /\d\s*[=:：]\s*\S/.test(comment)
+
+      // Also check if dictionary table has entries for this column
+      const dictEntries = dictCache.size > 0 ? lookupDictEntries(dictCache, tableName, colName) : null
+      const hasDictMatch = dictEntries && dictEntries.length > 0
+
+      if (isStatusType && (hasStatusName || hasValueMapping || hasDictMatch)) {
+        enumLikeCols.push({ name: colName, source: 'status_code' })
+
+        if (hasDictMatch) {
+          // Dictionary table is the most authoritative source
+          const dictDisplay = dictEntries!.slice(0, 20).map(e => `${e.value}=${e.label}`).join(', ')
+          schema += ` [字典值: ${dictDisplay}]`
+        } else if (hasValueMapping) {
+          const mappings = extractValueMappings(comment)
+          if (mappings) {
+            schema += ` [值含义: ${mappings}]`
+          }
+        }
+      }
+    }
+
+    if (['date', 'datetime', 'timestamp'].includes(dataType)) {
+      dateCols.push(colName)
+    }
+
     schema += '\n'
   }
 
@@ -211,10 +460,57 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
     }
   }
 
-  // Append foreign key information (critical for JOIN queries)
   const fkInfo = await getForeignKeys(connection, tableName)
   if (fkInfo) {
     schema += fkInfo
+  }
+
+  // Append date range hints for time-based columns
+  if (dateCols.length > 0) {
+    try {
+      const dateHints: string[] = []
+      for (const dc of dateCols.slice(0, 3)) {
+        const [rangeRows] = await pool.query(
+          `SELECT MIN(\`${dc}\`) AS min_val, MAX(\`${dc}\`) AS max_val FROM \`${tableName}\` WHERE \`${dc}\` IS NOT NULL`,
+        )
+        const range = (rangeRows as Record<string, unknown>[])[0]
+        if (range?.min_val && range?.max_val) {
+          dateHints.push(`  - ${dc}: ${String(range.min_val).slice(0, 19)} ~ ${String(range.max_val).slice(0, 19)}`)
+        }
+      }
+      if (dateHints.length > 0) {
+        schema += '\nDate Ranges:\n' + dateHints.join('\n') + '\n'
+      }
+    } catch { /* skip on error */ }
+  }
+
+  // Append value distribution for all enum-like columns (ENUM + status code integers)
+  if (enumLikeCols.length > 0) {
+    try {
+      const distHints: string[] = []
+      for (const ec of enumLikeCols.slice(0, 8)) {
+        // First check cardinality — skip high-cardinality columns (not truly enum-like)
+        const [cardRows] = await pool.query(
+          `SELECT COUNT(DISTINCT \`${ec.name}\`) AS card FROM \`${tableName}\` WHERE \`${ec.name}\` IS NOT NULL`,
+        )
+        const cardinality = Number((cardRows as Record<string, unknown>[])[0]?.card ?? 0)
+        if (cardinality > 30 || cardinality === 0) continue
+
+        const [distRows] = await pool.query(
+          `SELECT \`${ec.name}\` AS val, COUNT(*) AS cnt FROM \`${tableName}\` WHERE \`${ec.name}\` IS NOT NULL GROUP BY \`${ec.name}\` ORDER BY cnt DESC LIMIT 15`,
+        )
+        const dist = (distRows as Record<string, unknown>[])
+          .map(r => `${r.val}(${r.cnt})`)
+          .join(', ')
+        if (dist) {
+          const label = ec.source === 'status_code' ? `${ec.name} (状态码)` : ec.name
+          distHints.push(`  - ${label}: ${dist}`)
+        }
+      }
+      if (distHints.length > 0) {
+        schema += '\nValue Distribution:\n' + distHints.join('\n') + '\n'
+      }
+    } catch { /* skip on error */ }
   }
 
   return schema
@@ -277,13 +573,122 @@ export async function getDatabaseOverview(connection: DatabaseConnection): Promi
       overview += `  ${fk.TABLE_NAME}.${fk.COLUMN_NAME} → ${fk.REFERENCED_TABLE_NAME}.${fk.REFERENCED_COLUMN_NAME}\n`
     }
   } else {
-    overview += '\n=== 表关系 ===\n  无外键关系（连表查询请通过字段名推断关联关系）\n'
+    overview += '\n=== 表关系 ===\n  无外键约束。\n'
   }
 
-  // 3. Hint for AI
+  // 3. Infer join paths from naming conventions when no FK constraints exist
+  const inferredJoins = inferJoinPaths(tableNames, pool, connection.database)
+  const inferred = await inferredJoins
+  if (inferred.length > 0) {
+    overview += '\n=== 推断的关联关系（基于命名规则）===\n'
+    overview += '  以下关联基于字段命名规则推断，生成 JOIN 时可优先参考：\n'
+    for (const j of inferred) {
+      overview += `  ${j.fromTable}.${j.fromColumn} → ${j.toTable}.${j.toColumn} (${j.confidence})\n`
+    }
+  }
+
+  // 4. Detect and report dictionary table
+  try {
+    const { tableInfo } = await getOrInitDictCache(pool, connection, tableNames)
+    if (tableInfo) {
+      overview += `\n=== 字典表 ===\n`
+      overview += `  发现字典表: ${tableInfo.tableName}\n`
+      overview += `  结构: ${tableInfo.typeColumn}(字典类型), ${tableInfo.valueColumn}(编码值), ${tableInfo.labelColumn}(显示名称)\n`
+      overview += `  调用 get_table_schema 时，状态码字段会自动查询字典表获取值含义映射。\n`
+    }
+  } catch { /* skip */ }
+
   overview += '\n【提示】以上是数据库的全局结构。如需编写 SQL，请对涉及的表调用 get_table_schema 获取详细字段信息。'
 
   return overview
+}
+
+interface InferredJoin {
+  fromTable: string
+  fromColumn: string
+  toTable: string
+  toColumn: string
+  confidence: 'high' | 'medium'
+}
+
+/**
+ * Infer likely JOIN paths by matching column naming conventions:
+ *   - table_name_id / tableNameId → table_name.id
+ *   - xxx_id where "xxxs" or "xxx" is a table name → xxx.id
+ */
+async function inferJoinPaths(
+  tableNames: string[],
+  pool: mysql.Pool,
+  database: string,
+): Promise<InferredJoin[]> {
+  const results: InferredJoin[] = []
+  const tableSet = new Set(tableNames.map(t => t.toLowerCase()))
+
+  // Build lookup: table name → possible singular/plural forms
+  const tableVariants = new Map<string, string>()
+  for (const t of tableNames) {
+    const lower = t.toLowerCase()
+    tableVariants.set(lower, t)
+    if (lower.endsWith('s')) tableVariants.set(lower.slice(0, -1), t)
+    if (lower.endsWith('es')) tableVariants.set(lower.slice(0, -2), t)
+    if (lower.endsWith('ies')) tableVariants.set(lower.slice(0, -3) + 'y', t)
+  }
+
+  try {
+    // Get all columns ending with _id across the database
+    const [idCols] = await pool.query(
+      `SELECT TABLE_NAME, COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = ?
+         AND (COLUMN_NAME LIKE '%\\_id' OR COLUMN_NAME LIKE '%Id')
+         AND COLUMN_KEY != 'PRI'
+       ORDER BY TABLE_NAME, COLUMN_NAME`,
+      [database],
+    )
+
+    const seen = new Set<string>()
+    for (const row of idCols as Record<string, unknown>[]) {
+      const fromTable = String(row.TABLE_NAME)
+      const colName = String(row.COLUMN_NAME)
+
+      // Extract the referenced entity name from the column name
+      // e.g. "user_id" → "user", "order_item_id" → "order_item", "userId" → "user"
+      let refName = ''
+      if (colName.endsWith('_id')) {
+        refName = colName.slice(0, -3)
+      } else if (colName.endsWith('Id') && colName.length > 2) {
+        // camelCase: userId → user, orderItemId → order_item
+        refName = colName.slice(0, -2).replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '')
+      }
+      if (!refName || refName === fromTable.toLowerCase()) continue
+
+      // Try to match against known tables
+      const targetTable = tableVariants.get(refName)
+        ?? tableVariants.get(refName + 's')
+        ?? tableVariants.get(refName + 'es')
+      if (!targetTable) continue
+      if (targetTable.toLowerCase() === fromTable.toLowerCase()) continue
+
+      const key = `${fromTable}.${colName}->${targetTable}`
+      if (seen.has(key)) continue
+      seen.add(key)
+
+      // Exact name match = high confidence, plural/variant = medium
+      const confidence: 'high' | 'medium' = tableSet.has(refName) ? 'high' : 'medium'
+
+      results.push({
+        fromTable,
+        fromColumn: colName,
+        toTable: targetTable,
+        toColumn: 'id',
+        confidence,
+      })
+    }
+  } catch { /* skip inference on error */ }
+
+  // Sort: high confidence first
+  results.sort((a, b) => (a.confidence === 'high' ? 0 : 1) - (b.confidence === 'high' ? 0 : 1))
+  return results.slice(0, 50)
 }
 
 /**

@@ -82,6 +82,15 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
         {isCancelled && <span className="text-xs text-gray-400 ml-0.5">已取消</span>}
       </div>
 
+      {info.intent_summary && (
+        <div className="px-3 pt-2">
+          <div className="text-xs text-gray-600 bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-1.5 leading-relaxed">
+            <span className="font-medium text-blue-700">查询意图：</span>{info.intent_summary}
+            {info.expected_shape && <span className="text-gray-400 ml-1.5">· 预期结果: {info.expected_shape}</span>}
+          </div>
+        </div>
+      )}
+
       <div className="px-3 py-2.5">
         <pre className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
           {info.sql}
