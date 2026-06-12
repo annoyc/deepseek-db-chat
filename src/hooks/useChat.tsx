@@ -291,6 +291,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
         sqlExecutedCount: executionLog?.length ?? 0,
         maxSqlExecutions,
+        sessionId,
       },
     })
 
@@ -466,24 +467,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const isContinuation = isSqlResultMessage || hasExecutionHistory
     if (retryCount < 1 && !hasSqlConfirm && !hasSmartFilterConfirm && assistantContent.length > 30) {
       try {
-        // Build result summary for fact-checking analysis claims
-        let resultSummary: string | undefined
-        if (isContinuation) {
-          const currentSess = sessionsRef.current.find((s) => s.id === sessionId)
-          if (currentSess) {
-            for (let i = currentSess.messages.length - 1; i >= 0; i--) {
-              const msg = currentSess.messages[i]
-              if (msg.sqlResult && msg.sqlResult.rows.length > 0) {
-                const r = msg.sqlResult
-                const statsLines = computeFullColumnStats(r.columns, r.rows)
-                resultSummary = `返回 ${r.rowCount} 行, 列: ${r.columns.join(', ')}`
-                if (statsLines.length > 0) resultSummary += '\n' + statsLines.join('\n')
-                break
-              }
-            }
-          }
-        }
-
         const classification = await classifyHallucination({
           data: {
             assistantContent,
@@ -493,7 +476,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             model,
             apiKey: apiKey || undefined,
             baseURL: baseURL || undefined,
-            resultSummary,
+            sessionId,
           },
         })
 
@@ -516,28 +499,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           ]
           await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1)
           return hasSqlConfirm
-        }
-
-        // Analysis fact-check: warn user if numbers don't match SQL results
-        if (classification.hasFactError && classification.factErrorDetail) {
-          updateSession(sessionId, (s) => {
-            const messages = [...s.messages]
-            const lastMsg = { ...messages[messages.length - 1] }
-            const warning = `\n\n> ⚠️ **数据校验提示**：${classification.factErrorDetail}。建议核对原始数据。`
-            lastMsg.content = (lastMsg.content ?? '') + warning
-            if (lastMsg.parts && lastMsg.parts.length > 0) {
-              const parts = [...lastMsg.parts]
-              const lastPart = parts[parts.length - 1]
-              if (lastPart.type === 'text') {
-                parts[parts.length - 1] = { ...lastPart, content: lastPart.content + warning }
-              } else {
-                parts.push({ type: 'text', content: warning })
-              }
-              lastMsg.parts = parts
-            }
-            messages[messages.length - 1] = lastMsg
-            return { ...s, messages }
-          })
         }
       } catch {
         // Classification failed, skip retry — fail safe
@@ -570,6 +531,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           model,
           apiKey: apiKey || undefined,
           baseURL: baseURL || undefined,
+          sessionId,
         },
       })
       updateSession(sessionId, (s) => {

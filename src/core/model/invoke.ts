@@ -6,6 +6,7 @@ import { withRetry } from '@/core/client/retry'
 import { apiStreamRequest } from '@/core/client/stream-request'
 import { getProvider } from '@/core/provider'
 import { buildToolParameters, validateToolConsistency } from '@/core/tool'
+import { startObservation } from '@langfuse/tracing'
 
 function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const { messages, response_format, tools = [] } = params
@@ -38,10 +39,39 @@ export async function invoke(config: ModelOptions, params: InvokeParams): Promis
   const url = getChatEndpoint(config.baseURL!)
   const maxRetries = config.maxRetries ?? 3
   const timeout = config.timeout ?? 60000
-  return withRetry(
-    () => apiRequest<ChatCompletion>(url, config.apiKey!, body, timeout, 'POST', params.signal),
-    maxRetries,
+
+  const generation = startObservation(
+    'llm-call',
+    {
+      model: config.model!,
+      input: params.messages,
+      metadata: { provider: config.provider, tools: body.tools },
+    },
+    { asType: 'generation' },
   )
+
+  try {
+    const result = await withRetry(
+      () => apiRequest<ChatCompletion>(url, config.apiKey!, body, timeout, 'POST', params.signal),
+      maxRetries,
+    )
+    generation.update({
+      output: result.choices[0]?.message,
+      usageDetails: result.usage ? {
+        input: result.usage.prompt_tokens,
+        output: result.usage.completion_tokens,
+        total: result.usage.total_tokens,
+      } : undefined,
+    }).end()
+    return result
+  } catch (error) {
+    generation.update({
+      output: { error: String(error) },
+      level: 'ERROR',
+      statusMessage: String(error),
+    }).end()
+    throw error
+  }
 }
 
 export async function* invokeStream(config: ModelOptions, params: InvokeParams): AsyncGenerator<ChatCompletionChunk> {
@@ -52,5 +82,41 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
   const body = { ...buildRequestBody(config, params), stream_options: config.streamOptions }
   const url = getChatEndpoint(config.baseURL!)
   const timeout = config.timeout ?? 60000
-  yield* apiStreamRequest(url, config.apiKey!, body, timeout, params.signal)
+
+  const generation = startObservation(
+    'llm-call-stream',
+    {
+      model: config.model!,
+      input: params.messages,
+      metadata: { provider: config.provider, stream: true, tools: body.tools },
+    },
+    { asType: 'generation' },
+  )
+
+  let output = ''
+  let lastUsage: ChatCompletionChunk['usage'] | undefined
+
+  try {
+    for await (const chunk of apiStreamRequest(url, config.apiKey!, body, timeout, params.signal)) {
+      if (chunk.usage) lastUsage = chunk.usage
+      const delta = chunk.choices[0]?.delta
+      if (delta?.content) output += delta.content
+      yield chunk
+    }
+    generation.update({
+      output,
+      usageDetails: lastUsage ? {
+        input: lastUsage.prompt_tokens,
+        output: lastUsage.completion_tokens,
+        total: lastUsage.total_tokens,
+      } : undefined,
+    }).end()
+  } catch (error) {
+    generation.update({
+      output: { error: String(error) },
+      level: 'ERROR',
+      statusMessage: String(error),
+    }).end()
+    throw error
+  }
 }

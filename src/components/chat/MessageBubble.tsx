@@ -33,6 +33,7 @@ function StreamingTailIndicator() {
   )
 }
 
+
 function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
