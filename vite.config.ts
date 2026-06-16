@@ -17,7 +17,7 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart(),
-    nitro(),
+    nitro({ baseURL: '/dbpilot' }),
     react(),
     tailwindcss(),
   ],

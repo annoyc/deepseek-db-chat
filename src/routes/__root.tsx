@@ -13,7 +13,7 @@ export const Route = createRootRoute({
       { title: 'DBPilot' },
     ],
     links: [
-      { rel: 'icon', href: '/logo.svg', type: 'image/svg+xml' },
+      { rel: 'icon', href: `${import.meta.env.BASE_URL}logo.svg`, type: 'image/svg+xml' },
     ],
   }),
   component: RootComponent,

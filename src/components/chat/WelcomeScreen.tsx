@@ -99,7 +99,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
         {/* Hero */}
         <div className="text-center space-y-4">
           <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-emerald-200/60 anim-logo d-0">
-            <img src="/logo.svg" alt="DBPilot" className="w-full h-full" />
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="DBPilot" className="w-full h-full" />
           </div>
           <div className="space-y-1.5">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight anim-up d-1">
