@@ -11,7 +11,13 @@ const DANGEROUS_FUNCTIONS = new Set([
   'LOAD_FILE', 'BENCHMARK', 'SLEEP',
   'EXEC', 'EXECUTE',
   'SYSTEM', 'SYS_EXEC',
-  'UUID_TO_BIN', // sometimes abused
+  'UUID_TO_BIN',
+  'INTO_OUTFILE', 'INTO_DUMPFILE',
+  'EXTRACTVALUE', 'UPDATEXML',
+  'EXPORT_SET', 'MAKE_SET',
+  'GET_LOCK', 'RELEASE_LOCK', 'IS_FREE_LOCK', 'IS_USED_LOCK',
+  'MASTER_POS_WAIT', 'SOURCE_POS_WAIT',
+  'WAIT_FOR_EXECUTED_GTID_SET',
 ])
 
 // ────────────────────────────────────────────────────────────

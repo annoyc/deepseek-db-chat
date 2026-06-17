@@ -1,6 +1,7 @@
 import mysql from 'mysql2/promise'
 import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
 import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constants'
+import { validateSql } from '@/lib/sql-guard'
 
 const pools = new Map<string, mysql.Pool>()
 
@@ -696,10 +697,15 @@ async function inferJoinPaths(
  * Used for pre-execution safety analysis.
  */
 export async function explainQuery(connection: DatabaseConnection, sql: string): Promise<string> {
+  const validation = validateSql(sql, 'readonly')
+  if (!validation.allowed) {
+    throw new Error(`EXPLAIN 拒绝执行: ${validation.reason}`)
+  }
+
   const pool = getPool(connection)
   const conn = await pool.getConnection()
   try {
-    const [rows] = await conn.query(`EXPLAIN ${sql}`)
+    const [rows] = await conn.query({ sql: `EXPLAIN ${sql}`, timeout: QUERY_TIMEOUT_MS })
     const explainRows = rows as Record<string, unknown>[]
 
     if (explainRows.length === 0) return 'EXPLAIN 无结果'

@@ -115,10 +115,6 @@ export function createDbTools(
     }),
     execute: async ({ sql }: { sql: string }) => {
       try {
-        // Basic validation: only SELECT statements
-        if (!/^(SELECT|WITH)\b/i.test(sql.trim())) {
-          return 'EXPLAIN 仅支持 SELECT 语句。'
-        }
         const result = await explainQuery(connection, sql)
         pushResult('explain_sql', result)
         return result

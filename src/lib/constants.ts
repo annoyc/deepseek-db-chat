@@ -61,4 +61,16 @@ export const BLOCKED_SQL_PATTERNS: RegExp[] = [
   /\b(LOAD_FILE|BENCHMARK|SLEEP)\s*\(/i,                    // 危险函数调用
   /\bEXEC(UTE)?\s*\(/i,                                     // 存储过程调用
   /\bSET\s+@@/i,                                            // 会话变量修改
+  /\bCALL\b/i,                                               // 存储过程调用
+  /\bDO\b/i,                                                 // DO 语句（可执行任意表达式）
+  /\bHANDLER\b/i,                                            // HANDLER 绕过权限读取
+  /\b(OPTIMIZE|ANALYZE|CHECK|REPAIR)\s+TABLE\b/i,            // 表维护命令
+  /\bKILL\b/i,                                               // 终止连接/查询
+  /\bPURGE\b/i,                                              // PURGE BINARY LOGS
+  /\bINSTALL\b/i,                                            // INSTALL PLUGIN
+  /\bUNINSTALL\b/i,                                          // UNINSTALL PLUGIN
+  /\bSHUTDOWN\b/i,                                           // 关闭服务器
+  /\bCHANGE\b/i,                                             // CHANGE MASTER/REPLICATION
+  /\bSTART\s+(SLAVE|REPLICA|TRANSACTION)\b/i,                // 复制/事务控制
+  /\bSTOP\s+(SLAVE|REPLICA)\b/i,                             // 停止复制
 ]
