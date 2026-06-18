@@ -11,6 +11,7 @@ type ConnectionStatus = 'idle' | 'testing' | 'success' | 'error'
 
 interface DatabaseState {
   connections: Omit<DatabaseConnection, 'password'>[]
+  connectionsLoaded: boolean
   activeConnectionId: string | null
   activeConnection: Omit<DatabaseConnection, 'password'> | null
   connectionStatus: ConnectionStatus
@@ -31,6 +32,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const [activeConnectionId, setActiveConnectionId] = useState<string | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle')
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [connectionsLoaded, setConnectionsLoaded] = useState(false)
   const storedRef = useRef<StoredConnection[]>([])
 
   useEffect(() => {
@@ -50,7 +52,10 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (err) { console.warn('[useDatabase] localStorage migration failed:', err) }
       }
-      if (stored.length === 0) return
+      if (stored.length === 0) {
+        setConnectionsLoaded(true)
+        return
+      }
 
       const validConns: StoredConnection[] = []
       for (const conn of stored) {
@@ -67,6 +72,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       }
       storedRef.current = validConns
       setConnections(validConns.map((c) => ({ ...c, password: '•••' } as Omit<DatabaseConnection, 'password'>)))
+      setConnectionsLoaded(true)
     })()
   }, [])
 
@@ -197,6 +203,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
   const value: DatabaseState = {
     connections,
+    connectionsLoaded,
     activeConnectionId,
     activeConnection,
     connectionStatus,
