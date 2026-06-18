@@ -103,7 +103,7 @@ export const chatStream = createServerFn({ method: 'POST' })
                     let args: Record<string, unknown> = {}
                     try {
                       args = JSON.parse(tc.function.arguments || '{}')
-                    } catch {}
+                    } catch (err) { console.warn('[chat] Failed to parse tool call args:', err) }
                     const name = tc.function.name
                     pendingToolNames.push(name)
                     controller.enqueue(encoder.encode(formatSSE({ type: 'tool-call-start', name, args })))
@@ -131,7 +131,8 @@ export const chatStream = createServerFn({ method: 'POST' })
                         type: 'smart-filter-confirm',
                         suggestedFilters: suggestedFilters as any,
                       })))
-                    } catch {
+                    } catch (err) {
+                      console.warn('[chat] Smart filter parsing failed:', err)
                       controller.enqueue(encoder.encode(formatSSE({
                         type: 'smart-filter-confirm',
                         suggestedFilters: [],

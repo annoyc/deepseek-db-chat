@@ -187,8 +187,8 @@ export const getSchemaMetadata = createServerFn({ method: 'POST' })
               .map(r => String(r.val))
               .filter(v => v.length > 0)
           }
-        } catch {
-          // Silently skip columns that fail data queries (e.g. empty tables)
+        } catch (err) {
+          console.warn(`[schema-metadata] Column data query failed:`, err)
         }
       }
     }

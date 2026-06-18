@@ -20,7 +20,8 @@ export interface TraceOptions {
 export function resolveUserId(): string | undefined {
   try {
     return getRequestIP({ xForwardedFor: true }) ?? undefined
-  } catch {
+  } catch (err) {
+    console.warn('[langfuse] Failed to resolve user ID:', err)
     return undefined
   }
 }

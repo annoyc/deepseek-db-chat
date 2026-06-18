@@ -84,7 +84,8 @@ export function serializeResult(result: unknown): string {
   try {
     return JSON.stringify(result)
   }
-  catch {
+  catch (err) {
+    console.warn('[tool] JSON.stringify failed, falling back to String():', err)
     return String(result)
   }
 }
@@ -152,8 +153,8 @@ export function tool(config: any) {
             data = await ct.compact(data, name, description, signal)
           }
         }
-        catch {
-          // compact failure should not affect the tool result
+        catch (err) {
+          console.warn('[tool] Compact failure (non-blocking):', err)
         }
       }
       return JSON.stringify({ success: true, data })

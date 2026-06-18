@@ -193,8 +193,8 @@ export function validateSql(sql: string, mode: 'readonly' | 'write' = 'readonly'
     const tables = extractTableNames(allTableList)
 
     return { allowed: true, tables }
-  } catch {
-    // ── Step 3: AST parsing failed — fall back to regex whitelist ──
+  } catch (err) {
+    console.warn('[sql-guard] AST parsing failed, falling back to regex:', err)
     return validateSqlFallback(cleaned, mode)
   }
 }

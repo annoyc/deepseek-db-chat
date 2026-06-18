@@ -18,7 +18,7 @@ function normalizeArgs(args: string): string {
         return acc
       }, {}))
     }
-  } catch {}
+  } catch (err) { console.warn('[generate] Failed to sanitize tool args:', err) }
   return args
 }
 

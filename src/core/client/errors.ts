@@ -13,7 +13,8 @@ export async function handleErrorResponse(response: Response): Promise<ApiError>
     const body = await response.clone().json() as { error?: { message?: string } }
     message = body?.error?.message || message
   }
-  catch {
+  catch (err) {
+    console.warn('[errors] Failed to parse error response body:', err)
   }
 
   return {
