@@ -41,7 +41,8 @@ export async function tryJsonParse(raw: string): Promise<
       const repaired = repair(raw)
       return { success: true, data: JSON.parse(repaired) }
     }
-    catch {
+    catch (repairErr) {
+      console.warn('[json-parse] JSON repair also failed:', repairErr)
       return {
         success: false,
         error: parseError instanceof Error ? parseError : new Error(String(parseError)),

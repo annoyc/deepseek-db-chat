@@ -17,24 +17,24 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
           if (raw !== null) {
             const value = JSON.parse(raw) as T
             setStoredValue(value)
-            db.settings.put({ key, value }).catch(() => {})
+            db.settings.put({ key, value }).catch((err) => console.warn('[useLocalStorage] Migration write failed:', err))
           }
-        } catch { /* ignore */ }
+        } catch (err) { console.warn('[useLocalStorage] localStorage migration failed:', err) }
       }
-    }).catch(() => {})
+    }).catch((err) => console.warn('[useLocalStorage] IndexedDB read failed:', err))
     return () => { cancelled = true }
   }, [key])
 
   const setValue = useCallback((value: T | ((val: T) => T)) => {
     setStoredValue((prev) => {
       const valueToStore = value instanceof Function ? value(prev) : value
-      db.settings.put({ key, value: valueToStore }).catch(() => {})
+      db.settings.put({ key, value: valueToStore }).catch((err) => console.warn('[useLocalStorage] IndexedDB write failed:', err))
       return valueToStore
     })
   }, [key])
 
   const removeValue = useCallback(() => {
-    db.settings.delete(key).catch(() => {})
+    db.settings.delete(key).catch((err) => console.warn('[useLocalStorage] IndexedDB delete failed:', err))
     setStoredValue(initialValue)
   }, [key, initialValue])
 

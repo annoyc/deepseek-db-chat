@@ -67,7 +67,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       for (const p of PROVIDERS) {
         getEnvApiKeyStatus({ data: { provider: p.id } })
           .then((status) => setEnvStatus((prev) => ({ ...prev, [p.id]: status })))
-          .catch(() => {})
+          .catch((err) => console.warn('[ApiKeyDialog] Failed to get env API key status:', err))
       }
     }
   }, [open])

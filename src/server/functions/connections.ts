@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { testConnection } from '@/server/database'
+import { testConnection, closePool } from '@/server/database'
 import { decrypt } from '@/server/crypto'
 import type { DatabaseConnection } from '@/lib/types'
 
@@ -18,3 +18,9 @@ export const testConnectionFn = createServerFn({ method: 'POST' })
       return testConnection(decryptedConn)
     }
   )
+
+export const closePoolFn = createServerFn({ method: 'POST' })
+  .inputValidator((data: { connectionId: string }) => data)
+  .handler(async ({ data }) => {
+    await closePool(data.connectionId)
+  })

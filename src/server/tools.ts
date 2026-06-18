@@ -255,7 +255,8 @@ export function createDbTools(
             const schema = await getTableSchema(connection, table)
             schemaCache.set(table, schema)
             schemas[table] = schema
-          } catch {
+          } catch (err) {
+            console.warn(`[tools] Failed to get schema for table "${table}":`, err)
             missing.push(table)
           }
         }
@@ -347,7 +348,8 @@ export function createDbTools(
               dateMax: data.dateMax,
               rowCount: data.rowCount,
             }
-          } catch {
+          } catch (err) {
+            console.warn(`[tools] Failed to get filter data for column:`, err)
             return { ...f, dataType: '' }
           }
         }),

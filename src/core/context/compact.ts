@@ -113,7 +113,8 @@ export class CompactTool {
       this.cache.set(key, compactContent)
       return compactContent
     }
-    catch {
+    catch (err) {
+      console.warn('[compact] Compaction failed, returning original:', err)
       return content
     }
   }
@@ -216,7 +217,8 @@ export class CompactMessage {
         ...recentRounds.flatMap(r => r.messages),
       ]
     }
-    catch {
+    catch (err) {
+      console.warn('[compact] History compaction failed, returning original:', err)
       return messages
     }
   }

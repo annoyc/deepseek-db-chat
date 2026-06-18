@@ -119,7 +119,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             return { ...prev, [p.id]: { ...existing, apiKey: encrypted } }
           })
         }
-      }).catch(() => {})
+      }).catch((err) => console.warn('[useSettings] Failed to load env API key:', err))
     }
   }, [setProviderConfigs])
 

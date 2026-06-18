@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, createContext, useContext } from 'react'
 import type { DatabaseConnection } from '@/lib/types'
 import { generateId } from '@/lib/utils'
-import { testConnectionFn } from '@/server/functions/connections'
+import { testConnectionFn, closePoolFn } from '@/server/functions/connections'
 import { encryptPasswordFn, validatePasswordFn } from '@/server/functions/crypto'
 import { db } from '@/lib/db'
 
@@ -48,7 +48,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
               stored = restored
             }
           }
-        } catch { /* ignore */ }
+        } catch (err) { console.warn('[useDatabase] localStorage migration failed:', err) }
       }
       if (stored.length === 0) return
 
@@ -111,23 +111,29 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     if (!existing) throw new Error('连接不存在')
 
     let passwordToSave = existing.password
+    let testPassword: string
 
     if (data.password !== '') {
       const { encrypted } = await encryptPasswordFn({ data: { password: data.password } })
       passwordToSave = encrypted
-
-      const testConn: DatabaseConnection = {
-        ...existing,
-        name: data.name,
-        host: data.host,
-        port: data.port,
-        user: data.user,
-        password: data.password,
-        database: data.database,
-      }
-      const testResult = await testConnectionFn({ data: testConn } as any)
-      if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
+      testPassword = data.password
+    } else {
+      testPassword = existing.password
     }
+
+    const testConn: DatabaseConnection = {
+      id: existing.id,
+      name: data.name,
+      host: data.host,
+      port: data.port,
+      user: data.user,
+      password: testPassword,
+      database: data.database,
+      env: data.env ?? existing.env ?? 'unknown',
+      createdAt: existing.createdAt,
+    }
+    const testResult = await testConnectionFn({ data: testConn } as any)
+    if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
 
     const updatedConns = storedRef.current.map((c) =>
       c.id === id
@@ -140,6 +146,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
   const removeConnection = useCallback((id: string) => {
     const updatedConns = storedRef.current.filter((c) => c.id !== id)
     syncToDb(updatedConns)
+    closePoolFn({ data: { connectionId: id } }).catch((err) => console.warn('[useDatabase] closePool failed:', err))
     if (activeConnectionId === id) setActiveConnectionId(null)
   }, [activeConnectionId, syncToDb])
 

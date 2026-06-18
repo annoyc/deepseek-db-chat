@@ -88,7 +88,8 @@ async function loadSessionsFromStorage(): Promise<ChatSession[]> {
       }
     }
     return []
-  } catch {
+  } catch (err) {
+    console.warn('[useChat] Failed to load sessions from storage:', err)
     return []
   }
 }
@@ -106,7 +107,7 @@ async function saveSessionsToStorage(sessions: ChatSession[]) {
         await db.chatSessions.bulkPut(toSave)
       }
     })
-  } catch {}
+  } catch (err) { console.warn('[useChat] Failed to save sessions to storage:', err) }
 }
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -500,8 +501,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1)
           return hasSqlConfirm
         }
-      } catch {
-        // Classification failed, skip retry — fail safe
+      } catch (err) {
+        console.warn('[useChat] SQL classification failed, skipping retry:', err)
       }
     }
 
@@ -539,8 +540,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (s.title !== userMsg.content.slice(0, 20)) return s
         return { ...s, title, updatedAt: new Date().toISOString() }
       })
-    } catch {
-      // Title generation failed, keep the initial truncated title
+    } catch (err) {
+      console.warn('[useChat] AI title generation failed:', err)
     }
   }, [updateSession, model, apiKey])
 

@@ -4,6 +4,11 @@ import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constant
 import { validateSql } from '@/lib/sql-guard'
 
 const pools = new Map<string, mysql.Pool>()
+const poolFingerprints = new Map<string, string>()
+
+function connectionFingerprint(conn: DatabaseConnection): string {
+  return `${conn.host}|${conn.port}|${conn.user}|${conn.password}|${conn.database}`
+}
 
 // ── Dictionary table detection & caching ──
 
@@ -93,7 +98,7 @@ async function loadDictCache(pool: mysql.Pool, info: DictTableInfo): Promise<Dic
       if (!cache.has(type)) cache.set(type, [])
       cache.get(type)!.push(entry)
     }
-  } catch { /* skip on error */ }
+  } catch (err) { console.warn('[database] Failed to load dict cache:', err) }
   return cache
 }
 
@@ -148,8 +153,19 @@ function lookupDictEntries(cache: DictCache, tableName: string, columnName: stri
 }
 
 export function getPool(connection: DatabaseConnection): mysql.Pool {
-  if (pools.has(connection.id)) {
-    return pools.get(connection.id)!
+  const fp = connectionFingerprint(connection)
+  const existingPool = pools.get(connection.id)
+  const existingFp = poolFingerprints.get(connection.id)
+
+  if (existingPool && existingFp === fp) {
+    return existingPool
+  }
+
+  if (existingPool) {
+    existingPool.end().catch((err) => console.warn('[database] Failed to close stale pool:', err))
+    pools.delete(connection.id)
+    poolFingerprints.delete(connection.id)
+    dictCaches.delete(connection.id)
   }
 
   const pool = mysql.createPool({
@@ -165,11 +181,26 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
   })
 
   pools.set(connection.id, pool)
+  poolFingerprints.set(connection.id, fp)
   return pool
 }
 
 export async function testConnection(connection: DatabaseConnection): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!connection.id) {
+      const tempConn = await mysql.createConnection({
+        host: connection.host,
+        port: connection.port,
+        user: connection.user,
+        password: connection.password,
+        database: connection.database,
+        connectTimeout: 10_000,
+      })
+      await tempConn.ping()
+      await tempConn.end()
+      return { success: true }
+    }
+
     const pool = getPool(connection)
     const conn = await pool.getConnection()
     await conn.ping()
@@ -356,7 +387,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
       const tables = await listTables(connection)
       const { cache } = await getOrInitDictCache(pool, connection, tables)
       dictCache = cache
-    } catch { /* proceed without dict */ }
+    } catch (err) { console.warn('[database] Dict cache init skipped:', err) }
   }
 
   const [columns] = await pool.query(
@@ -482,7 +513,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
       if (dateHints.length > 0) {
         schema += '\nDate Ranges:\n' + dateHints.join('\n') + '\n'
       }
-    } catch { /* skip on error */ }
+    } catch (err) { console.warn('[database] Date range query skipped:', err) }
   }
 
   // Append value distribution for all enum-like columns (ENUM + status code integers)
@@ -511,7 +542,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
       if (distHints.length > 0) {
         schema += '\nValue Distribution:\n' + distHints.join('\n') + '\n'
       }
-    } catch { /* skip on error */ }
+    } catch (err) { console.warn('[database] Value distribution query skipped:', err) }
   }
 
   return schema
@@ -597,7 +628,7 @@ export async function getDatabaseOverview(connection: DatabaseConnection): Promi
       overview += `  结构: ${tableInfo.typeColumn}(字典类型), ${tableInfo.valueColumn}(编码值), ${tableInfo.labelColumn}(显示名称)\n`
       overview += `  调用 get_table_schema 时，状态码字段会自动查询字典表获取值含义映射。\n`
     }
-  } catch { /* skip */ }
+  } catch (err) { console.warn('[database] Dict table detection skipped:', err) }
 
   overview += '\n【提示】以上是数据库的全局结构。如需编写 SQL，请对涉及的表调用 get_table_schema 获取详细字段信息。'
 
@@ -685,7 +716,7 @@ async function inferJoinPaths(
         confidence,
       })
     }
-  } catch { /* skip inference on error */ }
+  } catch (err) { console.warn('[database] Join path inference skipped:', err) }
 
   // Sort: high confidence first
   results.sort((a, b) => (a.confidence === 'high' ? 0 : 1) - (b.confidence === 'high' ? 0 : 1))
@@ -740,6 +771,8 @@ export async function closePool(connectionId: string) {
     await pool.end()
     pools.delete(connectionId)
   }
+  poolFingerprints.delete(connectionId)
+  dictCaches.delete(connectionId)
 }
 
 /**
@@ -828,8 +861,8 @@ export async function getColumnFilterData(
         .map(r => String(r.val))
         .filter(v => v.length > 0)
     }
-  } catch {
-    // Return partial results on error
+  } catch (err) {
+    console.warn('[database] Column filter data query failed:', err)
   }
 
   return result
