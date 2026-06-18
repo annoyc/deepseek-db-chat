@@ -41,7 +41,7 @@ const bailian: ProviderDefinition = {
   id: 'bailian',
   name: '阿里云百炼',
   defaultBaseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  defaultModel: 'kimi-k2.6',
+  defaultModel: 'kimi-k2.7-code',
   envApiKeyName: 'BAILIAN_API_KEY',
   envBaseURLName: 'BAILIAN_API_BASE_URL',
   supportsBeta: false,

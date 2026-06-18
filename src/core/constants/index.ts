@@ -11,7 +11,7 @@ export const DEEPSEEK_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro'] as const
 export const BAILIAN_API_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
 
 /** Bailian available models */
-export const BAILIAN_MODELS = ['kimi-k2.6', 'qwen3.7-plus', 'glm-5.1', 'deepseek-v4-pro', 'deepseek-v4-flash'] as const
+export const BAILIAN_MODELS = ['kimi-k2.7-code', 'qwen3.7-plus', 'glm-5.2', 'deepseek-v4-pro', 'deepseek-v4-flash'] as const
 
 /** Bailian default model */
 export const BAILIAN_DEFAULT_MODEL = 'qwen3.7-plus'
