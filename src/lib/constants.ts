@@ -30,8 +30,8 @@ export const AVAILABLE_MODELS: ModelEntry[] = [
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', provider: 'deepseek', description: '快速响应' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'deepseek', description: '深度推理' },
   { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', provider: 'bailian', description: '通用对话' },
-  { id: 'glm-5.1', name: 'GLM 5.1', provider: 'bailian', description: '智谱大模型' },
-  { id: 'kimi-k2.6', name: 'Kimi 2.6', provider: 'bailian', description: 'Moonshot' },
+  { id: 'glm-5.2', name: 'GLM 5.2', provider: 'bailian', description: '智谱大模型' },
+  { id: 'kimi-k2.7-code', name: 'Kimi 2.7 Code', provider: 'bailian', description: 'Moonshot' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro (百炼)', provider: 'bailian', description: '深度推理' },
   { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash (百炼)', provider: 'bailian', description: '快速响应' },
 ]
