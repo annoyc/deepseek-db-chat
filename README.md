@@ -137,6 +137,3 @@ src/
 
 ---
 
-## License
-
-[MIT](./LICENSE) 协议 © [annoyc](https://github.com/annoyc).
