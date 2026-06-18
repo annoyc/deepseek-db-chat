@@ -114,30 +114,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const initialLoadDone = useRef(false)
+  const sessionsLoadedRef = useRef(false)
+  const pendingConnectionIdRef = useRef<string | null>(null)
 
-  useEffect(() => {
-    loadSessionsFromStorage().then((loaded) => {
-      if (loaded.length > 0) {
-        setSessions(loaded)
-        setActiveSessionId(loaded[0].id)
-        if (loaded[0].connectionId) {
-          loadingSessionConnIdRef.current = loaded[0].connectionId
-          setActiveConnection(loaded[0].connectionId)
-        }
-        // Mark all existing sessions with messages as already having titles generated
-        loaded.forEach((s) => {
-          if (s.messages.length > 0) {
-            titleGeneratedSessionsRef.current.add(s.id)
-          }
-        })
-      }
-      initialLoadDone.current = true
-    })
-  }, [])
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   
-  const { activeConnectionId, getFullConnection, setActiveConnection } = useDatabaseStore()
+  const { activeConnectionId, getFullConnection, setActiveConnection, connectionsLoaded } = useDatabaseStore()
   const { provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
@@ -145,6 +128,37 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const titleGeneratedSessionsRef = useRef<Set<string>>(new Set())
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
   const lastConfirmedSqlRef = useRef<string | null>(null)
+
+  // Phase 1: Load sessions from IndexedDB (no dependency on connections)
+  useEffect(() => {
+    loadSessionsFromStorage().then((loaded) => {
+      if (loaded.length > 0) {
+        setSessions(loaded)
+        setActiveSessionId(loaded[0].id)
+        if (loaded[0].connectionId) {
+          pendingConnectionIdRef.current = loaded[0].connectionId
+        }
+        loaded.forEach((s) => {
+          if (s.messages.length > 0) {
+            titleGeneratedSessionsRef.current.add(s.id)
+          }
+        })
+      }
+      sessionsLoadedRef.current = true
+      initialLoadDone.current = true
+    })
+  }, [])
+
+  // Phase 2: Restore active connection AFTER both sessions and connections are loaded
+  useEffect(() => {
+    if (!connectionsLoaded || !sessionsLoadedRef.current) return
+    const connId = pendingConnectionIdRef.current
+    if (connId) {
+      pendingConnectionIdRef.current = null
+      loadingSessionConnIdRef.current = connId
+      setActiveConnection(connId)
+    }
+  }, [connectionsLoaded, setActiveConnection])
 
   useEffect(() => {
     if (!initialLoadDone.current) return
