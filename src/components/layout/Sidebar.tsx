@@ -40,7 +40,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
     <>
       <aside
         className={cn(
-          'h-screen flex flex-col border-r border-gray-200 bg-slate-50/80 transition-all duration-300',
+          'h-screen flex flex-col border-r border-gray-200 bg-slate-50/80 transition-all duration-300 cursor-default select-none',
           collapsed ? 'w-14' : 'w-64',
         )}
       >

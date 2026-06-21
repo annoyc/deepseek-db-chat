@@ -24,15 +24,6 @@ function StreamingIndicator() {
   )
 }
 
-function StreamingTailIndicator() {
-  return (
-    <div className="flex items-center gap-1.5 py-1 text-gray-400">
-      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      <span className="text-xs">处理中...</span>
-    </div>
-  )
-}
-
 
 function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
   const parts = message.parts!
@@ -59,7 +50,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
   const showTailIndicator = isStreaming && !isLastThinking && !isLastText && !hasConfirmBlock && !isLastToolCallActive
 
   return (
-    <div className="space-y-3 min-w-0 max-w-full">
+    <div className="space-y-3 min-w-0 max-w-full animate-in fade-in duration-200">
       {parts.map((part, i) => {
         switch (part.type) {
           case 'thinking': {
@@ -69,9 +60,9 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
-            if (!tc || tc.name === 'execute_sql' || tc.name === 'smart_filter') return null
-            if (tc.name === 'plan_query') return <QueryPlanBlock key={`plan-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
-            return <ToolCallStatus key={`tc-${i}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
+            if (!tc || tc.name === 'execute_sql' || tc.name === 'smart_filter' || tc.name === 'report_analysis') return null
+            if (tc.name === 'plan_query') return <div key={`plan-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><QueryPlanBlock toolCall={tc} defaultExpanded={toolCallExpanded} /></div>
+            return <div key={`tc-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><ToolCallStatus toolCall={tc} defaultExpanded={toolCallExpanded} /></div>
           }
           case 'text':
             return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} /> : null
@@ -80,7 +71,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
         }
       })}
 
-      {showTailIndicator && <StreamingTailIndicator />}
+      {showTailIndicator && <StreamingIndicator />}
 
       {message.sqlConfirm && (
         <SqlConfirmBlock
@@ -101,7 +92,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
 }
 
 function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
-  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query') ?? []
+  const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query' && tc.name !== 'report_analysis') ?? []
   const planToolCalls = message.toolCalls?.filter((tc) => tc.name === 'plan_query') ?? []
   const hasThinking = Boolean(message.thinking)
   const hasToolCalls = nonSqlToolCalls.length > 0 || planToolCalls.length > 0
@@ -117,7 +108,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
   const showTailIndicator = isStreaming && !hasConfirmBlock && !hasContent && !hasActiveToolCall
 
   return (
-    <div className="space-y-3 min-w-0 max-w-full">
+    <div className="space-y-3 min-w-0 max-w-full animate-in fade-in duration-200">
       {hasThinking && (
         <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={thinkingExpanded} />
       )}
@@ -125,10 +116,14 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
       {hasToolCalls && (
         <div className="space-y-3">
           {planToolCalls.map((tc, idx) => (
-            <QueryPlanBlock key={`plan-${idx}`} toolCall={tc} defaultExpanded={toolCallExpanded} />
+            <div key={`plan-${idx}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <QueryPlanBlock toolCall={tc} defaultExpanded={toolCallExpanded} />
+            </div>
           ))}
           {nonSqlToolCalls.map((tc, idx) => (
-            <ToolCallStatus key={idx} toolCall={tc} defaultExpanded={toolCallExpanded} />
+            <div key={idx} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <ToolCallStatus toolCall={tc} defaultExpanded={toolCallExpanded} />
+            </div>
           ))}
         </div>
       )}
@@ -137,7 +132,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
         <MarkdownContent content={message.content} />
       )}
 
-      {showTailIndicator && <StreamingTailIndicator />}
+      {showTailIndicator && <StreamingIndicator />}
 
       {hasSqlConfirm && (
         <SqlConfirmBlock
@@ -164,7 +159,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
 
   if (message.role === 'user') {
     return (
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
         <div className="max-w-[70%]">
           <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-primary text-primary-foreground">
             <p className="whitespace-pre-wrap">{message.content}</p>

@@ -2,6 +2,7 @@ import mysql from 'mysql2/promise'
 import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
 import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constants'
 import { validateSql } from '@/lib/sql-guard'
+import { subsetTables } from './schema-subsetting'
 
 const pools = new Map<string, mysql.Pool>()
 const poolFingerprints = new Map<string, string>()
@@ -554,83 +555,120 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
  * This is designed to be called once at the beginning of a conversation to give the AI
  * a global understanding of the database structure.
  */
-export async function getDatabaseOverview(connection: DatabaseConnection): Promise<string> {
+export async function getDatabaseOverview(connection: DatabaseConnection, userQuery?: string): Promise<string> {
   const pool = getPool(connection)
 
-  // 1. Get table list with row estimates and comments
-  const [tables] = await pool.query(
-    `SELECT TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, AUTO_INCREMENT
-     FROM INFORMATION_SCHEMA.TABLES
-     WHERE TABLE_SCHEMA = ?
-       AND TABLE_TYPE = 'BASE TABLE'
-     ORDER BY TABLE_NAME`,
-    [connection.database],
-  )
+  // Parallel: fetch tables and FKs simultaneously
+  const [tablesResult, fksResult] = await Promise.all([
+    pool.query(
+      `SELECT TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, AUTO_INCREMENT
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = ?
+         AND TABLE_TYPE = 'BASE TABLE'
+       ORDER BY TABLE_NAME`,
+      [connection.database],
+    ),
+    pool.query(
+      `SELECT
+         kcu.TABLE_NAME,
+         kcu.COLUMN_NAME,
+         kcu.REFERENCED_TABLE_NAME,
+         kcu.REFERENCED_COLUMN_NAME
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+       WHERE kcu.TABLE_SCHEMA = ?
+         AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
+       ORDER BY kcu.TABLE_NAME, kcu.CONSTRAINT_NAME`,
+      [connection.database],
+    ),
+  ])
+
+  const tables = tablesResult[0]
+  const allFks = fksResult[0]
 
   if ((tables as unknown[]).length === 0) {
     return `数据库 "${connection.database}" 中没有表。`
   }
 
-  let overview = `数据库: ${connection.database}\n`
-  overview += `共 ${(tables as unknown[]).length} 张表\n\n`
+  const allTableMetas = (tables as Record<string, unknown>[]).map(t => ({
+    name: t.TABLE_NAME as string,
+    comment: (t.TABLE_COMMENT as string) ?? '',
+    rowCount: t.TABLE_ROWS != null ? Number(t.TABLE_ROWS) : null,
+  }))
 
-  // Table summary
-  overview += '=== 表概览 ===\n'
-  const tableNames: string[] = []
-  for (const t of tables as Record<string, unknown>[]) {
-    const name = t.TABLE_NAME as string
-    tableNames.push(name)
-    const rows = t.TABLE_ROWS != null ? `~${t.TABLE_ROWS} rows` : 'unknown rows'
-    const comment = t.TABLE_COMMENT ? ` -- ${t.TABLE_COMMENT}` : ''
-    overview += `  ${name} (${rows})${comment}\n`
+  const fkEdges = (allFks as Record<string, unknown>[]).map(fk => ({
+    from: fk.TABLE_NAME as string,
+    to: fk.REFERENCED_TABLE_NAME as string,
+  }))
+
+  // Schema Subsetting: for large databases, only show relevant tables
+  const { tables: visibleTables, hiddenCount, totalCount } = subsetTables(allTableMetas, userQuery ?? '', fkEdges)
+
+  let overview = `数据库: ${connection.database}\n`
+  if (hiddenCount > 0) {
+    overview += `共 ${totalCount} 张表（基于问题相关性展示 ${visibleTables.length} 张，另有 ${hiddenCount} 张可通过 list_tables 查看完整列表）\n\n`
+  } else {
+    overview += `共 ${totalCount} 张表\n\n`
   }
 
-  // 2. Get ALL foreign key relationships in the database
-  const [allFks] = await pool.query(
-    `SELECT
-       kcu.TABLE_NAME,
-       kcu.COLUMN_NAME,
-       kcu.REFERENCED_TABLE_NAME,
-       kcu.REFERENCED_COLUMN_NAME
-     FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-     WHERE kcu.TABLE_SCHEMA = ?
-       AND kcu.REFERENCED_TABLE_NAME IS NOT NULL
-     ORDER BY kcu.TABLE_NAME, kcu.CONSTRAINT_NAME`,
-    [connection.database],
-  )
+  // Table summary (only visible subset)
+  overview += '=== 表概览 ===\n'
+  const tableNames: string[] = []
+  for (const t of visibleTables) {
+    tableNames.push(t.name)
+    const rows = t.rowCount != null ? `~${t.rowCount} rows` : 'unknown rows'
+    const comment = t.comment ? ` -- ${t.comment}` : ''
+    overview += `  ${t.name} (${rows})${comment}\n`
+  }
 
-  if ((allFks as unknown[]).length > 0) {
+  // FK relationships (only those involving visible tables)
+  const visibleSet = new Set(visibleTables.map(t => t.name.toLowerCase()))
+  const relevantFks = (allFks as Record<string, unknown>[]).filter(fk => {
+    const from = (fk.TABLE_NAME as string).toLowerCase()
+    const to = (fk.REFERENCED_TABLE_NAME as string).toLowerCase()
+    return visibleSet.has(from) || visibleSet.has(to)
+  })
+
+  if (relevantFks.length > 0) {
     overview += '\n=== 表关系（外键）===\n'
-    for (const fk of allFks as Record<string, unknown>[]) {
+    for (const fk of relevantFks) {
       overview += `  ${fk.TABLE_NAME}.${fk.COLUMN_NAME} → ${fk.REFERENCED_TABLE_NAME}.${fk.REFERENCED_COLUMN_NAME}\n`
     }
   } else {
     overview += '\n=== 表关系 ===\n  无外键约束。\n'
   }
 
-  // 3. Infer join paths from naming conventions when no FK constraints exist
-  const inferredJoins = inferJoinPaths(tableNames, pool, connection.database)
-  const inferred = await inferredJoins
-  if (inferred.length > 0) {
+  // 3 & 4: Parallel — infer join paths + detect dictionary table
+  const allTableNames = allTableMetas.map(t => t.name)
+  const [inferred, dictResult] = await Promise.all([
+    inferJoinPaths(allTableNames, pool, connection.database),
+    getOrInitDictCache(pool, connection, allTableNames).catch(() => null),
+  ])
+
+  // Only show inferred joins involving visible tables
+  const relevantInferred = inferred.filter(j =>
+    visibleSet.has(j.fromTable.toLowerCase()) || visibleSet.has(j.toTable.toLowerCase()),
+  )
+  if (relevantInferred.length > 0) {
     overview += '\n=== 推断的关联关系（基于命名规则）===\n'
     overview += '  以下关联基于字段命名规则推断，生成 JOIN 时可优先参考：\n'
-    for (const j of inferred) {
+    for (const j of relevantInferred) {
       overview += `  ${j.fromTable}.${j.fromColumn} → ${j.toTable}.${j.toColumn} (${j.confidence})\n`
     }
   }
 
-  // 4. Detect and report dictionary table
-  try {
-    const { tableInfo } = await getOrInitDictCache(pool, connection, tableNames)
-    if (tableInfo) {
-      overview += `\n=== 字典表 ===\n`
-      overview += `  发现字典表: ${tableInfo.tableName}\n`
-      overview += `  结构: ${tableInfo.typeColumn}(字典类型), ${tableInfo.valueColumn}(编码值), ${tableInfo.labelColumn}(显示名称)\n`
-      overview += `  调用 get_table_schema 时，状态码字段会自动查询字典表获取值含义映射。\n`
-    }
-  } catch (err) { console.warn('[database] Dict table detection skipped:', err) }
+  // Dictionary table report
+  if (dictResult?.tableInfo) {
+    const { tableInfo } = dictResult
+    overview += `\n=== 字典表 ===\n`
+    overview += `  发现字典表: ${tableInfo.tableName}\n`
+    overview += `  结构: ${tableInfo.typeColumn}(字典类型), ${tableInfo.valueColumn}(编码值), ${tableInfo.labelColumn}(显示名称)\n`
+    overview += `  调用 get_table_schema 时，状态码字段会自动查询字典表获取值含义映射。\n`
+  }
 
   overview += '\n【提示】以上是数据库的全局结构。如需编写 SQL，请对涉及的表调用 get_table_schema 获取详细字段信息。'
+  if (hiddenCount > 0) {
+    overview += `\n注意：由于表数量较多，以上仅展示与问题可能相关的 ${visibleTables.length} 张表。如果所需的表未在上方列出，请调用 list_tables 查看完整列表，再对具体表调用 get_table_schema。`
+  }
 
   return overview
 }

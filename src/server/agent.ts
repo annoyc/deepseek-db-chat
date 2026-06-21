@@ -5,6 +5,7 @@ import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
 import { DEFAULT_MODEL } from '@/lib/constants'
+import { classifyIntent, buildRoutingPrompt } from './intent-router'
 
 interface AgentOptions {
   provider?: ModelProvider
@@ -18,6 +19,7 @@ interface AgentOptions {
   lastConfirmedSql?: string
   sqlExecutedCount?: number
   maxSqlExecutions?: number
+  userQuery?: string
 }
 
 // ────────────────────────────────────────────────────────────
@@ -222,7 +224,22 @@ const SYSTEM_PROMPT_ADDITIONAL = `
 - 对于复杂查询可先调用 explain_sql 评估执行计划。
 - 复杂查询必须先 plan_query 再 execute_sql，禁止跳过规划直接写复杂 SQL。
 - plan_query 返回的字段信息是唯一可信来源，SQL 中的表名和字段名必须与之完全一致。
-- 如果 execute_sql 返回 schema_warning（表未确认），必须先调用 get_table_schema 再重新提交。`
+- 如果 execute_sql 返回 schema_warning（表未确认），必须先调用 get_table_schema 再重新提交。
+
+【结构化分析报告】
+当收到 SQL 执行结果并开始分析时，必须按以下流程：
+1. 先调用 report_analysis 提交结构化分析报告（关键指标、图表建议、后续查询建议）
+2. 然后继续用自然语言输出详细的数据分析文本
+report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须来源于真实查询结果。
+
+【SQL 错误自愈规则】
+当你收到 SQL 执行失败的反馈时，按以下策略修复：
+1. "Unknown column" → 字段名拼写错误或不存在，立即调用 get_table_schema 确认正确字段名后重写 SQL
+2. "Table doesn't exist" → 表名错误，调用 list_tables 确认后修正
+3. "SQL syntax" → 语法错误，检查括号匹配、关键字拼写、别名使用
+4. "Subquery returns more than 1 row" → 子查询需要 LIMIT 1 或改用 IN
+5. 任何错误 → 分析根因后修正 SQL，禁止不做修改直接重试
+修复后通过 execute_sql 重新提交，最多重试 2 次。`
 
 // ────────────────────────────────────────────────────────────
 //  Agent factory
@@ -248,16 +265,33 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
   }
 
   const model = createModel(modelConfig as any)
-  const { tools, resultStore } = createDbTools(connection, options?.sqlPermission, options?.lastConfirmedSql, options?.sqlExecutedCount, options?.maxSqlExecutions)
+  const userQuery = options?.userQuery ?? ''
+  const { tools, resultStore } = createDbTools(connection, options?.sqlPermission, options?.lastConfirmedSql, options?.sqlExecutedCount, options?.maxSqlExecutions, userQuery)
 
-  // ── Build system prompt: core + workflow + few-shot + additional ──
-  let systemPrompt = [
-    SYSTEM_PROMPT_CORE,
-    SYSTEM_PROMPT_WORKFLOW,
-    SYSTEM_PROMPT_FEW_SHOT,
-    SYSTEM_PROMPT_ANALYSIS,
-    SYSTEM_PROMPT_ADDITIONAL,
-  ].join('\n')
+  // ── Build system prompt: selectively include sections based on intent ──
+  const hasHistory = (options?.executionLog?.length ?? 0) > 0
+  const intent = userQuery ? classifyIntent(userQuery, hasHistory) : null
+  const intentType = intent?.intent
+
+  const promptSections: string[] = [SYSTEM_PROMPT_CORE]
+
+  // Workflow is always needed except for pure analysis on existing results
+  if (intentType !== 'analysis') {
+    promptSections.push(SYSTEM_PROMPT_WORKFLOW)
+  }
+
+  // Few-shot examples: skip for schema exploration and analysis (saves ~2000 tokens)
+  if (intentType !== 'explore_schema' && intentType !== 'analysis') {
+    promptSections.push(SYSTEM_PROMPT_FEW_SHOT)
+  }
+
+  // Analysis format guide: only when there's execution history or complex queries
+  if (intentType === 'analysis' || intentType === 'complex_query' || intentType === 'simple_query' || hasHistory) {
+    promptSections.push(SYSTEM_PROMPT_ANALYSIS)
+  }
+
+  promptSections.push(SYSTEM_PROMPT_ADDITIONAL)
+  let systemPrompt = promptSections.join('\n')
 
   // ── Dynamic context ──
   const now = new Date()
@@ -268,6 +302,11 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
 
   systemPrompt += `\n\n当前时间: ${currentTime}`
   systemPrompt += `\n当前连接的数据库: ${connection.database} (${connection.host}:${connection.port})`
+
+  // Intent-based routing hint
+  if (intent) {
+    systemPrompt += buildRoutingPrompt(intent)
+  }
 
   // Show remaining SQL execution quota
   const maxExec = options?.maxSqlExecutions ?? SESSION_MAX_SQL_EXECUTIONS

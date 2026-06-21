@@ -3,6 +3,7 @@ import { Coins, Shield, Eye, Lock, Loader2, Circle, RefreshCw } from 'lucide-rea
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
 import { generateSuggestions } from '@/server/functions/generate-suggestions'
+import { cn } from '@/lib/utils'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (question: string) => void
@@ -48,10 +49,15 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const cacheRef = useRef<Map<string, string[]>>(new Map())
+  const requestIdRef = useRef(0)
   const { getFullConnection } = useDatabaseStore()
   const { provider, model, apiKey, baseURL } = useSettings()
 
-  const fetchSuggestions = useCallback((connId: string, skipCache = false) => {
+  const fetchSuggestions = useCallback((
+    connId: string,
+    options?: { skipCache?: boolean; refreshNonce?: string; excludeSuggestions?: string[] },
+  ) => {
+    const skipCache = options?.skipCache ?? false
     if (!skipCache && cacheRef.current.has(connId)) {
       setSuggestions(cacheRef.current.get(connId)!)
       return () => {}
@@ -60,38 +66,61 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
     const conn = getFullConnection(connId)
     if (!conn) return () => {}
 
+    const requestId = ++requestIdRef.current
     let cancelled = false
     setLoadingSuggestions(true)
 
     generateSuggestions({
-      data: { connection: conn, provider, model, apiKey: apiKey || undefined, baseURL: baseURL || undefined },
+      data: {
+        connection: conn,
+        provider,
+        model,
+        apiKey: apiKey || undefined,
+        baseURL: baseURL || undefined,
+        refreshNonce: options?.refreshNonce,
+        excludeSuggestions: options?.excludeSuggestions,
+      },
     })
       .then((result) => {
-        if (cancelled) return
+        if (cancelled || requestId !== requestIdRef.current) return
         cacheRef.current.set(connId, result)
         setSuggestions(result)
       })
       .catch(() => {
-        if (cancelled) return
-        setSuggestions([])
+        if (cancelled || requestId !== requestIdRef.current) return
+        if (!skipCache) setSuggestions([])
       })
       .finally(() => {
-        if (!cancelled) setLoadingSuggestions(false)
+        if (!cancelled && requestId === requestIdRef.current) setLoadingSuggestions(false)
       })
 
     return () => { cancelled = true }
   }, [getFullConnection, provider, model, apiKey, baseURL])
 
   useEffect(() => {
+    cacheRef.current.clear()
+  }, [provider, model, apiKey, baseURL])
+
+  useEffect(() => {
     if (connectionStatus !== 'success' || !activeConnectionId) return
     return fetchSuggestions(activeConnectionId)
   }, [activeConnectionId, connectionStatus, fetchSuggestions])
 
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const handleRefresh = useCallback(() => {
-    if (!activeConnectionId || loadingSuggestions) return
+    if (!activeConnectionId) return
+    setIsRefreshing(true)
     cacheRef.current.delete(activeConnectionId)
-    fetchSuggestions(activeConnectionId, true)
-  }, [activeConnectionId, loadingSuggestions, fetchSuggestions])
+    fetchSuggestions(activeConnectionId, {
+      skipCache: true,
+      refreshNonce: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      excludeSuggestions: suggestions,
+    })
+    setRefreshKey((k) => k + 1)
+    setTimeout(() => setIsRefreshing(false), 600)
+  }, [activeConnectionId, fetchSuggestions, suggestions])
 
   return (
     <div className="h-full overflow-y-auto">
@@ -155,7 +184,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                   className="p-0.5 text-gray-300 hover:text-gray-500 transition-colors rounded"
                   title="换一批问题"
                 >
-                  <RefreshCw className="w-3 h-3" />
+                  <RefreshCw className={cn('w-3 h-3 transition-transform duration-500', isRefreshing && 'animate-spin')} />
                 </button>
               )}
             </div>
@@ -165,12 +194,13 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                 <span className="text-xs">AI 正在分析数据库结构...</span>
               </div>
             ) : suggestions.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
+              <div key={refreshKey} className="grid grid-cols-2 gap-2">
                 {suggestions.map((text, i) => (
                   <button
-                    key={text}
+                    key={`${refreshKey}-${i}`}
                     onClick={() => onSuggestionClick(text)}
-                    className={`cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all anim-up d-${Math.min(i + 9, 12)}`}
+                    className={`cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                    style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
                   >
                     {text}
                   </button>

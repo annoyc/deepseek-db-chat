@@ -38,7 +38,20 @@ function drainToolResults(
     if (name === 'smart_filter') smartFilterResult = result
     const isError = result.startsWith(TOOL_ERROR_PREFIX)
     const isSmartFilter = name === 'smart_filter'
-    const displayResult = (name === 'execute_sql' || isSmartFilter) ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
+    const isReportAnalysis = name === 'report_analysis'
+    const displayResult = (name === 'execute_sql' || isSmartFilter || isReportAnalysis) ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
+
+    // Emit structured analysis report as a dedicated stream event
+    if (isReportAnalysis && !isError && result) {
+      try {
+        const parsed = JSON.parse(result)
+        if (parsed.report) {
+          const reportChunk: StreamChunk = { type: 'analysis-report', report: parsed.report }
+          controller.enqueue(encoder.encode(formatSSE(reportChunk)))
+        }
+      } catch { /* skip malformed report */ }
+    }
+
     const chunk: StreamChunk = isError
       ? { type: 'tool-call-end', name, result: '', error: displayResult }
       : { type: 'tool-call-end', name, result: displayResult }
@@ -54,6 +67,8 @@ export const chatStream = createServerFn({ method: 'POST' })
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder()
+
+        const STREAM_TIMEOUT_MS = 120_000
 
         const runChat = async () => {
           try {
@@ -75,6 +90,7 @@ export const chatStream = createServerFn({ method: 'POST' })
               lastConfirmedSql: data.lastConfirmedSql,
               sqlExecutedCount: data.sqlExecutedCount,
               maxSqlExecutions: data.maxSqlExecutions,
+              userQuery: data.message,
             })
             const agentStream = agent.stream({
               prompt: data.message,
@@ -86,7 +102,20 @@ export const chatStream = createServerFn({ method: 'POST' })
             let smartFilterDetected = false
             let shouldBreak = false
 
+            // Timeout protection: abort if no events for too long
+            let lastEventTime = Date.now()
+            const timeoutCheck = setInterval(() => {
+              if (Date.now() - lastEventTime > STREAM_TIMEOUT_MS) {
+                clearInterval(timeoutCheck)
+                controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: 'AI 响应超时（120s 无数据），请重试' })))
+                controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
+                controller.close()
+              }
+            }, 10_000)
+
+            try {
             for await (const event of agentStream) {
+              lastEventTime = Date.now()
               let chunk: StreamChunk | null = null
 
               switch (event.type) {
@@ -154,6 +183,9 @@ export const chatStream = createServerFn({ method: 'POST' })
               }
 
               if (executeSqlDetected || shouldBreak) break
+            }
+            } finally {
+              clearInterval(timeoutCheck)
             }
 
             drainToolResults(pendingToolNames, resultStore, encoder, controller)

@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
-import { CheckCircle2, Loader2, XCircle, Play, X } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { CheckCircle2, Loader2, XCircle, Play, X, ArrowRight, AlertTriangle } from 'lucide-react'
 import type { SqlConfirmInfo, SqlResultInfo } from '@/lib/types'
 import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
-import { ResultTable } from './ResultTable'
 
 const CONFIRM_TIMEOUT_SEC = 60
+const WARN_THRESHOLD_SEC = 10
 
 interface SqlConfirmBlockProps {
   info: SqlConfirmInfo
@@ -16,8 +16,11 @@ interface SqlConfirmBlockProps {
 export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProps) {
   const { confirmSql, cancelSql } = useChatStore()
   const [countdown, setCountdown] = useState(CONFIRM_TIMEOUT_SEC)
+  const [paused, setPaused] = useState(false)
   const cancelSqlRef = useRef(cancelSql)
   cancelSqlRef.current = cancelSql
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
 
   const isLoading = info.status === 'loading'
   const isExecuted = info.status === 'executed'
@@ -26,10 +29,13 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   const isCancelled = info.status === 'cancelled'
   const isError = info.status === 'error'
 
+  const isWarning = isPending && countdown <= WARN_THRESHOLD_SEC
+
   useEffect(() => {
     if (!isPending) return
     setCountdown(CONFIRM_TIMEOUT_SEC)
     const interval = setInterval(() => {
+      if (pausedRef.current) return
       setCountdown((prev) => {
         if (prev <= 1) {
           cancelSqlRef.current(messageId)
@@ -41,9 +47,12 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
     return () => clearInterval(interval)
   }, [isPending, messageId])
 
+  const handleMouseEnter = useCallback(() => setPaused(true), [])
+  const handleMouseLeave = useCallback(() => setPaused(false), [])
+
   if (isLoading) {
     return (
-      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100">
           <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
           <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
@@ -57,17 +66,27 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   }
 
   return (
-    <div className={`border rounded-xl overflow-hidden bg-white ${isError ? 'border-red-200' : 'border-gray-200'}`}>
-      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : 'border-gray-100'}`}>
+    <div
+      className={`border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300 ${isError ? 'border-red-200' : isWarning ? 'border-amber-300' : 'border-gray-200'}`}
+      onMouseEnter={isPending ? handleMouseEnter : undefined}
+      onMouseLeave={isPending ? handleMouseLeave : undefined}
+    >
+      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : isWarning ? 'border-amber-100' : 'border-gray-100'}`}>
         {isExecuted ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
         ) : isError ? (
           <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+        ) : isWarning ? (
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 animate-pulse" />
         ) : (
           <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 ${isConfirmed ? 'text-green-600 animate-spin' : 'text-amber-500'}`} />
         )}
         <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
-        {isPending && <span className="text-xs text-gray-400 ml-0.5">待确认 ({countdown}s)</span>}
+        {isPending && (
+          <span className={`text-xs ml-0.5 ${isWarning ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+            {paused ? '已暂停' : isWarning ? `即将超时 (${countdown}s)` : `待确认 (${countdown}s)`}
+          </span>
+        )}
         {isConfirmed && <span className="text-xs text-green-600 ml-0.5 font-medium">执行中...</span>}
         {isExecuted && (
           <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
@@ -115,12 +134,21 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
             <X className="size-3 mr-1" />
             取消
           </Button>
+          {paused && (
+            <span className="text-[11px] text-gray-400 ml-auto">鼠标悬停已暂停倒计时</span>
+          )}
         </div>
       )}
 
       {isExecuted && result && (
-        <div className="border-t border-gray-100">
-          <ResultTable result={result} />
+        <div className="flex items-center gap-1.5 px-3 py-2 border-t border-gray-100 text-xs text-gray-500">
+          <CheckCircle2 className="w-3 h-3 text-green-500" />
+          <span>{result.rowCount} 行结果</span>
+          <span className="text-gray-300">·</span>
+          <span className="text-blue-600 inline-flex items-center gap-0.5">
+            已在右侧面板展示
+            <ArrowRight className="w-3 h-3" />
+          </span>
         </div>
       )}
     </div>

@@ -99,7 +99,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
   if (isLoading) {
     return (
-      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100">
           <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
           <span className="text-[13px] font-semibold text-gray-800">查询参数微调</span>
@@ -117,7 +117,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
   return (
     <div className={cn(
-      'border rounded-xl overflow-hidden bg-white',
+      'border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300',
       isCancelled ? 'border-gray-200' : isConfirmed ? 'border-green-300' : 'border-gray-200',
     )}>
       {/* Header */}
