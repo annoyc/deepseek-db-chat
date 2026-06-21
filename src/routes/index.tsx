@@ -81,9 +81,9 @@ function HomePage() {
             {/* Drag handle */}
             <div
               onMouseDown={onDragStart}
-              className="w-1 flex-shrink-0 cursor-col-resize group relative hover:bg-blue-400 active:bg-blue-500 transition-colors"
+              className="w-1 flex-shrink-0 cursor-col-resize group relative hover:bg-blue-400 active:bg-blue-500 transition-colors z-50"
             >
-              <div className="absolute inset-y-0 -left-1 -right-1" />
+              <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize bg-transparent" />
             </div>
             <div className="flex-shrink-0" style={{ width: vizWidth }}>
               <VisualizationPanel
