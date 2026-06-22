@@ -555,7 +555,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
  * This is designed to be called once at the beginning of a conversation to give the AI
  * a global understanding of the database structure.
  */
-export async function getDatabaseOverview(connection: DatabaseConnection, userQuery?: string): Promise<string> {
+export async function getDatabaseOverview(connection: DatabaseConnection, userQuery?: string, seedTables?: string[]): Promise<string> {
   const pool = getPool(connection)
 
   // Parallel: fetch tables and FKs simultaneously
@@ -601,7 +601,7 @@ export async function getDatabaseOverview(connection: DatabaseConnection, userQu
   }))
 
   // Schema Subsetting: for large databases, only show relevant tables
-  const { tables: visibleTables, hiddenCount, totalCount } = subsetTables(allTableMetas, userQuery ?? '', fkEdges)
+  const { tables: visibleTables, hiddenCount, totalCount } = subsetTables(allTableMetas, userQuery ?? '', fkEdges, seedTables)
 
   let overview = `数据库: ${connection.database}\n`
   if (hiddenCount > 0) {

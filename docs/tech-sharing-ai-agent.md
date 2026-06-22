@@ -109,19 +109,58 @@ type StreamEvent =
 **最终选型**
 
 ```
-┌────────────────────────────────────────────────────┐
-│ 自研 core/（~800 行核心代码）                       │
-│                                                     │
-│ ✓ Agent Loop：循环 + 工具执行 + 去重检测             │
-│ ✓ Step Invoker：流式 LLM 调用 + thinking 流解析     │
-│ ✓ Model Layer：DeepSeek/百炼 双 Provider            │
-│ ✓ Tool Framework：Zod schema + execute              │
-│ ✓ Context Compact：长对话压缩                       │
-│ ✓ Hook System：步骤前后注入逻辑                     │
-└────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ 自研 core/（~800 行核心代码）                              │
+│                                                           │
+│ ✓ Agent Loop：循环 + 工具执行 + 去重检测                   │
+│ ✓ Step Invoker：流式 LLM 调用 + thinking 流解析           │
+│ ✓ Model Layer：DeepSeek/百炼 双 Provider                  │
+│ ✓ Tool Framework：Zod schema + execute + timeout         │
+│ ✓ Context Compact：长对话压缩                             │
+│ ✓ Hook System：步骤前后注入逻辑                           │
+│ ✓ Intent Router：LLM 意图分类 + 动态 Prompt 裁剪         │
+│ ✓ Schema Subsetting：大数据库 Top-K 相关表过滤            │
+└──────────────────────────────────────────────────────────┘
 ```
 
 > **结论**：当你的 Agent 有**非标准的控制流需求**时（流中断、双流结构、异步工具结果），自研 runtime 的 ROI 远超使用框架后打 monkey patch。
+
+### 多模型 Provider 架构
+
+**为什么不只用一个模型？**
+
+不同场景对模型能力的需求不同。一个 Gateway 模式让用户自选模型：
+
+```typescript
+export type ModelProvider = 'deepseek' | 'bailian'
+
+export const AVAILABLE_MODELS: ModelEntry[] = [
+  // DeepSeek 直连（最佳性价比 + prefix caching）
+  { id: 'deepseek-v4-flash', provider: 'deepseek', description: '快速响应' },
+  { id: 'deepseek-v4-pro',   provider: 'deepseek', description: '深度推理' },
+  // 阿里云百炼（一个 API Key 用多家模型）
+  { id: 'qwen3.7-plus',      provider: 'bailian', description: '通用对话' },
+  { id: 'glm-5.2',           provider: 'bailian', description: '智谱大模型' },
+  { id: 'kimi-k2.7-code',    provider: 'bailian', description: 'Moonshot' },
+  { id: 'deepseek-v4-pro',   provider: 'bailian', description: 'DeepSeek via 百炼' },
+]
+```
+
+**Provider 层设计**：
+
+```
+┌────────────────────────────────────────────────────────┐
+│                   统一 Model Interface                   │
+│    model.invokeStream({ messages, tools }) → Stream     │
+├────────────────────────┬───────────────────────────────┤
+│  DeepSeek Provider     │  Bailian Provider             │
+│  - 原生 thinking 支持  │  - DashScope compatible-mode  │
+│  - prefix caching      │  - 多家模型统一接入           │
+│  - reasoningEffort     │  - 阿里云 API Key             │
+└────────────────────────┴───────────────────────────────┘
+```
+
+核心价值：用户可以根据任务复杂度和成本敏感度自由切换模型，Agent Runtime 层完全无感。
 
 ### 全栈单体 vs 前后端分离
 
@@ -270,21 +309,21 @@ interface AgentHooks {
 
 ## 4. 工具系统设计哲学
 
-### 核心原则：感知-规划-执行 三阶分离
+### 核心原则：感知-规划-执行-输出 四阶分离
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                       工具体系                                │
-├────────────────┬────────────────┬───────────────────────────┤
-│  感知层工具     │  规划层工具     │  执行层工具                │
-├────────────────┼────────────────┼───────────────────────────┤
-│ overview       │ plan_query     │ execute_sql               │
-│ list_tables    │ explain_sql    │ smart_filter              │
-│ get_schema     │                │                           │
-├────────────────┼────────────────┼───────────────────────────┤
-│ 随意调用       │ 建议性调用      │ 受控调用（有副作用）       │
-│ 幂等、安全     │ 帮助决策       │ 需要验证 + 确认           │
-└────────────────┴────────────────┴───────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           工具体系（8 个工具）                              │
+├─────────────────┬────────────────┬──────────────────┬────────────────────┤
+│  感知层工具      │  规划层工具     │  执行层工具       │  输出层工具         │
+├─────────────────┼────────────────┼──────────────────┼────────────────────┤
+│ overview        │ plan_query     │ execute_sql      │ report_analysis    │
+│ list_tables     │ explain_sql    │ smart_filter     │                    │
+│ get_schema      │                │                  │                    │
+├─────────────────┼────────────────┼──────────────────┼────────────────────┤
+│ 随意调用        │ 建议性调用      │ 受控调用          │ 结果后调用          │
+│ 幂等、安全      │ 帮助决策       │ 需要验证 + 确认   │ 结构化分析输出      │
+└─────────────────┴────────────────┴──────────────────┴────────────────────┘
 ```
 
 ### execute_sql：最关键的设计
@@ -292,8 +331,16 @@ interface AgentHooks {
 **它不执行 SQL。**
 
 ```typescript
+// Schema 定义 — 注意 intent_summary 和 expected_shape 字段
+schema: z.object({
+  sql: z.string(),
+  explanation: z.string(),          // SQL 的目的和逻辑
+  intent_summary: z.string().optional(),  // 自然语言意图描述，帮用户确认
+  expected_shape: z.string().optional(),  // 预期结果形态: "单值(总数)"/"多行(每日统计)"
+}),
+
 execute: async ({ sql, explanation, intent_summary, expected_shape }) => {
-  // 1. 配额检查
+  // 1. 配额检查（会话级，默认 20 条上限）
   if (sqlExecutedCount >= maxSqlExecutions) {
     return JSON.stringify({ status: 'limit_reached', message: '...' })
   }
@@ -419,6 +466,44 @@ return {
 
 这样前端的日期选择器知道有效范围，枚举选择器知道实际有哪些值。
 
+### report_analysis：结构化分析输出
+
+传统方式模型的分析输出质量不稳定——有时详尽有时敷衍。`report_analysis` 通过 Zod Schema 强制输出结构化报告：
+
+```typescript
+const reportAnalysisTool = tool({
+  name: 'report_analysis',
+  description: '当你基于 SQL 执行结果完成数据分析后，必须调用此工具提交结构化分析报告。',
+  schema: z.object({
+    summary: z.string(),       // 一句话核心发现
+    metrics: z.array(z.object({
+      name: z.string(),        // 指标名称
+      value: z.string(),       // 指标值
+      unit: z.string().optional(),
+      trend: z.enum(['up', 'down', 'stable']).optional(),
+      changePercent: z.number().optional(),
+      highlight: z.boolean().optional(),
+    })),                       // 最多 5 个关键指标
+    chartSuggestion: z.object({
+      type: z.enum(['bar', 'line', 'pie', 'table']),
+      xAxis: z.string().optional(),
+      yAxis: z.string().optional(),
+      labelCol: z.string().optional(),   // 维度列
+      valueCols: z.array(z.string()).optional(), // 度量列
+      reason: z.string(),
+    }).optional(),             // 可视化建议
+    nextQueries: z.array(z.string()).optional(), // 后续查询建议
+  }),
+})
+```
+
+**为什么单独做一个工具而不是让模型自由输出？**
+
+1. **前端结构化渲染**：`AnalysisReportCard` + `MetricCards` 组件可以直接消费 JSON，渲染为指标卡片 + 图表建议
+2. **可视化联动**：`chartSuggestion` 中的 `labelCol` / `valueCols` 直接驱动 `ResultChart` 的图表渲染
+3. **质量保证**：Zod schema 强制模型提供完整的分析结构，避免"偷懒"
+4. **流事件独立**：作为 `analysis-report` 事件独立推送，不与文本流混合
+
 ### ResultStore：解决流式工具结果时序
 
 问题：在 Agent Loop 中，工具执行是同步的（结果直接返回给模型）。但在 SSE 流中，客户端需要在**对应的时间点**收到工具结果。
@@ -465,6 +550,52 @@ SSE Stream:  tool-call-start ───────────────→ to
 2. 不知道 `user_id` 指向哪张表（没有 FK）
 3. 不知道日期字段的有效范围
 4. 无法生成正确的 JOIN
+
+### 方案零：Schema Subsetting（大数据库裁剪）
+
+真实企业数据库可能有上百张表。如果全部灌进 overview，不仅浪费 token，更会稀释模型注意力。
+
+```typescript
+const MAX_OVERVIEW_TABLES = 40
+
+export function subsetTables(
+  tables: TableMeta[],
+  userQuery: string,
+  fkEdges: ForeignKeyEdge[],
+  seedTables?: string[],   // 来自意图分类器的 suggestedTables
+): SubsetResult {
+  if (tables.length <= MAX_OVERVIEW_TABLES) {
+    return { tables, hiddenCount: 0, totalCount: tables.length }
+  }
+
+  const queryTokens = tokenize(userQuery)  // 中英文混合分词
+
+  // Phase 0: 强制纳入意图分类器识别的种子表（即使关键词得分为 0）
+  if (seedTables?.length) {
+    for (const t of tables) {
+      if (seedLower.has(t.name.toLowerCase())) selected.push(t)
+    }
+  }
+
+  // Phase 1: 按 query 相关度评分，取 Top-K
+  const scored = tables.map(t => ({ table: t, score: scoreTable(t, queryTokens) }))
+  scored.sort((a, b) => b.score - a.score)
+
+  // Phase 2: 通过外键一度扩展（确保 JOIN 路径完整）
+  for (const edge of fkEdges) {
+    if (selectedSet.has(edge.from) && !selectedSet.has(edge.to)) addLinked(edge.to)
+  }
+
+  // Phase 3: 剩余名额按行数填充（大表更可能被查询）
+  return { tables: selected, hiddenCount: tables.length - selected.length, totalCount }
+}
+```
+
+**评分机制**：对用户查询做中英文分词（含 CamelCase、下划线拆分、CJK 字符），与表名 + 表注释做 token overlap 计算相关度。
+
+**种子表注入**：意图分类器返回的 `suggestedTables`（用户问题中明确提到的表）作为 Phase 0 的种子，即使关键词得分为 0 也强制纳入可见集合——确保分类器识别的相关表一定出现在 overview，模型无需二次 `list_tables` 猜测。
+
+**效果**：100 张表 → 模型只看到 40 张相关表 + 提示 "另有 60 张表未显示"。如果需要查询被隐藏的表，模型可通过 `list_tables` 获取完整列表。
 
 ### 方案：四层 Schema 增强
 
@@ -704,11 +835,12 @@ async function tableExists(connection, tableName): Promise<boolean> {
 
 | 机制 | 对抗什么 |
 |------|---------|
-| 单会话 20 条 SQL 上限 | 资源滥用、无限循环 |
+| 单会话 20 条 SQL 上限（可配置） | 资源滥用、无限循环 |
 | 同轮 + 跨轮重复 SQL 拦截 | 模型死循环 |
-| Schema 未确认警告 | 模型编造字段名 |
+| Schema 未确认警告（schema_warning） | 模型编造字段名 |
 | 连续 2 次相同工具调用终止 | 工具调用死循环 |
-| 幻觉分类器 | 模型编造执行结果 |
+| 幻觉分类器（后置 LLM 判断） | 模型编造执行结果 |
+| 120s 流超时自动终止 | 模型推理卡住 / Provider 故障 |
 
 ### Layer 5: 数据保护
 
@@ -748,16 +880,17 @@ type StreamChunk =
   | { type: 'tool-call-start'; name: string; args: Record<string, unknown> }
   | { type: 'tool-call-end'; name: string; result: string; error?: string }
   | { type: 'smart-filter-confirm'; suggestedFilters: Filter[] }
+  | { type: 'analysis-report'; report: AnalysisReport }  // 结构化分析报告
   | { type: 'finish' }
   | { type: 'error'; message: string }
 ```
 
-### 流的三种终止模式
+### 流的四种终止模式
 
 ```
 模式 1: 正常结束
   thinking → text → finish
-  
+
 模式 2: SQL 确认中断
   thinking → tool-call-start(execute_sql) → tool-call-end → finish
   // finish 只是告诉客户端流结束了，但对话状态变为 "pending_sql_confirm"
@@ -765,7 +898,29 @@ type StreamChunk =
 模式 3: Smart Filter 中断
   thinking → tool-call-start(smart_filter) → tool-call-end → smart-filter-confirm → finish
   // 客户端渲染交互控件，用户选择后继续
+
+模式 4: 带结构化报告的结束
+  thinking → tool-call-start(report_analysis) → tool-call-end → analysis-report → text → finish
+  // report_analysis 后模型继续输出文本分析，前端同时渲染指标卡片 + 文本
 ```
+
+### 流超时保护
+
+```typescript
+const STREAM_TIMEOUT_MS = 120_000
+
+let lastEventTime = Date.now()
+const timeoutCheck = setInterval(() => {
+  if (Date.now() - lastEventTime > STREAM_TIMEOUT_MS) {
+    clearInterval(timeoutCheck)
+    emit({ type: 'error', message: 'AI 响应超时（120s 无数据），请重试' })
+    emit({ type: 'finish' })
+    controller.close()
+  }
+}, 10_000)
+```
+
+对抗场景：模型推理卡住、网络中断、Provider 故障。每 10s 检查一次，120s 无事件输出则主动终止。
 
 ### 流中断的精确实现
 
@@ -856,35 +1011,135 @@ interface AssistantMessage {
 ┌─ SqlConfirmBlock ───────────────────────┐
 │ SELECT DATE_FORMAT(created_at, '%Y-%m') │
 │ FROM users WHERE ...                     │
-│                                          │
+│ 意图: 统计每月新增用户数                  │
+│ 预期: 多行(每月统计)                      │
 │     [确认执行]  [取消]                    │
 └─────────────────────────────────────────┘
+```
+
+SQL 确认后，结果同时渲染在：
+1. **聊天流中**：`ResultTable` 表格 + `AnalysisReportCard` 指标卡
+2. **右侧 VisualizationPanel**：可拖拽调宽的独立面板，聚合所有 SQL 结果 + 图表
+
+```
+┌── 页面三栏布局 ─────────────────────────────────────────────┐
+│ Sidebar │          ChatPanel          │ VisualizationPanel  │
+│  会话    │  消息流 + 工具状态 + 分析    │← 拖拽 →│ 结果表格   │
+│  列表    │                             │         │ 图表渲染   │
+│         │                             │         │ 指标卡片   │
+└─────────┴─────────────────────────────┴─────────┴───────────┘
+                                                   360~1200px
 ```
 
 ---
 
 ## 8. Prompt Engineering：规则系统的工程化
 
+### Intent Router：LLM 意图分类
+
+在 Agent Loop 启动前，用一次**轻量 LLM 调用**（`thinking: disabled`、`temperature: 0`、`maxSteps: 1`、zod 结构化输出）对用户输入做语义级意图分类。结果用于：
+1. 动态裁剪 System Prompt（跳过不需要的部分，节省 token）
+2. 注入路由提示（降低模型决策负担）
+3. `suggestedTables` 作为种子注入 Schema Subsetting（保证相关表强制可见）
+4. `skipOverview` 在分析追问场景硬约束跳过 `get_database_overview`
+
+> **为什么从正则改为 LLM？** 早期版本用纯正则/关键词匹配（零延迟、零成本），但正则短路命中存在语义误判——最典型的是"对比本月和上月的新增用户数"会被"新增"误判为 `write_operation`。这类**安全敏感误判**（分析被当成写操作）不可接受。LLM 分类能理解"新增用户数"是查询对象而非写动作，单次轻量调用（~200-500ms、几百 token）换取语义准确性，且失败时安全回退到 `ambiguous`。
+
+```typescript
+export type QueryIntent =
+  | 'explore_schema'    // "有哪些表" → 跳过 smart_filter/few-shot
+  | 'simple_query'      // 单表聚合
+  | 'complex_query'     // 多表 JOIN → 建议 plan_query
+  | 'write_operation'   // INSERT/UPDATE/DELETE
+  | 'ambiguous'         // 参数模糊 → 建议 smart_filter
+  | 'analysis'          // 对已有结果的追问 → 跳过 overview
+
+// zod 结构化输出 schema
+const IntentSchema = z.object({
+  intent: z.enum(['explore_schema','simple_query','complex_query','write_operation','ambiguous','analysis']),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  suggestedTables: z.array(z.string()).optional(),
+})
+
+export async function classifyIntentWithLLM(
+  userQuery: string,
+  hasExecutionHistory: boolean,
+  modelConfig: { provider, model, apiKey?, baseURL? },
+): Promise<IntentClassification> {
+  // 单轮 LLM 调用，temperature: 0，thinking 关闭
+  const result = await generateText({
+    model, system: INTENT_CLASSIFIER_PROMPT, prompt: userPrompt,
+    maxSteps: 1, output: { schema: IntentSchema },
+  })
+  // 低置信 (< 0.7) → 回退 ambiguous，走 smart_filter 让用户确认参数
+  // 调用失败/无输出 → 安全回退 ambiguous（confidence 0）
+}
+```
+
+系统提示给出 6 类意图定义 + 判别要点（含"新增用户数是查询不是写操作"这类易混规则）+ few-shot（含"对比本月新增"易混样例）。`confidence < 0.7` 时回退为 `ambiguous` 路由到 smart_filter；调用异常时同样安全回退，绝不把错误分类硬塞进主流程。
+
+**分类结果如何影响 System Prompt？**
+
+```
+意图类型         跳过的 Prompt 段      节省 Token
+─────────       ───────────────       ──────────
+explore_schema  WORKFLOW + FEW_SHOT   ~2300 tokens
+analysis        WORKFLOW + FEW_SHOT   ~2300 tokens
+simple_query    无                    0
+complex_query   无                    0
+ambiguous       无                    0
+```
+
+路由提示示例（注入到 system prompt 末尾）：
+
+```
+【路由提示 — 基于用户意图预分析】
+意图类型: 复杂查询（建议先规划）
+建议: 这是一个复杂查询，建议使用 plan_query 进行规划后再生成 SQL。
+可能涉及的表: orders, users（需要通过 get_table_schema 确认）
+分类理由: 涉及时间对比与多表关联，需规划后再生成 SQL
+```
+
+分析追问场景还会额外注入硬约束（`skipOverview` 触发）：
+
+```
+【路由提示 — 基于用户意图预分析】
+意图类型: 数据分析（基于已有结果）
+建议: 用户想进一步分析已有结果。优先使用执行记录中的数据回答，避免不必要的新查询。
+分类理由: 对先前查询结果的追问，无需重新取 schema
+约束: 本次无需调用 get_database_overview，请直接基于已有上下文回答。
+```
+
 ### System Prompt 的分层架构
 
 ```typescript
-const systemPrompt = [
-  SYSTEM_PROMPT_CORE,        // ~500 tokens  | 绝对规则
-  SYSTEM_PROMPT_WORKFLOW,    // ~800 tokens  | 执行流程
-  SYSTEM_PROMPT_FEW_SHOT,   // ~1500 tokens | 正确示例
-  SYSTEM_PROMPT_ANALYSIS,   // ~600 tokens  | 输出格式
-  SYSTEM_PROMPT_ADDITIONAL, // ~200 tokens  | 补充规则
-].join('\n')
-// 总计 ~3600 tokens（固定部分）
+// 构建过程根据 intent 动态裁剪
+const promptSections: string[] = [SYSTEM_PROMPT_CORE]  // ~500 tokens  | 绝对规则（必选）
+
+if (intentType !== 'analysis') {
+  promptSections.push(SYSTEM_PROMPT_WORKFLOW)           // ~800 tokens  | 执行流程
+}
+if (intentType !== 'explore_schema' && intentType !== 'analysis') {
+  promptSections.push(SYSTEM_PROMPT_FEW_SHOT)          // ~1500 tokens | 正确示例
+}
+if (intentType === 'analysis' || intentType === 'complex_query' || hasHistory) {
+  promptSections.push(SYSTEM_PROMPT_ANALYSIS)          // ~600 tokens  | 输出格式
+}
+promptSections.push(SYSTEM_PROMPT_ADDITIONAL)          // ~200 tokens  | 补充规则（必选）
+
+// 最大 ~3600 tokens（全段），最小 ~700 tokens（schema 探索）
 ```
 
-**为什么分层？**
+**为什么分层 + 动态裁剪？**
 
-1. **Prefix Cache 优化**：DeepSeek 的 prefix caching 按前缀匹配。固定部分放前面，动态部分（当前时间、执行日志）放后面，确保 ~3600 tokens 的固定前缀在每次请求中都能命中 cache。
+1. **Prefix Cache 优化**：DeepSeek 的 prefix caching 按前缀匹配。`CORE` 部分始终在最前面作为固定前缀，确保跨请求 cache 命中。
 
-2. **维护性**：每层职责清晰，修改规则不会误伤其他部分。
+2. **Token 经济**：探索 schema 类请求节省 ~2300 tokens（省钱 + 减少干扰）。
 
-3. **优先级表达**：越靠前的规则，模型遵守的概率越高。
+3. **维护性**：每层职责清晰，修改规则不会误伤其他部分。
+
+4. **优先级表达**：越靠前的规则，模型遵守的概率越高。
 
 ### 规则撰写的工程方法论
 
@@ -1143,6 +1398,29 @@ const recentLog = log.slice(-MAX_EXECUTION_LOG_ENTRIES)  // 默认 10 条
    结果: 1247 行, 执行时间 120ms`
 ```
 
+### 优化策略 5：Intent Router 动态裁剪 System Prompt
+
+意图分类本身用一次轻量 LLM 调用（`thinking` 关闭、`temperature: 0`、单轮、结构化输出），约 200-500ms、几百 token；其产出用于动态裁剪 System Prompt，整体仍为正收益。
+
+```
+分类调用成本:       ~300 tokens input + ~60 tokens output（≈ ¥0.0005/请求）
+全量 System Prompt:  ~3600 tokens
+Schema 探索场景:     ~1300 tokens（跳过 WORKFLOW + FEW_SHOT）
+分析追问场景:        ~1300 tokens（跳过 WORKFLOW + FEW_SHOT）
+
+净节省: 每次请求少发 ~2300 tokens input（≈ ¥0.002），减去分类成本 ≈ ¥0.0005，
+        仍净省 ~¥0.0015/请求，并显著降低误判（如分析被当成写操作）带来的返工成本。
+```
+
+### 优化策略 6：Schema Subsetting（大数据库优化）
+
+```
+100 张表全量 overview:  ~8000 tokens
+Top-40 相关表 subset:   ~3200 tokens
+
+节省: -60% overview token + 模型注意力更集中（准确率↑）
+```
+
 ### 成本控制的工程手段
 
 | 机制 | 效果 |
@@ -1150,9 +1428,11 @@ const recentLog = log.slice(-MAX_EXECUTION_LOG_ENTRIES)  // 默认 10 条
 | Prefix Caching | Input token 费用 -50% |
 | 结果压缩 | 大查询场景 token -80% |
 | Schema 缓存 | 减少重复工具调用 |
+| Intent Router 裁剪 | Schema/分析场景 prompt -64% |
+| Schema Subsetting | 大数据库 overview -60% |
 | maxSteps=10 | 防止无限循环消耗 token |
 | 执行日志裁剪 | 长会话 context 可控 |
-| 会话 SQL 上限 | 单会话费用封顶 |
+| 会话 SQL 上限(20) | 单会话费用封顶 |
 
 ---
 
@@ -1311,27 +1591,29 @@ Human-in-the-Loop: AI 做提案，人做决策
 
 | 决策点 | 选择 | 替代方案 | 为什么 |
 |--------|------|---------|--------|
-| Agent Runtime | 自研 | LangChain, Vercel AI SDK | Thinking 流 + 流中断 + 结果时序 |
-| LLM | DeepSeek V4 Pro | GPT-4o, Claude | 性价比 + prefix caching + 中文优化 |
-| 多模型 | 百炼 Gateway | 直连各厂商 | 一个 Key 用多家模型 |
+| Agent Runtime | 自研 (~800 LOC) | LangChain, Vercel AI SDK | Thinking 流 + 流中断 + 结果时序 |
+| 默认 LLM | DeepSeek V4 Pro | GPT-4o, Claude | 性价比 + prefix caching + 中文优化 |
+| 多模型 Gateway | 百炼 (DashScope) | 直连各厂商 | 一个 Key 用 Qwen/GLM/Kimi/DeepSeek |
+| 意图路由 | 轻量 LLM 分类 (zod 结构化输出) | 正则/关键词, 额外 LLM | 语义准确 + 置信度回退 + 失败安全降级 |
+| Schema 裁剪 | 相关度 Top-40 + FK 扩展 | 全量灌入 / RAG | 确定性 + 低延迟 + 保证 JOIN 路径完整 |
 | 前端框架 | TanStack Start | Next.js, Remix | 类型安全 + SSE 原生支持 |
-| UI | Tailwind + Radix | Ant Design, MUI | 轻量 + 可定制 |
+| UI | Tailwind 4 + Radix | Ant Design, MUI | 轻量 + 可定制 |
 | 数据库客户端 | mysql2 | Prisma, Drizzle | 需要动态 SQL，ORM 反而碍事 |
-| SQL 验证 | node-sql-parser | 纯正则 | AST 精确检测嵌套危险 |
-| 存储 | IndexedDB (Dexie) | PostgreSQL, SQLite | 隐私 + 无需后端数据库 |
+| SQL 验证 | node-sql-parser + 正则双保险 | 纯正则 | AST 精确检测嵌套危险函数 |
+| 存储 | IndexedDB (Dexie) | PostgreSQL, SQLite | 隐私 + 无需后端数据库 + 无需注册 |
 | 可视化 | Recharts | ECharts, D3 | React 生态 + 声明式 |
-| 追踪 | Langfuse | LangSmith, Phoenix | 开源 + 自部署 + 成本标注 |
+| 追踪 | Langfuse (OpenTelemetry) | LangSmith, Phoenix | 开源 + 自部署 + 成本标注 |
 | 加密 | AES-256-GCM | AES-CBC, RSA | GCM 认证加密，防篡改 |
+| 部署 | Docker + docker-compose | Vercel, Railway | 私有化部署（数据安全） |
 
 ---
 
 ## Q&A
 
-> 感谢大家的时间。以上所有设计都是在真实生产环境中迭代出来的——
-> 没有一个是第一版就对的。
+> 感谢大家的时间。
 > 
 > Agent 工程的本质是：**用确定性的工程手段，驯服概率性的 AI 输出。**
 
 ---
 
-*基于 DBPilot 项目实践 | 2026.06*
+*基于 DBPilot 项目实践 | 2026.06（最后更新：2026.06.22）*

@@ -16,6 +16,7 @@ export function createDbTools(
   sqlExecutedCount: number = 0,
   maxSqlExecutions: number = SESSION_MAX_SQL_EXECUTIONS,
   userQuery?: string,
+  seedTables?: string[],
 ) {
   const resultStore: ResultStore = new Map()
   const schemaCache = new Map<string, string>()
@@ -45,7 +46,7 @@ export function createDbTools(
           pushResult('get_database_overview', overviewCache)
           return overviewCache
         }
-        const result = await getDatabaseOverview(connection, userQuery)
+        const result = await getDatabaseOverview(connection, userQuery, seedTables)
         overviewCache = result
         pushResult('get_database_overview', result)
         return result

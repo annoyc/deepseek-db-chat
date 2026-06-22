@@ -7,7 +7,16 @@ import { useChatStore } from '@/hooks/useChat'
 
 const VIZ_MIN_W = 360
 const VIZ_MAX_W = 1200
-const VIZ_DEFAULT_W = 480
+
+/**
+ * 响应式默认宽度：取视口的 38%，并限制在 [VIZ_MIN_W, VIZ_MAX_W] 之间。
+ * 小屏（如 <1000px）会自动收敛到接近最小宽度，避免挤占中间聊天区域；
+ * 大屏则相对宽裕。用户手动拖拽后以用户值为准，不再随 resize 变动。
+ */
+function responsiveVizWidth(): number {
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
+  return Math.min(VIZ_MAX_W, Math.max(VIZ_MIN_W, Math.round(vw * 0.38)))
+}
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -16,7 +25,8 @@ export const Route = createFileRoute('/')({
 function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [vizPanelCollapsed, setVizPanelCollapsed] = useState(false)
-  const [vizWidth, setVizWidth] = useState(VIZ_DEFAULT_W)
+  const [vizWidth, setVizWidth] = useState(responsiveVizWidth)
+  const userResizedRef = useRef(false)
   const draggingRef = useRef(false)
   const startXRef = useRef(0)
   const startWRef = useRef(0)
@@ -54,6 +64,7 @@ function HomePage() {
     const onUp = () => {
       if (!draggingRef.current) return
       draggingRef.current = false
+      userResizedRef.current = true
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
@@ -63,6 +74,17 @@ function HomePage() {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
+  }, [])
+
+  // 响应式：窗口尺寸变化时，若用户未手动拖拽过，重新计算默认宽度，
+  // 让小屏自动收窄、避免挤占中间聊天区域。
+  useEffect(() => {
+    const onResize = () => {
+      if (userResizedRef.current) return
+      setVizWidth(responsiveVizWidth())
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
   }, [])
 
   return (

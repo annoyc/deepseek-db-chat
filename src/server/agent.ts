@@ -5,7 +5,7 @@ import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
 import { DEFAULT_MODEL } from '@/lib/constants'
-import { classifyIntent, buildRoutingPrompt } from './intent-router'
+import { classifyIntentWithLLM, buildRoutingPrompt } from './intent-router'
 
 interface AgentOptions {
   provider?: ModelProvider
@@ -245,7 +245,7 @@ report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须�
 //  Agent factory
 // ────────────────────────────────────────────────────────────
 
-export function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
+export async function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
   const provider = options?.provider ?? 'deepseek'
   const providerDef = getProvider(provider)
   const modelName = options?.model || DEFAULT_MODEL
@@ -266,12 +266,35 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
 
   const model = createModel(modelConfig as any)
   const userQuery = options?.userQuery ?? ''
-  const { tools, resultStore } = createDbTools(connection, options?.sqlPermission, options?.lastConfirmedSql, options?.sqlExecutedCount, options?.maxSqlExecutions, userQuery)
 
   // ── Build system prompt: selectively include sections based on intent ──
+  // Intent classification uses a lightweight LLM call (thinking disabled,
+  // temperature 0, structured output) for semantic understanding that
+  // keyword regex cannot reliably provide. Low confidence (< 0.7) falls back
+  // to "ambiguous" so the agent uses smart_filter to confirm parameters.
   const hasHistory = (options?.executionLog?.length ?? 0) > 0
-  const intent = userQuery ? classifyIntent(userQuery, hasHistory) : null
+  const intent = userQuery
+    ? await classifyIntentWithLLM(userQuery, hasHistory, {
+        provider,
+        model: modelName,
+        apiKey,
+        baseURL: options?.baseURL,
+      })
+    : null
   const intentType = intent?.intent
+
+  // Tools are created AFTER classification so the intent classifier's
+  // suggestedTables can seed schema-subsetting (force-include likely-relevant
+  // tables in the overview) and skipOverview can suppress overview guidance.
+  const { tools, resultStore } = createDbTools(
+    connection,
+    options?.sqlPermission,
+    options?.lastConfirmedSql,
+    options?.sqlExecutedCount,
+    options?.maxSqlExecutions,
+    userQuery,
+    intent?.suggestedTables,
+  )
 
   const promptSections: string[] = [SYSTEM_PROMPT_CORE]
 
@@ -306,6 +329,13 @@ export function createDbAgent(connection: DatabaseConnection, options?: AgentOpt
   // Intent-based routing hint
   if (intent) {
     systemPrompt += buildRoutingPrompt(intent)
+    // When the classifier determined the existing context is sufficient
+    // (e.g. follow-up analysis on prior results), forbid the overview call
+    // outright so the model doesn't waste a turn re-fetching schema it
+    // already has.
+    if (intent.skipOverview) {
+      systemPrompt += '\n约束: 本次无需调用 get_database_overview，请直接基于已有上下文回答。'
+    }
   }
 
   // Show remaining SQL execution quota

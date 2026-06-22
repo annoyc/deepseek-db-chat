@@ -75,6 +75,7 @@ export function subsetTables(
   tables: TableMeta[],
   userQuery: string,
   fkEdges: ForeignKeyEdge[],
+  seedTables?: string[],
 ): SubsetResult {
   if (tables.length <= MAX_OVERVIEW_TABLES) {
     return { tables, hiddenCount: 0, totalCount: tables.length }
@@ -91,6 +92,20 @@ export function subsetTables(
 
   const selectedSet = new Set<string>()
   const selected: TableMeta[] = []
+
+  // Phase 0: Force-include seed tables (from intent classifier's suggestedTables),
+  // matched case-insensitively against real table names. These are guaranteed
+  // visible regardless of keyword overlap score.
+  if (seedTables && seedTables.length > 0) {
+    const seedLower = new Set(seedTables.map(t => t.toLowerCase()))
+    for (const t of tables) {
+      if (selected.length >= MAX_OVERVIEW_TABLES) break
+      if (seedLower.has(t.name.toLowerCase()) && !selectedSet.has(t.name.toLowerCase())) {
+        selected.push(t)
+        selectedSet.add(t.name.toLowerCase())
+      }
+    }
+  }
 
   // Phase 1: Take tables with relevance > 0
   for (const { table, score } of scored) {

@@ -78,7 +78,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             }
             const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
             const effectiveSqlPermission = decryptedConnection.env === 'prod' ? 'readonly' : data.sqlPermission
-            const { agent, resultStore } = createDbAgent(decryptedConnection, {
+            const { agent, resultStore } = await createDbAgent(decryptedConnection, {
               provider: data.provider as any,
               model: data.model,
               apiKey: decryptedApiKey,
