@@ -84,7 +84,7 @@ function renderWithTrend(children: ReactNode): ReactNode {
 
 export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
-    <div className="px-2 min-w-0 w-full max-w-full text-gray-800">
+    <div className="px-2 min-w-0 w-full max-w-full text-gray-800 animate-in fade-in duration-300">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{

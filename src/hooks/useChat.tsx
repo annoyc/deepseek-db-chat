@@ -5,11 +5,118 @@ import { maskPII } from '@/lib/masking'
 import { chatStream } from '@/server/functions/chat'
 import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
 import { classifyHallucination } from '@/server/functions/classify-hallucination'
+import { classifyChartColumns } from '@/server/functions/classify-chart-columns'
 import { generateAiTitle } from '@/server/functions/generate-title'
 import { db } from '@/lib/db'
 import { PROVIDERS, AVAILABLE_MODELS } from '@/lib/constants'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
+
+// ── Streaming buffer: batches high-frequency chunk updates into single rAF flush ──
+
+interface StreamingBuffer {
+  thinking: string
+  text: string
+  toolCalls: ToolCallInfo[]
+  parts: MessagePart[]
+  analysisReport?: unknown
+  errorText: string
+  finished: boolean
+}
+
+function createEmptyBuffer(): StreamingBuffer {
+  return { thinking: '', text: '', toolCalls: [], parts: [], errorText: '', finished: false }
+}
+
+function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
+  switch (chunk.type) {
+    case 'thinking': {
+      buffer.thinking += chunk.content
+      const lastPart = buffer.parts[buffer.parts.length - 1]
+      if (lastPart && lastPart.type === 'thinking') {
+        (lastPart as { type: 'thinking'; content: string }).content += chunk.content
+      } else {
+        let merged = false
+        for (let j = buffer.parts.length - 1; j >= 0; j--) {
+          if (buffer.parts[j].type === 'thinking') {
+            (buffer.parts[j] as { type: 'thinking'; content: string }).content += chunk.content
+            merged = true
+            break
+          }
+          if (buffer.parts[j].type === 'tool-call') break
+        }
+        if (!merged) buffer.parts.push({ type: 'thinking', content: chunk.content })
+      }
+      break
+    }
+    case 'text': {
+      buffer.text += chunk.content
+      const lastPart = buffer.parts[buffer.parts.length - 1]
+      if (lastPart && lastPart.type === 'text') {
+        (lastPart as { type: 'text'; content: string }).content += chunk.content
+      } else {
+        let merged = false
+        for (let j = buffer.parts.length - 1; j >= 0; j--) {
+          if (buffer.parts[j].type === 'text') {
+            (buffer.parts[j] as { type: 'text'; content: string }).content += chunk.content
+            merged = true
+            break
+          }
+          if (buffer.parts[j].type === 'tool-call') break
+        }
+        if (!merged) buffer.parts.push({ type: 'text', content: chunk.content })
+      }
+      break
+    }
+    case 'tool-call-start': {
+      const tc: ToolCallInfo = { name: chunk.name, args: chunk.args, status: 'calling' }
+      buffer.toolCalls.push(tc)
+      buffer.parts.push({ type: 'tool-call', toolCallIndex: buffer.toolCalls.length - 1 })
+      break
+    }
+    case 'tool-call-end': {
+      for (let i = buffer.toolCalls.length - 1; i >= 0; i--) {
+        if (buffer.toolCalls[i].name === chunk.name && buffer.toolCalls[i].status === 'calling') {
+          buffer.toolCalls[i] = chunk.error
+            ? { ...buffer.toolCalls[i], status: 'error', error: chunk.error }
+            : { ...buffer.toolCalls[i], status: 'completed', result: chunk.result }
+          break
+        }
+      }
+      break
+    }
+    case 'analysis-report':
+      buffer.analysisReport = chunk.report
+      break
+    case 'error':
+      buffer.errorText += `\n\n错误: ${chunk.message}`
+      const lastPart2 = buffer.parts[buffer.parts.length - 1]
+      if (lastPart2 && lastPart2.type === 'text') {
+        (lastPart2 as { type: 'text'; content: string }).content += `\n\n错误: ${chunk.message}`
+      } else {
+        buffer.parts.push({ type: 'text', content: `\n\n错误: ${chunk.message}` })
+      }
+      break
+    case 'finish':
+      buffer.finished = true
+      break
+  }
+}
+
+function flushBufferToMessage(msg: ChatMessage, buffer: StreamingBuffer): ChatMessage {
+  const updated = { ...msg }
+  updated.thinking = buffer.thinking || undefined
+  updated.content = buffer.text + buffer.errorText
+  updated.toolCalls = buffer.toolCalls.length > 0 ? [...buffer.toolCalls] : updated.toolCalls
+  updated.parts = buffer.parts.length > 0 ? [...buffer.parts] : updated.parts
+  if (buffer.analysisReport) updated.analysisReport = buffer.analysisReport as ChatMessage['analysisReport']
+  if (buffer.finished && updated.toolCalls) {
+    updated.toolCalls = updated.toolCalls.map((tc) =>
+      tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
+    )
+  }
+  return updated
+}
 
 interface ChatState {
   sessions: ChatSession[]
@@ -119,6 +226,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const [isStreaming, setIsStreaming] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   const { activeConnectionId, getFullConnection, setActiveConnection, connectionsLoaded } = useDatabaseStore()
   const { provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions } = useSettings()
@@ -162,7 +270,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!initialLoadDone.current) return
-    saveSessionsToStorage(sessions)
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveSessionsToStorage(sessions)
+    }, 800)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [sessions])
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
@@ -289,7 +401,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     let hasSmartFilterConfirm = false
     let pendingSmartFilterFilters: SuggestedFilter[] | null = null
     let hasToolCalls = false
-    let assistantContent = ''
 
     const connection = getFullConnection(connectionId)
     if (!connection) throw new Error('数据库连接不存在')
@@ -310,6 +421,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       },
     })
 
+    // Buffered streaming: accumulate chunks and flush once per animation frame
+    const buffer = createEmptyBuffer()
+    let rafId: number | null = null
+    let flushScheduled = false
+
+    const scheduleFlush = () => {
+      if (flushScheduled) return
+      flushScheduled = true
+      rafId = requestAnimationFrame(() => {
+        flushScheduled = false
+        updateSession(sessionId, (s) => {
+          const messages = [...s.messages]
+          messages[messages.length - 1] = flushBufferToMessage(messages[messages.length - 1], buffer)
+          return { ...s, messages }
+        })
+      })
+    }
+
     for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current?.signal)) {
       if (chunk.type === 'tool-call-start' && chunk.name === 'execute_sql') {
         hasSqlConfirm = true
@@ -323,7 +452,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (chunk.type === 'tool-call-start' && chunk.name === 'smart_filter') {
-        // Show loading state immediately for smart_filter
         updateSession(sessionId, (s) => {
           const messages = [...s.messages]
           const lastMsg = { ...messages[messages.length - 1] }
@@ -339,116 +467,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         break
       }
 
-      updateSession(sessionId, (s) => {
-        const messages = [...s.messages]
-        const lastMsg = { ...messages[messages.length - 1] }
-
-        const parts: MessagePart[] = [...(lastMsg.parts ?? [])]
-        const lastPart = parts.length > 0 ? parts[parts.length - 1] : null
-
-        switch (chunk.type) {
-          case 'thinking': {
-            lastMsg.thinking = (lastMsg.thinking ?? '') + chunk.content
-            if (lastPart && lastPart.type === 'thinking') {
-              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
-            } else {
-              let merged = false
-              for (let j = parts.length - 1; j >= 0; j--) {
-                if (parts[j].type === 'thinking') {
-                  parts[j] = { type: 'thinking', content: (parts[j] as { type: 'thinking'; content: string }).content + chunk.content }
-                  merged = true
-                  break
-                }
-                if (parts[j].type === 'tool-call') break
-              }
-              if (!merged) parts.push({ type: 'thinking', content: chunk.content })
-            }
-            break
-          }
-
-          case 'text': {
-            lastMsg.content = (lastMsg.content ?? '') + chunk.content
-            assistantContent += chunk.content
-            if (lastPart && lastPart.type === 'text') {
-              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + chunk.content }
-            } else {
-              let merged = false
-              for (let j = parts.length - 1; j >= 0; j--) {
-                if (parts[j].type === 'text') {
-                  parts[j] = { type: 'text', content: (parts[j] as { type: 'text'; content: string }).content + chunk.content }
-                  merged = true
-                  break
-                }
-                if (parts[j].type === 'tool-call') break
-              }
-              if (!merged) parts.push({ type: 'text', content: chunk.content })
-            }
-            break
-          }
-
-          case 'tool-call-start': {
-            hasToolCalls = true
-            const tc: ToolCallInfo = {
-              name: chunk.name,
-              args: chunk.args,
-              status: 'calling',
-            }
-            const newToolCalls = [...(lastMsg.toolCalls ?? []), tc]
-            lastMsg.toolCalls = newToolCalls
-            parts.push({ type: 'tool-call', toolCallIndex: newToolCalls.length - 1 })
-            break
-          }
-
-          case 'tool-call-end': {
-            const toolCalls = [...(lastMsg.toolCalls ?? [])]
-            let idx = -1
-            for (let i = toolCalls.length - 1; i >= 0; i--) {
-              if (toolCalls[i].name === chunk.name && toolCalls[i].status === 'calling') {
-                idx = i
-                break
-              }
-            }
-            if (idx >= 0) {
-              if (chunk.error) {
-                toolCalls[idx] = { ...toolCalls[idx], status: 'error', error: chunk.error }
-              } else {
-                toolCalls[idx] = { ...toolCalls[idx], status: 'completed', result: chunk.result }
-              }
-            }
-            lastMsg.toolCalls = toolCalls
-            break
-          }
-
-          case 'error':
-            lastMsg.content = (lastMsg.content ?? '') + `\n\n错误: ${chunk.message}`
-            if (lastPart && lastPart.type === 'text') {
-              parts[parts.length - 1] = { ...lastPart, content: lastPart.content + `\n\n错误: ${chunk.message}` }
-            } else {
-              parts.push({ type: 'text', content: `\n\n错误: ${chunk.message}` })
-            }
-            break
-
-          case 'finish': {
-            if (lastMsg.toolCalls) {
-              lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
-                tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
-              )
-            }
-            break
-          }
-        }
-
-        lastMsg.parts = parts
-
-        messages[messages.length - 1] = lastMsg
-        return { ...s, messages }
-      })
+      if (chunk.type === 'tool-call-start') hasToolCalls = true
+      applyChunkToBuffer(buffer, chunk)
+      scheduleFlush()
     }
 
-    // Clean up any tool calls still in 'calling' state
+    // Cancel any pending rAF and do a final synchronous flush
+    if (rafId !== null) cancelAnimationFrame(rafId)
+
+    // Final flush: ensure all buffered content is committed
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
-      const lastMsg = { ...messages[messages.length - 1] }
+      const lastMsg = flushBufferToMessage(messages[messages.length - 1], buffer)
+      // Clean up any tool calls still in 'calling' state
       if (lastMsg.toolCalls) {
         lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
           tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
@@ -473,10 +504,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
-    // Detect hallucination: check if assistant's text contains fabricated execution results
-    // isContinuation: true when the model has access to real SQL execution data,
-    // either from the current message (SQL result feedback) or from previous executions
-    // in this session (the execution log is part of the model's system prompt context).
+    // Hallucination detection
+    const assistantContent = buffer.text
     const isSqlResultMessage = /^以下SQL(?:已执行完成|执行失败)/.test(message)
     const hasExecutionHistory = (executionLog?.length ?? 0) > 0
     const isContinuation = isSqlResultMessage || hasExecutionHistory
@@ -808,6 +837,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const executionLog = [...(s.executionLog ?? []), logEntry]
         return { ...s, messages, executionLog }
       })
+
+      if (result.columns.length >= 2 && result.rowCount > 0) {
+        classifyChartColumns({
+          data: {
+            columns: result.columns,
+            sampleRows: result.rows.slice(0, 3),
+            provider,
+            model,
+            apiKey: apiKey || undefined,
+            baseURL: baseURL || undefined,
+            sessionId: activeSessionId,
+          },
+        }).then((classification) => {
+          if (!classification) return
+          updateSession(activeSessionId, (s) => ({
+            ...s,
+            messages: s.messages.map((m) =>
+              m.id === messageId && m.sqlResult
+                ? { ...m, sqlResult: { ...m.sqlResult, chartColumnHint: classification } }
+                : m,
+            ),
+          }))
+        }).catch((err) => {
+          console.warn('[confirmSql] Chart column classification failed:', err)
+        })
+      }
 
       setIsStreaming(true)
       abortControllerRef.current = new AbortController()

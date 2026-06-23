@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { listTables, getTableSchema, getDatabaseOverview, explainQuery, getColumnFilterData } from './database'
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import type { DatabaseConnection } from '@/lib/types'
+import type { DatabaseConnection, AnalysisReport } from '@/lib/types'
 
 export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
 
@@ -15,6 +15,8 @@ export function createDbTools(
   lastConfirmedSql?: string,
   sqlExecutedCount: number = 0,
   maxSqlExecutions: number = SESSION_MAX_SQL_EXECUTIONS,
+  userQuery?: string,
+  seedTables?: string[],
 ) {
   const resultStore: ResultStore = new Map()
   const schemaCache = new Map<string, string>()
@@ -44,8 +46,7 @@ export function createDbTools(
           pushResult('get_database_overview', overviewCache)
           return overviewCache
         }
-        const result = await getDatabaseOverview(connection)
-        console.log('get_database_overview', result)
+        const result = await getDatabaseOverview(connection, userQuery, seedTables)
         overviewCache = result
         pushResult('get_database_overview', result)
         return result
@@ -171,15 +172,26 @@ export function createDbTools(
 
       // Schema 校验：检查 SQL 引用的表名是否已通过 schema 确认
       if (schemaCache.size > 0) {
-        const tablePattern = /(?:FROM|JOIN|INTO|UPDATE)\s+`?(\w+)`?/gi
+        // Match table references after FROM/JOIN/INTO/UPDATE keywords,
+        // skipping subquery aliases (preceded by closing paren) and schema-qualified names
+        const tablePattern = /(?:FROM|JOIN|INTO|UPDATE)\s+`?(\w+)`?(?:\s*\.\s*`?(\w+)`?)?/gi
         let match: RegExpExecArray | null
         const unknownTables: string[] = []
+        const knownLower = new Set([...schemaCache.keys()].map((k) => k.toLowerCase()))
+        // SQL keywords and pseudo-tables to ignore
+        const SKIP_NAMES = new Set(['dual', 'select', 'lateral', 'unnest', 'json_table', 'information_schema'])
+
         while ((match = tablePattern.exec(sql)) !== null) {
-          const tableName = match[1].toLowerCase()
-          if (tableName === 'dual' || tableName === 'select') continue
-          const knownLower = [...schemaCache.keys()].map((k) => k.toLowerCase())
-          if (!knownLower.includes(tableName)) {
-            unknownTables.push(match[1])
+          // If schema.table format, check the table part (match[2])
+          const tableName = (match[2] ?? match[1]).toLowerCase()
+          if (SKIP_NAMES.has(tableName)) continue
+
+          // Skip subquery aliases: check if this follows a closing paren (e.g., ") AS alias")
+          const preceding = sql.slice(Math.max(0, match.index - 10), match.index)
+          if (/\)\s*$/.test(preceding)) continue
+
+          if (!knownLower.has(tableName)) {
+            unknownTables.push(match[2] ?? match[1])
           }
         }
         if (unknownTables.length > 0) {
@@ -365,5 +377,42 @@ export function createDbTools(
     },
   })
 
-  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, planQueryTool, explainSqlTool, executeSqlTool, smartFilterTool], resultStore }
+  const reportAnalysisTool = tool({
+    name: 'report_analysis',
+    description: `当你基于 SQL 执行结果完成数据分析后，必须调用此工具提交结构化分析报告。报告包含关键指标、可视化建议和后续查询建议。调用此工具后继续用自然语言输出详细分析文字。
+使用场景：收到 SQL 结果后的分析阶段。禁止在未获得实际数据前调用。`,
+    schema: z.object({
+      summary: z.string().describe('一句话核心发现，如"本月新增用户 1,247 人，环比增长 12%"'),
+      metrics: z.array(z.object({
+        name: z.string().describe('指标名称，如"新增用户数"'),
+        value: z.string().describe('指标值，如"1,247"'),
+        unit: z.string().optional().describe('单位，如"人"、"元"、"%"'),
+        trend: z.enum(['up', 'down', 'stable']).optional().describe('趋势方向'),
+        changePercent: z.number().optional().describe('变化百分比，如 12.5 表示增长 12.5%'),
+        highlight: z.boolean().optional().describe('是否为核心指标需要醒目展示'),
+      })).describe('关键指标列表，最多 5 个'),
+      chartSuggestion: z.object({
+        type: z.enum(['bar', 'line', 'pie', 'table']).describe('建议的可视化类型'),
+        xAxis: z.string().optional().describe('X 轴字段名'),
+        yAxis: z.string().optional().describe('Y 轴字段名'),
+        labelCol: z.string().optional().describe('最适合做分类/分组标签的列名（维度列），如日期、名称、类别'),
+        valueCols: z.array(z.string()).optional().describe('所有适合做数值指标的列名（度量列），如数量、金额、价格。不要包含 ID、编码、状态码等非度量列'),
+        reason: z.string().describe('为什么推荐此图表类型'),
+      }).optional().describe('可视化建议，当数据适合图表展示时提供'),
+      nextQueries: z.array(z.string()).optional().describe('建议的后续查询方向，如["按渠道拆分新增用户","对比上月同期数据"]'),
+    }),
+    execute: async (params) => {
+      const report: AnalysisReport = {
+        summary: params.summary,
+        metrics: params.metrics,
+        chartSuggestion: params.chartSuggestion,
+        nextQueries: params.nextQueries,
+      }
+      const result = JSON.stringify({ status: 'report_submitted', report })
+      pushResult('report_analysis', result)
+      return '分析报告已提交。请继续用自然语言输出详细的数据分析。'
+    },
+  })
+
+  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, planQueryTool, explainSqlTool, executeSqlTool, smartFilterTool, reportAnalysisTool], resultStore }
 }

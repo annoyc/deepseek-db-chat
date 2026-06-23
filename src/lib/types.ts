@@ -47,6 +47,7 @@ export interface ChatMessage {
   sqlResult?: SqlResultInfo
   smartFilterConfirm?: SmartFilterConfirmInfo
   smartFilterValues?: Record<number, FilterValue>
+  analysisReport?: AnalysisReport
   timestamp: string
   answerDuration?: number
   answerQueryCount?: number
@@ -102,11 +103,40 @@ export interface SqlConfirmInfo {
   error?: string
 }
 
+export interface ChartColumnHint {
+  labelCol: string
+  valueCols: string[]
+}
+
 export interface SqlResultInfo {
   columns: string[]
   rows: Record<string, unknown>[]
   rowCount: number
   executionTime: number
+  chartColumnHint?: ChartColumnHint
+}
+
+export interface AnalysisMetric {
+  name: string
+  value: string
+  unit?: string
+  trend?: 'up' | 'down' | 'stable'
+  changePercent?: number
+  highlight?: boolean
+}
+
+export interface AnalysisReport {
+  summary: string
+  metrics: AnalysisMetric[]
+  chartSuggestion?: {
+    type: 'bar' | 'line' | 'pie' | 'table'
+    xAxis?: string
+    yAxis?: string
+    labelCol?: string
+    valueCols?: string[]
+    reason: string
+  }
+  nextQueries?: string[]
 }
 
 export type StreamChunk =
@@ -117,5 +147,6 @@ export type StreamChunk =
   | { type: 'sql-confirm'; sql: string; explanation: string }
   | { type: 'sql-result'; data: SqlResultInfo }
   | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }
+  | { type: 'analysis-report'; report: AnalysisReport }
   | { type: 'error'; message: string }
   | { type: 'finish' }

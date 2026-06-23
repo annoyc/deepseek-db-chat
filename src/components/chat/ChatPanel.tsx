@@ -3,10 +3,16 @@ import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
-import { Settings } from 'lucide-react'
+import { Settings, PanelRight } from 'lucide-react'
 import { ApiKeyDialog } from '../layout/ApiKeyDialog'
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  vizPanelOpen?: boolean
+  onOpenVizPanel?: () => void
+  hasVisualization?: boolean
+}
+
+export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: ChatPanelProps) {
   const { activeSession } = useChatStore()
   const { activeConnectionId, getFullConnection, connectionStatus } = useDatabaseStore()
   const [showSettings, setShowSettings] = useState(false)
@@ -36,12 +42,23 @@ export function ChatPanel() {
             </>
           )}
         </div>
-        <button
-          onClick={() => setShowSettings(true)}
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {hasVisualization && !vizPanelOpen && (
+            <button
+              onClick={onOpenVizPanel}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="打开数据面板"
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 overflow-hidden">
