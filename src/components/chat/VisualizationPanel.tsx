@@ -113,14 +113,14 @@ function VizItemCard({ item, index, isLast, onQueryClick }: { item: VizItem; ind
 
   return (
     <div className={`px-4 py-4 animate-in fade-in slide-in-from-right-3 duration-300 ${!isLast ? 'border-b border-gray-100' : ''}`}>
-      <div className="text-xs text-gray-600 bg-blue-50/60 border border-blue-100 rounded-lg px-3 py-1.5 leading-relaxed mb-3">
-        <span className="font-medium text-blue-700">查询意图：</span>
+      <div className="text-xs text-gray-600 bg-primary/5 border border-primary/15 rounded-lg px-3 py-1.5 leading-relaxed mb-3">
+        <span className="font-medium text-primary">查询意图：</span>
         {item.intentSummary || `查询 #${index}`}
         <span className="text-gray-400 ml-1.5">· {item.result.rowCount} 行结果</span>
       </div>
 
       {/* ── Section 1: SQL 执行 ── */}
-      <SectionTitle icon={TerminalSquare} title="SQL 执行" />
+      <SectionTitle icon={TerminalSquare} title="SQL 执行结果" />
 
       {sqlAnalysis && (
         <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-2 mb-2 animate-in fade-in zoom-in-95 duration-300">

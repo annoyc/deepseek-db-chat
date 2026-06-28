@@ -890,14 +890,19 @@ export async function getColumnFilterData(
 
     // DISTINCT values for ENUM/SET columns or columns with low cardinality
     if (isEnumType || !isDateType) {
-      const [distinctRows] = await pool.query(
-        `SELECT DISTINCT \`${columnName}\` AS val FROM \`${tableName}\`
-         WHERE \`${columnName}\` IS NOT NULL
-         ORDER BY val LIMIT 100`,
-      )
-      result.distinctValues = (distinctRows as Record<string, unknown>[])
-        .map(r => String(r.val))
-        .filter(v => v.length > 0)
+      try {
+        const [distinctRows] = await pool.query(
+          `SELECT DISTINCT \`${columnName}\` AS val FROM \`${tableName}\`
+           WHERE \`${columnName}\` IS NOT NULL AND \`${columnName}\` != ''
+           ORDER BY 1 LIMIT 100`,
+        )
+        result.distinctValues = (distinctRows as Record<string, unknown>[])
+          .map(r => String(r.val))
+          .filter(v => v.length > 0)
+      } catch (distinctErr) {
+        console.warn(`[database] Distinct values query failed for ${tableName}.${columnName}:`, distinctErr)
+        result.distinctValues = []
+      }
     }
   } catch (err) {
     console.warn('[database] Column filter data query failed:', err)

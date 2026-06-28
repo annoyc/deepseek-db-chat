@@ -17,10 +17,12 @@ export function createDbTools(
   maxSqlExecutions: number = SESSION_MAX_SQL_EXECUTIONS,
   userQuery?: string,
   seedTables?: string[],
+  needsFilterConfidence: number = 0,
 ) {
   const resultStore: ResultStore = new Map()
   const schemaCache = new Map<string, string>()
   const submittedSqlSet = new Set<string>()
+  let smartFilterCalled = false
 
   function pushResult(name: string, result: string) {
     const queue = resultStore.get(name) ?? []
@@ -31,6 +33,68 @@ export function createDbTools(
   function pushError(name: string, error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     pushResult(name, TOOL_ERROR_PREFIX + msg)
+  }
+
+  /**
+   * Analyze submitted SQL against schemaCache to detect if key filterable
+   * columns (date, enum) are present in the referenced tables but not
+   * constrained in the SQL WHERE clause.
+   */
+  function detectMissingFilters(sql: string, schemas: Map<string, string>): string[] {
+    const missing: string[] = []
+    const sqlUpper = sql.toUpperCase()
+
+    // Extract referenced tables from SQL
+    const tablePattern = /(?:FROM|JOIN)\s+`?(\w+)`?/gi
+    const referencedTables = new Set<string>()
+    let m: RegExpExecArray | null
+    while ((m = tablePattern.exec(sql)) !== null) {
+      referencedTables.add(m[1].toLowerCase())
+    }
+
+    let hasDateColumn = false
+    let hasEnumColumn = false
+    let hasDateFilter = false
+
+    for (const [tableName, schemaStr] of schemas) {
+      if (!referencedTables.has(tableName.toLowerCase())) continue
+
+      // Detect date columns from schema text
+      const dateColMatch = schemaStr.match(/- (\w+) (?:date|datetime|timestamp)/gi)
+      if (dateColMatch && dateColMatch.length > 0) {
+        hasDateColumn = true
+        // Check if SQL has any date-related WHERE condition
+        for (const colLine of dateColMatch) {
+          const colName = colLine.split(' ')[1]
+          if (sqlUpper.includes(colName.toUpperCase())) {
+            hasDateFilter = true
+            break
+          }
+        }
+      }
+
+      // Detect enum-like columns from schema text
+      if (/\[可选值:|字典值:|值含义:/.test(schemaStr)) {
+        hasEnumColumn = true
+      }
+    }
+
+    // If tables have date columns but SQL doesn't filter on any → missing time range
+    if (hasDateColumn && !hasDateFilter) {
+      // Additional check: does the SQL have any date functions or literals?
+      const hasAnyDateRef = /CURDATE|NOW\(\)|DATE_SUB|DATE_ADD|INTERVAL|'\d{4}-\d{2}-\d{2}'/.test(sql)
+      if (!hasAnyDateRef) {
+        missing.push('时间范围')
+      }
+    }
+
+    // If query has GROUP BY on date but no granularity was confirmed
+    if (/GROUP\s+BY.*(?:DATE|YEAR|MONTH|WEEK)/i.test(sql) && !smartFilterCalled) {
+      // Aggregation granularity might be assumed, flag it
+      // (only if needsFilterConfidence is high enough — already checked by caller)
+    }
+
+    return missing
   }
 
   let tablesCache: string | null = null
@@ -137,6 +201,22 @@ export function createDbTools(
       expected_shape: z.string().optional().describe('预期结果形态，如"单值(总数)"、"多行(每日统计)"、"列表(用户明细)"'),
     }),
     execute: async ({ sql, explanation, intent_summary, expected_shape }) => {
+      // Schema-aware gate: if the intent classifier flagged this query as
+      // likely needing filters, AND the schema confirms filterable columns
+      // exist but the SQL doesn't filter on them, block and require smart_filter.
+      if (!smartFilterCalled && needsFilterConfidence >= 0.5 && schemaCache.size > 0) {
+        const missingFilters = detectMissingFilters(sql, schemaCache)
+        if (missingFilters.length > 0) {
+          const gateMsg = JSON.stringify({
+            status: 'smart_filter_required',
+            missingFilters,
+            message: `检测到查询涉及 ${missingFilters.join('、')} 但未指定筛选条件。请先调用 smart_filter 让用户确认这些参数。`,
+          })
+          pushResult('execute_sql', gateMsg)
+          return gateMsg
+        }
+      }
+
       // Session-level execution limit check
       if (sqlExecutedCount >= maxSqlExecutions) {
         const limitMsg = JSON.stringify({
@@ -345,6 +425,8 @@ export function createDbTools(
       })),
     }),
     execute: async ({ filters }) => {
+      smartFilterCalled = true
+
       const enrichedFilters = await Promise.all(
         filters.map(async (f) => {
           if (f.type === 'option_select') {
@@ -361,8 +443,8 @@ export function createDbTools(
               rowCount: data.rowCount,
             }
           } catch (err) {
-            console.warn(`[tools] Failed to get filter data for column:`, err)
-            return { ...f, dataType: '' }
+            console.warn(`[tools] Failed to get filter data for column ${f.table}.${f.column}:`, err)
+            return { ...f, dataType: '', enumValues: [], options: [] }
           }
         }),
       )

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { SlidersHorizontal, CheckCircle2, Loader2, XCircle, Calendar as CalendarIcon, Send, SkipForward } from 'lucide-react'
+import { SlidersHorizontal, CheckCircle2, Loader2, XCircle, Calendar as CalendarIcon, Send, SkipForward, ChevronsUpDown, Check, PencilLine, RotateCcw } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -9,12 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandSeparator,
+} from '@/components/ui/command'
 
 interface SmartFilterConfirmBlockProps {
   info: SmartFilterConfirmInfo
@@ -22,9 +24,11 @@ interface SmartFilterConfirmBlockProps {
 }
 
 export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmBlockProps) {
-  const { confirmSmartFilter, cancelSmartFilter } = useChatStore()
+  const { confirmSmartFilter, cancelSmartFilter, reviseSmartFilter } = useChatStore()
   const [filterValues, setFilterValues] = useState<Record<number, FilterValue>>({})
   const [countdown, setCountdown] = useState(60)
+  const [feedback, setFeedback] = useState('')
+  const feedbackInputRef = useRef<HTMLTextAreaElement>(null)
   const cancelRef = useRef(cancelSmartFilter)
   cancelRef.current = cancelSmartFilter
 
@@ -33,6 +37,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   const isConfirmed = info.status === 'confirmed'
   const isDone = info.status === 'done'
   const isCancelled = info.status === 'cancelled'
+  const isRevised = info.status === 'revised'
 
   // Initialize default values
   useEffect(() => {
@@ -97,6 +102,19 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
     cancelSmartFilter(messageId)
   }, [cancelSmartFilter, messageId])
 
+  const handleSubmitFeedback = useCallback(() => {
+    const text = feedback.trim()
+    if (!text) return
+    reviseSmartFilter(messageId, text)
+  }, [reviseSmartFilter, messageId, feedback])
+
+  const handleFeedbackKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmitFeedback()
+    }
+  }, [handleSubmitFeedback])
+
   if (isLoading) {
     return (
       <div className="border border-gray-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -129,6 +147,8 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
         ) : isConfirmed ? (
           <Loader2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0 animate-spin" />
+        ) : isRevised ? (
+          <RotateCcw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
         ) : isCancelled ? (
           <XCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
         ) : (
@@ -143,6 +163,11 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
           </span>
         )}
         {isCancelled && <span className="text-xs text-gray-400 ml-0.5">已跳过</span>}
+        {isRevised && (
+          <span className="text-xs bg-primary text-white px-1.5 py-px rounded-full font-medium ml-0.5">
+            已修改
+          </span>
+        )}
       </div>
 
       {/* Filter controls */}
@@ -159,20 +184,63 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
         ))}
       </div>
 
+      {/* Revision feedback display */}
+      {isRevised && info.revisionFeedback && (
+        <div className="px-3 pb-2.5">
+          <div className="text-xs text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2">
+            <span className="font-medium">修改建议：</span>{info.revisionFeedback}
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       {isPending && (
-        <div className="flex items-center gap-2 px-3 py-2.5 border-t border-gray-100 bg-gray-50/30">
-          <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
-            <Send className="size-3 mr-1" />
-            确认筛选
-          </Button>
-          <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs px-3">
-            <SkipForward className="size-3 mr-1" />
-            跳过筛选
-          </Button>
-          <span className="text-[11px] text-muted-foreground ml-1">
-            可调整参数后确认，或直接跳过
-          </span>
+        <div className="border-t border-gray-100">
+          <div className="px-3 pt-2.5 pb-2">
+            <div className="relative">
+              <textarea
+                ref={feedbackInputRef}
+                value={feedback}
+                onChange={(e) => setFeedback(e.target.value)}
+                onKeyDown={handleFeedbackKeyDown}
+                placeholder="对筛选不满意？输入修改建议，如：增加按地区筛选、去掉时间范围、改为按周统计..."
+                className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 pr-9 resize-none bg-gray-50/50 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
+                rows={1}
+              />
+              {feedback.trim() && (
+                <button
+                  onClick={handleSubmitFeedback}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
+                  title="提交修改建议 (Enter)"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-50 bg-gray-50/30">
+            {feedback.trim() ? (
+              <Button onClick={handleSubmitFeedback} size="sm" className="h-7 text-xs px-3">
+                <RotateCcw className="size-3 mr-1" />
+                按建议重新生成
+              </Button>
+            ) : (
+              <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
+                <Send className="size-3 mr-1" />
+                确认筛选
+              </Button>
+            )}
+            <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs px-3">
+              <SkipForward className="size-3 mr-1" />
+              跳过筛选
+            </Button>
+            {!feedback.trim() && (
+              <span className="text-[11px] text-muted-foreground ml-1">
+                可调整参数后确认，或直接跳过
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -217,30 +285,34 @@ function FilterControlRow({ filter, value, onChange, disabled }: FilterControlRo
           />
         )}
         {filter.type === 'enum_select' && (
-          <EnumSelectControl
+          <FilterCombobox
             label={filter.label}
-            enumValues={filter.enumValues ?? []}
+            options={filter.enumValues ?? []}
             value={value?.enumValue}
             onChange={(enumValue) => onChange({ enumValue })}
             disabled={disabled}
+            allowAll
+            placeholder="搜索筛选值..."
           />
         )}
         {filter.type === 'option_select' && (
-          <OptionSelectControl
+          <FilterCombobox
             label={filter.label}
             options={filter.options ?? []}
             value={value?.optionValue}
             onChange={(optionValue) => onChange({ optionValue })}
             disabled={disabled}
+            placeholder="搜索或输入..."
           />
         )}
         {filter.type === 'aggregation' && (
-          <AggregationControl
+          <FilterCombobox
             label={filter.label}
             options={filter.aggregationOptions ?? ['按日', '按周', '按月']}
             value={value?.aggregation}
             onChange={(aggregation) => onChange({ aggregation })}
             disabled={disabled}
+            placeholder="搜索聚合方式..."
           />
         )}
       </div>
@@ -384,108 +456,104 @@ function DateRangeControl({ label, value, onChange, disabled }: DateRangeControl
 }
 
 // ────────────────────────────────────────────────────────────
-//  Enum select control
+//  FilterCombobox — searchable dropdown with custom input
 // ────────────────────────────────────────────────────────────
 
-interface EnumSelectControlProps {
-  label: string
-  enumValues: string[]
-  value?: string
-  onChange: (value: string) => void
-  disabled: boolean
-}
-
-function EnumSelectControl({ label, enumValues, value, onChange, disabled }: EnumSelectControlProps) {
-  const currentValue = value ?? ''
-
-  const handleChange = (val: string) => {
-    onChange(val === '__all__' ? '' : val)
-  }
-
-  return (
-    <div className="flex items-center gap-2 py-1.5">
-      <span className="text-xs font-medium text-muted-foreground min-w-[60px]">{label}</span>
-      <Select value={currentValue || '__all__'} onValueChange={handleChange} disabled={disabled}>
-        <SelectTrigger size="sm" className="text-xs min-w-[120px]">
-          <SelectValue placeholder="全部" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">全部</SelectItem>
-          {enumValues.map((v) => (
-            <SelectItem key={v} value={v}>
-              {v}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
-
-// ────────────────────────────────────────────────────────────
-//  Option select control (model-provided options, no DB query)
-// ────────────────────────────────────────────────────────────
-
-interface OptionSelectControlProps {
+interface FilterComboboxProps {
   label: string
   options: string[]
   value?: string
   onChange: (value: string) => void
   disabled: boolean
+  allowAll?: boolean
+  placeholder?: string
 }
 
-function OptionSelectControl({ label, options, value, onChange, disabled }: OptionSelectControlProps) {
-  const currentValue = value ?? options[0] ?? ''
+function FilterCombobox({ label, options, value, onChange, disabled, allowAll, placeholder }: FilterComboboxProps) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
 
-  return (
-    <div className="flex items-center gap-2 py-1.5">
-      <span className="text-xs font-medium text-muted-foreground min-w-[60px]">{label}</span>
-      <Select value={currentValue} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger size="sm" className="text-xs min-w-[120px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt} value={opt}>
-              {opt}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+  const isCustomValue = !!(value && value !== '' && !options.includes(value))
+
+  const showCustomOption = search.trim() !== '' && !options.some(
+    (opt) => opt.toLowerCase() === search.trim().toLowerCase(),
   )
-}
 
-// ────────────────────────────────────────────────────────────
-//  Aggregation control
-// ────────────────────────────────────────────────────────────
-
-interface AggregationControlProps {
-  label: string
-  options: string[]
-  value?: string
-  onChange: (value: string) => void
-  disabled: boolean
-}
-
-function AggregationControl({ label, options, value, onChange, disabled }: AggregationControlProps) {
-  const currentValue = value ?? options[0] ?? ''
+  const displayValue = value || (allowAll ? '全部' : placeholder ?? '选择...')
 
   return (
     <div className="flex items-center gap-2 py-1.5">
       <span className="text-xs font-medium text-muted-foreground min-w-[60px]">{label}</span>
-      <Select value={currentValue} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger size="sm" className="text-xs min-w-[100px]">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((opt) => (
-            <SelectItem key={opt} value={opt}>
-              {opt}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="xs"
+            disabled={disabled}
+            className={cn(
+              'font-normal text-[11px] justify-between gap-1 min-w-[120px] max-w-[200px]',
+              !value && allowAll && 'text-muted-foreground',
+            )}
+          >
+            <span className="truncate">{displayValue}</span>
+            <ChevronsUpDown className="size-3 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[220px] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder={placeholder ?? '搜索或输入...'}
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList>
+              <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
+                无匹配选项，可直接输入自定义值
+              </CommandEmpty>
+              <CommandGroup>
+                {allowAll && (
+                  <CommandItem
+                    onSelect={() => { onChange(''); setOpen(false); setSearch('') }}
+                  >
+                    <Check className={cn('size-3 mr-1.5', !value ? 'opacity-100' : 'opacity-0')} />
+                    全部
+                  </CommandItem>
+                )}
+                {options
+                  .filter((opt) => !search || opt.toLowerCase().includes(search.toLowerCase()))
+                  .map((opt) => (
+                    <CommandItem
+                      key={opt}
+                      value={opt}
+                      onSelect={() => { onChange(opt); setOpen(false); setSearch('') }}
+                    >
+                      <Check className={cn('size-3 mr-1.5', value === opt ? 'opacity-100' : 'opacity-0')} />
+                      <span className="truncate">{opt}</span>
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+              {showCustomOption && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="自定义">
+                    <CommandItem
+                      onSelect={() => { onChange(search.trim()); setOpen(false); setSearch('') }}
+                    >
+                      <PencilLine className="size-3 mr-1.5 text-primary" />
+                      <span className="text-primary">使用: {search.trim()}</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {isCustomValue && !disabled && (
+        <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded font-medium">
+          自定义
+        </span>
+      )}
     </div>
   )
 }

@@ -15,11 +15,11 @@ interface MessageBubbleProps {
   toolCallExpanded?: boolean
 }
 
-function StreamingIndicator() {
+function StreamingIndicator({ text }: { text?: string }) {
   return (
     <div className="flex items-center gap-1.5 py-1 text-gray-400">
       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      <span className="text-xs">处理中...</span>
+      <span className="text-xs">{text || '处理中...'}</span>
     </div>
   )
 }
@@ -71,7 +71,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
         }
       })}
 
-      {showTailIndicator && <StreamingIndicator />}
+      {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
       {message.sqlConfirm && (
         <SqlConfirmBlock
@@ -132,7 +132,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
         <MarkdownContent content={message.content} />
       )}
 
-      {showTailIndicator && <StreamingIndicator />}
+      {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
       {hasSqlConfirm && (
         <SqlConfirmBlock
@@ -177,7 +177,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm || message.smartFilterConfirm
 
   if (isStreaming && !hasContent && !hasLegacyContent) {
-    return <StreamingIndicator />
+    return <StreamingIndicator text={message.statusText} />
   }
 
   if (message.parts && message.parts.length > 0) {

@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
 import { createDbAgent } from '@/server/agent'
+import { classifyIntentWithLLM } from '@/server/intent-router'
 import { TOOL_ERROR_PREFIX, type ResultStore } from '@/server/tools'
 import { decrypt } from '@/server/crypto'
 import { langfuseSpanProcessor, flushTraces, resolveUserId } from '@/server/langfuse'
@@ -22,6 +23,7 @@ interface ChatInput {
   sqlExecutedCount?: number
   maxSqlExecutions?: number
   sessionId?: string
+  isContinuation?: boolean
 }
 
 function drainToolResults(
@@ -78,6 +80,25 @@ export const chatStream = createServerFn({ method: 'POST' })
             }
             const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
             const effectiveSqlPermission = decryptedConnection.env === 'prod' ? 'readonly' : data.sqlPermission
+
+            // Intent classification: skip for continuation scenarios (SQL result/error, revise, filter confirm)
+            let intent = null
+            if (!data.isContinuation && data.message) {
+              controller.enqueue(encoder.encode(formatSSE({ type: 'status', message: '意图分析中...' })))
+              const hasHistory = (data.executionLog?.length ?? 0) > 0
+              intent = await classifyIntentWithLLM(data.message, hasHistory, {
+                provider: data.provider as any,
+                model: data.model || '',
+                apiKey: decryptedApiKey,
+                baseURL: data.baseURL,
+              })
+            }
+
+            controller.enqueue(encoder.encode(formatSSE({
+              type: 'status',
+              message: data.isContinuation ? '分析结果中...' : '生成回复中...',
+            })))
+
             const { agent, resultStore } = await createDbAgent(decryptedConnection, {
               provider: data.provider as any,
               model: data.model,
@@ -91,6 +112,7 @@ export const chatStream = createServerFn({ method: 'POST' })
               sqlExecutedCount: data.sqlExecutedCount,
               maxSqlExecutions: data.maxSqlExecutions,
               userQuery: data.message,
+              intent,
             })
             const agentStream = agent.stream({
               prompt: data.message,

@@ -48,6 +48,7 @@ export interface ChatMessage {
   smartFilterConfirm?: SmartFilterConfirmInfo
   smartFilterValues?: Record<number, FilterValue>
   analysisReport?: AnalysisReport
+  statusText?: string
   timestamp: string
   answerDuration?: number
   answerQueryCount?: number
@@ -65,8 +66,9 @@ export interface ToolCallInfo {
 
 export interface SmartFilterConfirmInfo {
   suggestedFilters: SuggestedFilter[]
-  status: 'loading' | 'pending' | 'confirmed' | 'done' | 'cancelled'
+  status: 'loading' | 'pending' | 'confirmed' | 'done' | 'cancelled' | 'revised'
   error?: string
+  revisionFeedback?: string
 }
 
 export interface SuggestedFilter {
@@ -99,8 +101,9 @@ export interface SqlConfirmInfo {
   explanation: string
   intent_summary?: string
   expected_shape?: string
-  status: 'loading' | 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'error'
+  status: 'loading' | 'pending' | 'confirmed' | 'cancelled' | 'executed' | 'error' | 'revised'
   error?: string
+  revisionFeedback?: string
 }
 
 export interface ChartColumnHint {
@@ -148,5 +151,6 @@ export type StreamChunk =
   | { type: 'sql-result'; data: SqlResultInfo }
   | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }
   | { type: 'analysis-report'; report: AnalysisReport }
+  | { type: 'status'; message: string }
   | { type: 'error'; message: string }
   | { type: 'finish' }
