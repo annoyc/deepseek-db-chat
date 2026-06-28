@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, createContext, useContext } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from 'react'
 import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry, FilterValue, SuggestedFilter } from '@/lib/types'
 import { generateId } from '@/lib/utils'
 import { maskPII } from '@/lib/masking'
@@ -224,6 +224,17 @@ async function saveSessionsToStorage(sessions: ChatSession[]) {
   } catch (err) { console.warn('[useChat] Failed to save sessions to storage:', err) }
 }
 
+function createAssistantMessage(): ChatMessage {
+  return {
+    id: generateId(),
+    role: 'assistant',
+    content: '',
+    thinking: '',
+    toolCalls: [],
+    timestamp: new Date().toISOString(),
+  }
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -408,6 +419,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     let hasSmartFilterConfirm = false
     let pendingSmartFilterFilters: SuggestedFilter[] | null = null
     let hasToolCalls = false
+    let smartFilterLoadingStarted = false
 
     const connection = getFullConnection(connectionId)
     if (!connection) throw new Error('数据库连接不存在')
@@ -448,18 +460,19 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current?.signal)) {
-      if (chunk.type === 'tool-call-start' && chunk.name === 'execute_sql') {
+      if (chunk.type === 'sql-confirm') {
         hasSqlConfirm = true
         pendingSqlConfirm = {
-          sql: String(chunk.args?.sql ?? ''),
-          explanation: String(chunk.args?.explanation ?? ''),
-          intent_summary: chunk.args?.intent_summary ? String(chunk.args.intent_summary) : undefined,
-          expected_shape: chunk.args?.expected_shape ? String(chunk.args.expected_shape) : undefined,
+          sql: chunk.sql,
+          explanation: chunk.explanation,
+          intent_summary: chunk.intent_summary,
+          expected_shape: chunk.expected_shape,
         }
         break
       }
 
       if (chunk.type === 'tool-call-start' && chunk.name === 'smart_filter') {
+        smartFilterLoadingStarted = true
         updateSession(sessionId, (s) => {
           const messages = [...s.messages]
           const lastMsg = { ...messages[messages.length - 1] }
@@ -470,9 +483,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (chunk.type === 'smart-filter-confirm') {
-        hasSmartFilterConfirm = true
-        pendingSmartFilterFilters = chunk.suggestedFilters
-        break
+        if (chunk.suggestedFilters.length > 0) {
+          hasSmartFilterConfirm = true
+          pendingSmartFilterFilters = chunk.suggestedFilters
+          break
+        }
+        continue
       }
 
       if (chunk.type === 'tool-call-start') hasToolCalls = true
@@ -490,7 +506,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       // Clean up any tool calls still in 'calling' state
       if (lastMsg.toolCalls) {
         lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
-          tc.status === 'calling' ? { ...tc, status: 'error', error: '未收到执行结果' } : tc
+          tc.status === 'calling' && tc.name !== 'execute_sql' && tc.name !== 'smart_filter'
+            ? { ...tc, status: 'error', error: '未收到执行结果' }
+            : tc
         )
       }
       messages[messages.length - 1] = lastMsg
@@ -510,20 +528,32 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         messages[messages.length - 1] = lastMsg
         return { ...s, messages }
       })
+    } else if (smartFilterLoadingStarted) {
+      updateSession(sessionId, (s) => {
+        const messages = [...s.messages]
+        const lastMsg = { ...messages[messages.length - 1] }
+        if (lastMsg.smartFilterConfirm?.status === 'loading') {
+          lastMsg.smartFilterConfirm = undefined
+          messages[messages.length - 1] = lastMsg
+          return { ...s, messages }
+        }
+        return s
+      })
     }
 
     // Hallucination detection
     const assistantContent = buffer.text
+    // Whether there is prior SQL execution context (distinct from the `isContinuation`
+    // parameter which marks confirm/revise/error-retry continuations at the API level).
     const isSqlResultMessage = /^以下SQL(?:已执行完成|执行失败)/.test(message)
-    const hasExecutionHistory = (executionLog?.length ?? 0) > 0
-    const isFollowUp = isSqlResultMessage || hasExecutionHistory
+    const hasExecutionContext = isSqlResultMessage || (executionLog?.length ?? 0) > 0
     if (retryCount < 1 && !hasSqlConfirm && !hasSmartFilterConfirm && assistantContent.length > 30) {
       try {
         const classification = await classifyHallucination({
           data: {
             assistantContent,
             hasToolCalls,
-            isContinuation: isFollowUp,
+            isContinuation: hasExecutionContext,
             provider,
             model,
             apiKey: apiKey || undefined,
@@ -549,8 +579,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             { role: 'assistant' as const, content: assistantContent },
             { role: 'user' as const, content: correctiveMessage },
           ]
-          await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1, true)
-          return hasSqlConfirm
+          return await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1, true)
         }
       } catch (err) {
         console.warn('[useChat] SQL classification failed, skipping retry:', err)
@@ -558,7 +587,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     return hasSqlConfirm || hasSmartFilterConfirm
-  }, [updateSession, model, apiKey, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions, getFullConnection])
+  }, [updateSession, provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions, getFullConnection])
 
   processStreamRef.current = processStream
 
@@ -594,7 +623,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('[useChat] AI title generation failed:', err)
     }
-  }, [updateSession, model, apiKey])
+  }, [updateSession, provider, model, apiKey, baseURL])
 
   const markTaskComplete = useCallback((sessionId: string) => {
     const providerName = PROVIDERS.find((p) => p.id === provider)?.name ?? provider
@@ -650,14 +679,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       timestamp: new Date().toISOString(),
     }
 
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
+    const assistantMessage = createAssistantMessage()
 
     updateSession(sessionId, (s) => ({
       ...s,
@@ -694,17 +716,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
 
-  const continueWithSqlResult = useCallback(async (sessionId: string, connectionId: string, sql: string, result: SqlResultInfo): Promise<boolean> => {
-    const resultSummary = formatSqlResultForAI(sql, result)
-
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
+  const appendAssistantAndProcess = useCallback(async (
+    sessionId: string,
+    connectionId: string,
+    prompt: string,
+  ): Promise<boolean> => {
+    const assistantMessage = createAssistantMessage()
 
     updateSession(sessionId, (s) => ({
       ...s,
@@ -715,49 +732,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
     const history = buildApiHistory(currentSession?.messages ?? [])
 
-    return await processStream(sessionId, connectionId, resultSummary, history, 0, true)
+    return await processStream(sessionId, connectionId, prompt, history, 0, true)
   }, [updateSession, processStream])
 
-  const continueWithSqlError = useCallback(async (sessionId: string, connectionId: string, sql: string, errorMsg: string): Promise<boolean> => {
-    const errorSummary = [
-      `以下SQL执行失败：`,
-      '```sql',
-      sql,
-      '```',
-      '',
-      `错误信息: ${errorMsg}`,
-      '',
-      '【请按以下步骤自纠错】：',
-      '1. 分析错误类型：',
-      '   - "Unknown column" → 字段名错误，调用 get_table_schema 确认正确字段名',
-      '   - "Table doesn\'t exist" → 表名错误，调用 get_database_overview 确认表名',
-      '   - "You have an error in your SQL syntax" → 语法错误，检查 SQL 语法',
-      '   - "Column count doesn\'t match" → INSERT 列数不匹配，重新核对列',
-      '   - 其他错误 → 根据错误信息推理修复方案',
-      '2. 根据分析结果修正 SQL',
-      '3. 调用 execute_sql 提交修正后的 SQL',
-      '重要：禁止盲目重试相同的 SQL，必须基于错误分析做出有针对性的修改。',
-    ].join('\n')
+  const runContinuation = useCallback(async (sessionId: string, connectionId: string, prompt: string) => {
+    setIsStreaming(true)
+    abortControllerRef.current = new AbortController()
 
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
+    try {
+      const hasSqlConfirm = await appendAssistantAndProcess(sessionId, connectionId, prompt)
+      if (!hasSqlConfirm) {
+        markTaskComplete(sessionId)
+        generateAiTitleForSession(sessionId)
+      }
+    } finally {
+      setIsStreaming(false)
     }
-
-    updateSession(sessionId, (s) => ({
-      ...s,
-      messages: [...s.messages, assistantMessage],
-      updatedAt: new Date().toISOString(),
-    }))
-
-    const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
-    const history = buildApiHistory(currentSession?.messages ?? [])
-    return await processStream(sessionId, connectionId, errorSummary, history, 0, true)
-  }, [updateSession, processStream])
+  }, [appendAssistantAndProcess, markTaskComplete, generateAiTitleForSession])
 
   const confirmSql = useCallback(async (messageId: string) => {
     if (!activeSessionId || !activeConnectionId) return
@@ -777,18 +768,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     try {
-    const connection = getFullConnection(activeConnectionId)
-    if (!connection) return
+      const connection = getFullConnection(activeConnectionId)
+      if (!connection) return
 
-    const execResult = await confirmAndExecuteSql({
-      data: {
-        connection,
-        sql: message.sqlConfirm.sql,
-        sqlPermission,
-      },
-    })
+      const execResult = await confirmAndExecuteSql({
+        data: {
+          connection,
+          sql: message.sqlConfirm.sql,
+          sqlPermission,
+        },
+      })
 
-    if (!execResult.success) {
+      if (!execResult.success) {
         updateSession(activeSessionId, (s) => {
           const messages = s.messages.map((m) => {
             if (m.id === messageId && m.sqlConfirm) {
@@ -806,17 +797,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return { ...s, messages, executionLog }
         })
 
-        setIsStreaming(true)
-        abortControllerRef.current = new AbortController()
-        try {
-          const hasSqlConfirm = await continueWithSqlError(activeSessionId, activeConnectionId, message.sqlConfirm.sql, execResult.error)
-          if (!hasSqlConfirm) {
-            markTaskComplete(activeSessionId)
-            generateAiTitleForSession(activeSessionId)
-          }
-        } finally {
-          setIsStreaming(false)
-        }
+        await runContinuation(activeSessionId, activeConnectionId, formatSqlErrorForAI(message.sqlConfirm.sql, execResult.error))
         return
       }
 
@@ -872,17 +853,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         })
       }
 
-      setIsStreaming(true)
-      abortControllerRef.current = new AbortController()
-      try {
-        const hasSqlConfirm = await continueWithSqlResult(activeSessionId, activeConnectionId, message.sqlConfirm.sql, result)
-        if (!hasSqlConfirm) {
-          markTaskComplete(activeSessionId)
-          generateAiTitleForSession(activeSessionId)
-        }
-      } finally {
-        setIsStreaming(false)
-      }
+      await runContinuation(activeSessionId, activeConnectionId, formatSqlResultForAI(message.sqlConfirm.sql, result))
     } catch (err) {
       console.error('[confirmSql] Unexpected error:', err)
       setIsStreaming(false)
@@ -896,7 +867,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return { ...s, messages }
       })
     }
-  }, [activeSessionId, activeConnectionId, updateSession, continueWithSqlResult, continueWithSqlError, markTaskComplete, generateAiTitleForSession, getFullConnection, confirmAndExecuteSql, sqlPermission])
+  }, [activeSessionId, activeConnectionId, updateSession, runContinuation, getFullConnection, confirmAndExecuteSql, sqlPermission, provider, model, apiKey, baseURL])
 
   const cancelSql = useCallback((messageId: string) => {
     if (!activeSessionId) return
@@ -912,22 +883,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     markTaskComplete(activeSessionId)
   }, [activeSessionId, updateSession, markTaskComplete])
 
-  const reviseSql = useCallback(async (messageId: string, feedback: string) => {
+  const reviseAndContinue = useCallback(async (
+    statusUpdater: (s: ChatSession) => ChatSession,
+    revisionPrompt: string,
+  ) => {
     if (!activeSessionId || !activeConnectionId) return
 
+    updateSession(activeSessionId, statusUpdater)
+
+    await runContinuation(activeSessionId, activeConnectionId, revisionPrompt)
+  }, [activeSessionId, activeConnectionId, updateSession, runContinuation])
+
+  const reviseSql = useCallback(async (messageId: string, feedback: string) => {
     const session = sessionsRef.current.find((s) => s.id === activeSessionId)
     const message = session?.messages.find((m) => m.id === messageId)
     if (!message?.sqlConfirm) return
-
-    updateSession(activeSessionId, (s) => {
-      const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.sqlConfirm) {
-          return { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'revised' as const, revisionFeedback: feedback } }
-        }
-        return m
-      })
-      return { ...s, messages }
-    })
 
     const revisionPrompt = [
       '用户对你生成的 SQL 有修改建议，请根据反馈修正后重新调用 execute_sql 提交。',
@@ -943,37 +913,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       '请根据用户反馈修改 SQL，保留原始查询的基本意图，调用 execute_sql 提交修正后的 SQL。',
     ].filter(Boolean).join('\n')
 
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
-
-    updateSession(activeSessionId, (s) => ({
-      ...s,
-      messages: [...s.messages, assistantMessage],
-      updatedAt: new Date().toISOString(),
-    }))
-
-    setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
-
-    try {
-      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
-      const history = buildApiHistory(currentSession?.messages ?? [])
-
-      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, revisionPrompt, history, 0, true)
-      if (!hasSqlConfirm) {
-        markTaskComplete(activeSessionId)
-        generateAiTitleForSession(activeSessionId)
-      }
-    } finally {
-      setIsStreaming(false)
-    }
-  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession])
+    await reviseAndContinue(
+      (s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.id === messageId && m.sqlConfirm
+            ? { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'revised' as const, revisionFeedback: feedback } }
+            : m,
+        ),
+      }),
+      revisionPrompt,
+    )
+  }, [activeSessionId, reviseAndContinue])
 
   // ── Smart Filter confirm/cancel ──
   const confirmSmartFilter = useCallback(async (messageId: string, filterValues: Record<number, FilterValue>) => {
@@ -982,6 +933,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const session = sessionsRef.current.find((s) => s.id === activeSessionId)
     const message = session?.messages.find((m) => m.id === messageId)
     if (!message?.smartFilterConfirm) return
+    if (message.smartFilterConfirm.status !== 'pending') return
 
     const msgIndex = session?.messages.findIndex((m) => m.id === messageId) ?? -1
     const userMsg = msgIndex > 0 ? session?.messages[msgIndex - 1] : null
@@ -990,7 +942,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // Update status to confirmed and store values
     updateSession(activeSessionId, (s) => {
       const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.smartFilterConfirm) {
+        if (m.id === messageId && m.smartFilterConfirm?.status === 'pending') {
           return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'confirmed' as const }, smartFilterValues: filterValues }
         }
         return m
@@ -1000,24 +952,6 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     // Build enhanced prompt from filter values
     const enhancedPrompt = buildEnhancedPrompt(originalQuery, message.smartFilterConfirm.suggestedFilters, filterValues)
-
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
-
-    updateSession(activeSessionId, (s) => ({
-      ...s,
-      messages: [...s.messages, assistantMessage],
-      updatedAt: new Date().toISOString(),
-    }))
-
-    setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
 
     updateSession(activeSessionId, (s) => {
       const messages = s.messages.map((m) => {
@@ -1029,29 +963,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return { ...s, messages }
     })
 
-    try {
-      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
-      const history = buildApiHistory(currentSession?.messages ?? [])
-      const connection = getFullConnection(activeConnectionId)
-      if (!connection) return
-
-      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, enhancedPrompt, history, 0, true)
-      if (!hasSqlConfirm) {
-        markTaskComplete(activeSessionId)
-        generateAiTitleForSession(activeSessionId)
-      }
-    } finally {
-      setIsStreaming(false)
-    }
-  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+    await runContinuation(activeSessionId, activeConnectionId, enhancedPrompt)
+  }, [activeSessionId, activeConnectionId, updateSession, runContinuation])
 
   const cancelSmartFilter = useCallback(async (messageId: string) => {
     if (!activeSessionId || !activeConnectionId) return
 
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    const message = session?.messages.find((m) => m.id === messageId)
+    if (message?.smartFilterConfirm?.status !== 'pending') return
+
     // Update status to cancelled
     updateSession(activeSessionId, (s) => {
       const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.smartFilterConfirm) {
+        if (m.id === messageId && m.smartFilterConfirm?.status === 'pending') {
           return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'cancelled' as const } }
         }
         return m
@@ -1060,56 +985,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Continue conversation without filter parameters
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
-
-    updateSession(activeSessionId, (s) => ({
-      ...s,
-      messages: [...s.messages, assistantMessage],
-      updatedAt: new Date().toISOString(),
-    }))
-
-    setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
-
-    try {
-      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
-      const history = buildApiHistory(currentSession?.messages ?? [])
-      const connection = getFullConnection(activeConnectionId)
-      if (!connection) return
-
-      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, '请继续帮我查询，不需要调整筛选参数。', history, 0, true)
-      if (!hasSqlConfirm) {
-        markTaskComplete(activeSessionId)
-        generateAiTitleForSession(activeSessionId)
-      }
-    } finally {
-      setIsStreaming(false)
-    }
-  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+    await runContinuation(activeSessionId, activeConnectionId, '请继续帮我查询，不需要调整筛选参数。')
+  }, [activeSessionId, activeConnectionId, updateSession, runContinuation])
 
   const reviseSmartFilter = useCallback(async (messageId: string, feedback: string) => {
-    if (!activeSessionId || !activeConnectionId) return
-
     const session = sessionsRef.current.find((s) => s.id === activeSessionId)
     const message = session?.messages.find((m) => m.id === messageId)
     if (!message?.smartFilterConfirm) return
-
-    updateSession(activeSessionId, (s) => {
-      const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.smartFilterConfirm) {
-          return { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'revised' as const, revisionFeedback: feedback } }
-        }
-        return m
-      })
-      return { ...s, messages }
-    })
+    if (message.smartFilterConfirm.status !== 'pending') return
 
     const filterSummary = message.smartFilterConfirm.suggestedFilters
       .map((f) => `- ${f.label} (${f.type}: ${f.table}.${f.column})`)
@@ -1126,39 +1009,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       '请根据用户反馈调整筛选维度后重新调用 smart_filter，调用后立即停止回复。',
     ].join('\n')
 
-    const assistantMessage: ChatMessage = {
-      id: generateId(),
-      role: 'assistant',
-      content: '',
-      thinking: '',
-      toolCalls: [],
-      timestamp: new Date().toISOString(),
-    }
-
-    updateSession(activeSessionId, (s) => ({
-      ...s,
-      messages: [...s.messages, assistantMessage],
-      updatedAt: new Date().toISOString(),
-    }))
-
-    setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
-
-    try {
-      const currentSession = sessionsRef.current.find((s) => s.id === activeSessionId)
-      const history = buildApiHistory(currentSession?.messages ?? [])
-      const connection = getFullConnection(activeConnectionId)
-      if (!connection) return
-
-      const hasSqlConfirm = await processStream(activeSessionId, activeConnectionId, revisionPrompt, history, 0, true)
-      if (!hasSqlConfirm) {
-        markTaskComplete(activeSessionId)
-        generateAiTitleForSession(activeSessionId)
-      }
-    } finally {
-      setIsStreaming(false)
-    }
-  }, [activeSessionId, activeConnectionId, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+    await reviseAndContinue(
+      (s) => ({
+        ...s,
+        messages: s.messages.map((m) =>
+          m.id === messageId && m.smartFilterConfirm?.status === 'pending'
+            ? { ...m, smartFilterConfirm: { ...m.smartFilterConfirm, status: 'revised' as const, revisionFeedback: feedback } }
+            : m,
+        ),
+      }),
+      revisionPrompt,
+    )
+  }, [activeSessionId, reviseAndContinue])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -1205,7 +1067,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     updateSession(activeSessionId, (s) => ({ ...s, messages: [], taskStartTime: undefined, taskEndTime: undefined }))
   }, [activeSessionId, updateSession])
 
-  const value: ChatState = {
+  const value = useMemo<ChatState>(() => ({
     sessions,
     activeSessionId,
     activeSession,
@@ -1223,7 +1085,25 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     confirmSmartFilter,
     cancelSmartFilter,
     reviseSmartFilter,
-  }
+  }), [
+    sessions,
+    activeSessionId,
+    activeSession,
+    isStreaming,
+    handleSetActiveSession,
+    createNewSession,
+    deleteSession,
+    renameSession,
+    sendMessage,
+    stopStreaming,
+    clearMessages,
+    confirmSql,
+    cancelSql,
+    reviseSql,
+    confirmSmartFilter,
+    cancelSmartFilter,
+    reviseSmartFilter,
+  ])
 
   return (
     <ChatContext.Provider value={value}>
@@ -1305,6 +1185,28 @@ function summarizeSqlResult(result: SqlResultInfo): string {
     return `返回 ${result.rowCount} 行，耗时 ${result.executionTime}ms`
   }
   return '查询无返回数据'
+}
+
+function formatSqlErrorForAI(sql: string, errorMsg: string): string {
+  return [
+    `以下SQL执行失败：`,
+    '```sql',
+    sql,
+    '```',
+    '',
+    `错误信息: ${errorMsg}`,
+    '',
+    '【请按以下步骤自纠错】：',
+    '1. 分析错误类型：',
+    '   - "Unknown column" → 字段名错误，调用 get_table_schema 确认正确字段名',
+    '   - "Table doesn\'t exist" → 表名错误，调用 get_database_overview 确认表名',
+    '   - "You have an error in your SQL syntax" → 语法错误，检查 SQL 语法',
+    '   - "Column count doesn\'t match" → INSERT 列数不匹配，重新核对列',
+    '   - 其他错误 → 根据错误信息推理修复方案',
+    '2. 根据分析结果修正 SQL',
+    '3. 调用 execute_sql 提交修正后的 SQL',
+    '重要：禁止盲目重试相同的 SQL，必须基于错误分析做出有针对性的修改。',
+  ].join('\n')
 }
 
 /**

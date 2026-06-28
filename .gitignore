@@ -2,6 +2,7 @@ node_modules/
 dist/
 .output/
 docs/
+.pnpm-store/
 .env
 *.local
 .DS_Store

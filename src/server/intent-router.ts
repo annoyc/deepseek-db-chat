@@ -94,11 +94,11 @@ const SKIP_OVERVIEW_INTENTS: ReadonlySet<QueryIntent> = new Set<QueryIntent>(['a
 /** Threshold: needsFilter above this value triggers the hard gate. */
 export const FILTER_CONFIDENCE_THRESHOLD = 0.5
 
-function fallbackClassification(reason: string): IntentClassification {
+function fallbackClassification(reason: string, needsFilter = 0): IntentClassification {
   return {
     intent: 'simple_query',
     confidence: 0,
-    needsFilter: 0.9,
+    needsFilter,
     needsPlanning: false,
     reasoning: reason,
     routingHint: ROUTING_HINTS.simple_query,
@@ -149,7 +149,7 @@ export async function classifyIntentWithLLM(
 
     const parsed = result.output
     if (!parsed) {
-      return fallbackClassification('classifier returned no structured output')
+      return fallbackClassification('classifier returned no structured output', 0.9)
     }
 
     return {
@@ -164,7 +164,7 @@ export async function classifyIntentWithLLM(
     }
   } catch (err) {
     console.error('[intent-router] classifyIntentWithLLM failed:', err)
-    return fallbackClassification('classification call failed')
+    return fallbackClassification('classification call failed', 0.9)
   }
 }
 

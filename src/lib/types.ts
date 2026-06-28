@@ -147,7 +147,7 @@ export type StreamChunk =
   | { type: 'text'; content: string }
   | { type: 'tool-call-start'; name: string; args: Record<string, unknown> }
   | { type: 'tool-call-end'; name: string; result: string; error?: string }
-  | { type: 'sql-confirm'; sql: string; explanation: string }
+  | { type: 'sql-confirm'; sql: string; explanation: string; intent_summary?: string; expected_shape?: string }
   | { type: 'sql-result'; data: SqlResultInfo }
   | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }
   | { type: 'analysis-report'; report: AnalysisReport }

@@ -85,7 +85,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             let intent = null
             if (!data.isContinuation && data.message) {
               controller.enqueue(encoder.encode(formatSSE({ type: 'status', message: '意图分析中...' })))
-              const hasHistory = (data.executionLog?.length ?? 0) > 0
+              const hasHistory = (data.executionLog?.length ?? 0) > 0 || (data.history?.length ?? 0) > 0
               intent = await classifyIntentWithLLM(data.message, hasHistory, {
                 provider: data.provider as any,
                 model: data.model || '',
@@ -169,24 +169,57 @@ export const chatStream = createServerFn({ method: 'POST' })
                 }
 
                 case 'step': {
+                  // Peek at execute_sql result BEFORE draining to decide break behavior
+                  if (executeSqlDetected) {
+                    const sqlQueue = resultStore.get('execute_sql')
+                    if (sqlQueue && sqlQueue.length > 0) {
+                      let isPendingConfirmation = false
+                      try {
+                        const parsed = JSON.parse(sqlQueue[0])
+                        if (parsed.status === 'pending_confirmation') {
+                          controller.enqueue(encoder.encode(formatSSE({
+                            type: 'sql-confirm' as const,
+                            sql: parsed.sql,
+                            explanation: parsed.explanation,
+                            intent_summary: parsed.intent_summary,
+                            expected_shape: parsed.expected_shape,
+                          })))
+                          isPendingConfirmation = true
+                        }
+                      } catch { /* non-JSON result (e.g. security error) — let agent see it and self-correct */ }
+                      if (isPendingConfirmation) {
+                        shouldBreak = true
+                      } else {
+                        executeSqlDetected = false
+                      }
+                    }
+                  }
+
                   const smartFilterResult = drainToolResults(pendingToolNames, resultStore, encoder, controller)
 
-                  if (smartFilterDetected && smartFilterResult) {
+                  if (smartFilterDetected) {
                     try {
                       let suggestedFilters: Record<string, unknown>[] = []
-                      if (!smartFilterResult.startsWith(TOOL_ERROR_PREFIX)) {
+                      if (smartFilterResult && !smartFilterResult.startsWith(TOOL_ERROR_PREFIX)) {
                         const parsed = JSON.parse(smartFilterResult)
                         suggestedFilters = parsed.filters ?? []
                       }
-                      controller.enqueue(encoder.encode(formatSSE({
-                        type: 'smart-filter-confirm',
-                        suggestedFilters: suggestedFilters as any,
-                      })))
+                      if (suggestedFilters.length > 0) {
+                        controller.enqueue(encoder.encode(formatSSE({
+                          type: 'smart-filter-confirm',
+                          suggestedFilters: suggestedFilters as any,
+                        })))
+                      } else {
+                        controller.enqueue(encoder.encode(formatSSE({
+                          type: 'error',
+                          message: '筛选参数生成失败，请重试或换一种描述。',
+                        })))
+                      }
                     } catch (err) {
                       console.warn('[chat] Smart filter parsing failed:', err)
                       controller.enqueue(encoder.encode(formatSSE({
-                        type: 'smart-filter-confirm',
-                        suggestedFilters: [],
+                        type: 'error',
+                        message: '筛选参数解析失败，请重试。',
                       })))
                     }
                     shouldBreak = true
@@ -204,7 +237,7 @@ export const chatStream = createServerFn({ method: 'POST' })
                 controller.enqueue(encoder.encode(formatSSE(chunk)))
               }
 
-              if (executeSqlDetected || shouldBreak) break
+              if (shouldBreak) break
             }
             } finally {
               clearInterval(timeoutCheck)

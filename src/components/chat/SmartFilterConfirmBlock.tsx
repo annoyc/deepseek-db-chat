@@ -29,6 +29,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   const [countdown, setCountdown] = useState(60)
   const [feedback, setFeedback] = useState('')
   const feedbackInputRef = useRef<HTMLTextAreaElement>(null)
+  const actionSubmittedRef = useRef(false)
   const cancelRef = useRef(cancelSmartFilter)
   cancelRef.current = cancelSmartFilter
 
@@ -42,6 +43,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   // Initialize default values
   useEffect(() => {
     if (!isPending) return
+    actionSubmittedRef.current = false
     const defaults: Record<number, FilterValue> = {}
     info.suggestedFilters.forEach((filter, index) => {
       switch (filter.type) {
@@ -78,7 +80,10 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(interval)
-          cancelRef.current(messageId)
+          if (!actionSubmittedRef.current) {
+            actionSubmittedRef.current = true
+            cancelRef.current(messageId)
+          }
           return 0
         }
         return prev - 1
@@ -95,16 +100,22 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   }, [])
 
   const handleConfirm = useCallback(() => {
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
     confirmSmartFilter(messageId, filterValues)
   }, [confirmSmartFilter, messageId, filterValues])
 
   const handleCancel = useCallback(() => {
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
     cancelSmartFilter(messageId)
   }, [cancelSmartFilter, messageId])
 
   const handleSubmitFeedback = useCallback(() => {
     const text = feedback.trim()
     if (!text) return
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
     reviseSmartFilter(messageId, text)
   }, [reviseSmartFilter, messageId, feedback])
 

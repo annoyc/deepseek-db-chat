@@ -4,6 +4,7 @@ import { listTables, getTableSchema, getDatabaseOverview, explainQuery, getColum
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection, AnalysisReport } from '@/lib/types'
+import { FILTER_CONFIDENCE_THRESHOLD } from './intent-router'
 
 export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
 
@@ -36,15 +37,14 @@ export function createDbTools(
   }
 
   /**
-   * Analyze submitted SQL against schemaCache to detect if key filterable
-   * columns (date, enum) are present in the referenced tables but not
-   * constrained in the SQL WHERE clause.
+   * Detect if key date columns are present in referenced tables but not
+   * constrained in the SQL WHERE/HAVING clause.
    */
   function detectMissingFilters(sql: string, schemas: Map<string, string>): string[] {
     const missing: string[] = []
-    const sqlUpper = sql.toUpperCase()
 
-    // Extract referenced tables from SQL
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
     const tablePattern = /(?:FROM|JOIN)\s+`?(\w+)`?/gi
     const referencedTables = new Set<string>()
     let m: RegExpExecArray | null
@@ -52,46 +52,38 @@ export function createDbTools(
       referencedTables.add(m[1].toLowerCase())
     }
 
+    // Only inspect WHERE/HAVING clauses for date filtering.
+    // Truncate at GROUP BY / ORDER BY / LIMIT / UNION to avoid false positives.
+    const whereHavingMatch = sql.match(/(?:WHERE|HAVING)\s+[\s\S]+?(?=\b(?:GROUP\s+BY|ORDER\s+BY|LIMIT|UNION)\b|$)/gi)
+    const filterClauses = (whereHavingMatch?.join(' ') ?? '').toUpperCase()
+
     let hasDateColumn = false
-    let hasEnumColumn = false
     let hasDateFilter = false
 
     for (const [tableName, schemaStr] of schemas) {
       if (!referencedTables.has(tableName.toLowerCase())) continue
 
-      // Detect date columns from schema text
       const dateColMatch = schemaStr.match(/- (\w+) (?:date|datetime|timestamp)/gi)
       if (dateColMatch && dateColMatch.length > 0) {
         hasDateColumn = true
-        // Check if SQL has any date-related WHERE condition
         for (const colLine of dateColMatch) {
           const colName = colLine.split(' ')[1]
-          if (sqlUpper.includes(colName.toUpperCase())) {
+          const escapedCol = escapeRegExp(colName.toUpperCase())
+          const colExpr = `(?:\\b${escapedCol}\\b|DATE\\s*\\(\\s*\\b${escapedCol}\\b\\s*\\))`
+          const dateExpr = `(?:CURDATE\\s*\\(\\)|NOW\\s*\\(\\)|DATE_SUB\\s*\\(|DATE_ADD\\s*\\(|'\\d{4}-\\d{2}-\\d{2}')`
+          const datePredicate = new RegExp(
+            `${colExpr}\\s*(?:BETWEEN\\b|[<>=]+)|${dateExpr}\\s*[<>=]+\\s*${colExpr}`,
+          )
+          if (datePredicate.test(filterClauses)) {
             hasDateFilter = true
             break
           }
         }
       }
-
-      // Detect enum-like columns from schema text
-      if (/\[可选值:|字典值:|值含义:/.test(schemaStr)) {
-        hasEnumColumn = true
-      }
     }
 
-    // If tables have date columns but SQL doesn't filter on any → missing time range
     if (hasDateColumn && !hasDateFilter) {
-      // Additional check: does the SQL have any date functions or literals?
-      const hasAnyDateRef = /CURDATE|NOW\(\)|DATE_SUB|DATE_ADD|INTERVAL|'\d{4}-\d{2}-\d{2}'/.test(sql)
-      if (!hasAnyDateRef) {
-        missing.push('时间范围')
-      }
-    }
-
-    // If query has GROUP BY on date but no granularity was confirmed
-    if (/GROUP\s+BY.*(?:DATE|YEAR|MONTH|WEEK)/i.test(sql) && !smartFilterCalled) {
-      // Aggregation granularity might be assumed, flag it
-      // (only if needsFilterConfidence is high enough — already checked by caller)
+      missing.push('时间范围')
     }
 
     return missing
@@ -204,7 +196,7 @@ export function createDbTools(
       // Schema-aware gate: if the intent classifier flagged this query as
       // likely needing filters, AND the schema confirms filterable columns
       // exist but the SQL doesn't filter on them, block and require smart_filter.
-      if (!smartFilterCalled && needsFilterConfidence >= 0.5 && schemaCache.size > 0) {
+      if (!smartFilterCalled && needsFilterConfidence >= FILTER_CONFIDENCE_THRESHOLD && schemaCache.size > 0) {
         const missingFilters = detectMissingFilters(sql, schemaCache)
         if (missingFilters.length > 0) {
           const gateMsg = JSON.stringify({
