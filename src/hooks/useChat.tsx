@@ -235,6 +235,13 @@ function createAssistantMessage(): ChatMessage {
   }
 }
 
+function findNearestPreviousUserQuery(messages: ChatMessage[], beforeIndex: number): string {
+  for (let i = beforeIndex - 1; i >= 0; i--) {
+    if (messages[i]?.role === 'user') return messages[i].content
+  }
+  return ''
+}
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
@@ -254,6 +261,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const titleGeneratedSessionsRef = useRef<Set<string>>(new Set())
   const loadingSessionConnIdRef = useRef<string | null | undefined>(undefined)
   const lastConfirmedSqlRef = useRef<string | null>(null)
+  const submittedSqlConfirmIdsRef = useRef<Set<string>>(new Set())
 
   // Phase 1: Load sessions from IndexedDB (no dependency on connections)
   useEffect(() => {
@@ -755,11 +763,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const session = sessionsRef.current.find((s) => s.id === activeSessionId)
     const message = session?.messages.find((m) => m.id === messageId)
-    if (!message?.sqlConfirm) return
+    if (message?.sqlConfirm?.status !== 'pending') return
+    if (submittedSqlConfirmIdsRef.current.has(messageId)) return
+    submittedSqlConfirmIdsRef.current.add(messageId)
 
     updateSession(activeSessionId, (s) => {
       const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.sqlConfirm) {
+        if (m.id === messageId && m.sqlConfirm?.status === 'pending') {
           return { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'confirmed' as const } }
         }
         return m
@@ -769,7 +779,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const connection = getFullConnection(activeConnectionId)
-      if (!connection) return
+      if (!connection) {
+        submittedSqlConfirmIdsRef.current.delete(messageId)
+        return
+      }
 
       const execResult = await confirmAndExecuteSql({
         data: {
@@ -871,9 +884,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const cancelSql = useCallback((messageId: string) => {
     if (!activeSessionId) return
+
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    const message = session?.messages.find((m) => m.id === messageId)
+    if (message?.sqlConfirm?.status !== 'pending') return
+    if (submittedSqlConfirmIdsRef.current.has(messageId)) return
+    submittedSqlConfirmIdsRef.current.add(messageId)
+
     updateSession(activeSessionId, (s) => {
       const messages = s.messages.map((m) => {
-        if (m.id === messageId && m.sqlConfirm) {
+        if (m.id === messageId && m.sqlConfirm?.status === 'pending') {
           return { ...m, sqlConfirm: { ...m.sqlConfirm, status: 'cancelled' as const } }
         }
         return m
@@ -897,7 +917,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const reviseSql = useCallback(async (messageId: string, feedback: string) => {
     const session = sessionsRef.current.find((s) => s.id === activeSessionId)
     const message = session?.messages.find((m) => m.id === messageId)
-    if (!message?.sqlConfirm) return
+    if (message?.sqlConfirm?.status !== 'pending') return
+    if (submittedSqlConfirmIdsRef.current.has(messageId)) return
+    submittedSqlConfirmIdsRef.current.add(messageId)
 
     const revisionPrompt = [
       '用户对你生成的 SQL 有修改建议，请根据反馈修正后重新调用 execute_sql 提交。',
@@ -936,8 +958,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (message.smartFilterConfirm.status !== 'pending') return
 
     const msgIndex = session?.messages.findIndex((m) => m.id === messageId) ?? -1
-    const userMsg = msgIndex > 0 ? session?.messages[msgIndex - 1] : null
-    const originalQuery = userMsg?.role === 'user' ? userMsg.content : ''
+    const originalQuery = session && msgIndex > 0 ? findNearestPreviousUserQuery(session.messages, msgIndex) : ''
 
     // Update status to confirmed and store values
     updateSession(activeSessionId, (s) => {

@@ -3,6 +3,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { VisualizationPanel } from '@/components/chat/VisualizationPanel'
+import type { AppMode } from '@/components/layout/AppModeSwitch'
+import { KnowledgeWorkbench } from '@/components/knowledge/KnowledgeWorkbench'
 import { useChatStore } from '@/hooks/useChat'
 
 const VIZ_MIN_W = 360
@@ -23,6 +25,10 @@ export const Route = createFileRoute('/')({
 })
 
 function HomePage() {
+  const [activeApp, setActiveApp] = useState<AppMode>(() => {
+    if (typeof window === 'undefined') return 'database'
+    return (window.localStorage.getItem('dbpilot-active-app') as AppMode | null) ?? 'database'
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [vizPanelCollapsed, setVizPanelCollapsed] = useState(false)
   const [vizWidth, setVizWidth] = useState(responsiveVizWidth)
@@ -38,6 +44,13 @@ function HomePage() {
   }, [activeSession?.messages])
 
   const showVizPanel = hasVisualization && !vizPanelCollapsed
+
+  const handleAppChange = useCallback((app: AppMode) => {
+    setActiveApp(app)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('dbpilot-active-app', app)
+    }
+  }, [])
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -87,9 +100,25 @@ function HomePage() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  if (activeApp === 'knowledge') {
+    return (
+      <KnowledgeWorkbench
+        activeApp={activeApp}
+        onAppChange={handleAppChange}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+    )
+  }
+
   return (
     <div className="flex h-screen">
-      <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        activeApp={activeApp}
+        onAppChange={handleAppChange}
+      />
       <main className="flex-1 flex min-w-0">
         <div className="flex-1 flex flex-col min-w-0">
           <ChatPanel

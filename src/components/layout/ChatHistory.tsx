@@ -133,7 +133,7 @@ export function ChatHistory() {
                     className={cn(
                       'group relative flex items-center px-3 py-1.5 text-xs rounded-lg transition-colors cursor-pointer border',
                       isActive
-                        ? 'bg-green-50 text-green-800 border-green-200/80'
+                        ? 'bg-primary/10 text-primary border-primary/20'
                         : 'text-gray-600 hover:bg-gray-100/80 border-transparent',
                     )}
                     onClick={() => {
@@ -152,11 +152,11 @@ export function ChatHistory() {
                               if (e.key === 'Enter') confirmRename(session.id)
                               if (e.key === 'Escape') cancelRename()
                             }}
-                            className="flex-1 bg-white px-1.5 py-0.5 text-xs text-gray-800 rounded border border-green-300 outline-none min-w-0"
+                            className="flex-1 bg-white px-1.5 py-0.5 text-xs text-gray-800 rounded border border-primary/50 outline-none min-w-0"
                           />
                           <button
                             onClick={(e) => { e.stopPropagation(); confirmRename(session.id) }}
-                            className="p-0.5 hover:bg-green-100 rounded text-green-600"
+                            className="p-0.5 hover:bg-primary/10 rounded text-primary"
                           >
                             <Check className="w-3 h-3" />
                           </button>

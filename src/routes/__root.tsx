@@ -2,7 +2,9 @@ import type { ReactNode } from 'react'
 import { Outlet, HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { DatabaseProvider } from '@/hooks/useDatabase'
 import { ChatProvider } from '@/hooks/useChat'
+import { KnowledgeChatProvider } from '@/hooks/useKnowledgeChat'
 import { SettingsProvider } from '@/hooks/useSettings'
+import { APP_NAME } from '@/lib/constants'
 import '@/styles/globals.css'
 
 export const Route = createRootRoute({
@@ -10,7 +12,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'DBPilot' },
+      { title: APP_NAME },
     ],
     links: [
       { rel: 'icon', href: `${import.meta.env.BASE_URL}logo.svg`, type: 'image/svg+xml' },
@@ -25,7 +27,9 @@ function RootComponent() {
       <SettingsProvider>
         <DatabaseProvider>
           <ChatProvider>
-            <Outlet />
+            <KnowledgeChatProvider>
+              <Outlet />
+            </KnowledgeChatProvider>
           </ChatProvider>
         </DatabaseProvider>
       </SettingsProvider>

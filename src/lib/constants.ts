@@ -1,4 +1,4 @@
-export const APP_NAME = 'DBPilot'
+export const APP_NAME = 'Lumin Workbench'
 export const DEFAULT_MODEL = 'deepseek-v4-pro'
 export const DEFAULT_PROVIDER = 'deepseek'
 export const QUERY_TIMEOUT_MS = 30_000

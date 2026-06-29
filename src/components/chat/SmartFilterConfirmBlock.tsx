@@ -157,7 +157,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
         {isDone ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
         ) : isConfirmed ? (
-          <Loader2 className="w-3.5 h-3.5 text-green-600 flex-shrink-0 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 text-primary flex-shrink-0 animate-spin" />
         ) : isRevised ? (
           <RotateCcw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
         ) : isCancelled ? (
@@ -167,7 +167,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
         )}
         <span className="text-[13px] font-semibold text-gray-800">查询参数微调</span>
         {isPending && <span className="text-xs text-gray-400 ml-0.5">待确认 ({countdown}s)</span>}
-        {isConfirmed && <span className="text-xs text-green-600 ml-0.5 font-medium">处理中...</span>}
+        {isConfirmed && <span className="text-xs text-primary ml-0.5 font-medium">处理中...</span>}
         {isDone && (
           <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
             已确认

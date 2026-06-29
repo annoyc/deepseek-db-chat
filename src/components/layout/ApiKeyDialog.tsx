@@ -148,7 +148,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                     onClick={() => setActiveTab(p.id as any)}
                     className={`relative flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors ${
                       activeTab === p.id
-                        ? 'text-green-700 border-b-2 border-green-600'
+                        ? 'text-primary border-b-2 border-primary'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -188,7 +188,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 value={currentLocal.apiKeyInput}
                 onChange={(e) => updateLocalConfig(activeTab, { apiKeyInput: e.target.value })}
                 placeholder="sk-..."
-                className="w-full px-4 py-3 pr-10 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all"
+                className="w-full px-4 py-3 pr-10 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
               />
               <button
                 type="button"
@@ -202,7 +202,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
           {currentLocal.hasSavedKey && (
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-green-600">
+              <div className="flex items-center gap-1.5 text-xs text-primary">
                 <Lock className="w-3.5 h-3.5" />
                 <span>已加密保存 API Key（AES-256-GCM）</span>
               </div>
@@ -236,7 +236,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   ? 'https://api.deepseek.com'
                   : 'https://dashscope.aliyuncs.com/compatible-mode/v1'
               }
-              className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all font-mono"
+              className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono"
             />
             <p className="text-xs text-gray-400 mt-1">
               留空则使用默认地址，自建代理或私有部署时填写
@@ -257,7 +257,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   onClick={() => setLocalThinkingCollapse('expanded')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     localThinkingCollapse === 'expanded'
-                      ? 'bg-white text-green-700 shadow-sm'
+                      ? 'bg-white text-primary shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -267,7 +267,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   onClick={() => setLocalThinkingCollapse('collapsed')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     localThinkingCollapse === 'collapsed'
-                      ? 'bg-white text-green-700 shadow-sm'
+                      ? 'bg-white text-primary shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -283,7 +283,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   onClick={() => setLocalToolCallCollapse('expanded')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     localToolCallCollapse === 'expanded'
-                      ? 'bg-white text-green-700 shadow-sm'
+                      ? 'bg-white text-primary shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -293,7 +293,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   onClick={() => setLocalToolCallCollapse('collapsed')}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     localToolCallCollapse === 'collapsed'
-                      ? 'bg-white text-green-700 shadow-sm'
+                      ? 'bg-white text-primary shadow-sm'
                       : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
@@ -323,7 +323,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                     setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
                   }
                 }}
-                className="w-20 px-3 py-1.5 text-sm text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all tabular-nums"
+                className="w-20 px-3 py-1.5 text-sm text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tabular-nums"
               />
             </div>
           </div>
@@ -338,7 +338,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 text-sm font-medium text-white bg-green-700 rounded-xl hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
               {saving ? '保存中...' : '保存'}

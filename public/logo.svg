@@ -1,20 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#047857"/>
+    <linearGradient id="mark-bg" x1="12" y1="8" x2="116" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#41A5FF"/>
+      <stop offset="55%" stop-color="#148AFF"/>
+      <stop offset="100%" stop-color="#0A5FD7"/>
     </linearGradient>
-    <radialGradient id="glow" cx="104" cy="28" r="18" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.35"/>
-      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="f" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="1.5" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <linearGradient id="mark-sheen" x1="26" y1="20" x2="98" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#148AFF" flood-opacity="0.28"/>
     </filter>
   </defs>
-  <rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/>
-  <circle cx="104" cy="28" r="18" fill="url(#glow)"/>
-  <path d="M104 19 C105.5 23.5 108.5 26.5 113 28 C108.5 29.5 105.5 32.5 104 37 C102.5 32.5 99.5 29.5 95 28 C99.5 26.5 102.5 23.5 104 19Z" fill="#fbbf24" filter="url(#f)"/>
-  <path d="M30 24h26c24.3 0 44 17.9 44 40s-19.7 40-44 40H30V24z M44 38h12c16.6 0 30 11.6 30 26s-13.4 26-30 26H44V38z" fill="white" fill-rule="evenodd"/>
+  <rect x="7" y="7" width="114" height="114" rx="28" fill="url(#mark-bg)" filter="url(#soft-shadow)"/>
+  <path d="M23 30C23 22.8 28.8 17 36 17H92C99.2 17 105 22.8 105 30V92C105 99.2 99.2 105 92 105H36C28.8 105 23 99.2 23 92V30Z" fill="url(#mark-sheen)"/>
+  <path d="M42 34C42 31.8 43.8 30 46 30H55C57.2 30 59 31.8 59 34V82H86C88.2 82 90 83.8 90 86V94C90 96.2 88.2 98 86 98H46C43.8 98 42 96.2 42 94V34Z" fill="white"/>
+  <rect x="68" y="31" width="23" height="23" rx="7" fill="white" fill-opacity="0.96"/>
+  <rect x="68" y="59" width="23" height="23" rx="7" fill="white" fill-opacity="0.72"/>
+  <path d="M78 54V59M78 82V88M59 43H68M59 70H68" stroke="white" stroke-width="5" stroke-linecap="round"/>
 </svg>

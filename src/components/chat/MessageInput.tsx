@@ -82,7 +82,7 @@ export function MessageInput() {
                   onClick={() => setShowModelMenu(!showModelMenu)}
                   className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                   <span>{currentProvider.name} / {currentModel.name}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
@@ -119,7 +119,7 @@ export function MessageInput() {
                             <div className="text-xs text-gray-400">{m.description}</div>
                           </div>
                           {m.id === model && (
-                            <div className="w-2 h-2 rounded-full bg-green-500" />
+                            <div className="w-2 h-2 rounded-full bg-primary" />
                           )}
                         </button>
                       ))}
@@ -145,7 +145,7 @@ export function MessageInput() {
                     value={reasoningEffort}
                     onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
                     className="appearance-none border border-primary/50 text-primary bg-transparent rounded-r-full pl-1.5 pr-4 py-0.5 text-xs outline-none cursor-pointer hover:bg-primary/5 transition-colors"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2315803d' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23148AFF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
                   >
                     <option value="high">高</option>
                     <option value="max">最高</option>
@@ -232,7 +232,7 @@ export function MessageInput() {
                   </ul>
                 </div>
 
-                <div className="rounded-lg bg-green-50 p-3 text-xs text-green-700">
+                <div className="rounded-lg bg-primary/5 p-3 text-xs text-primary">
                   <p className="font-medium mb-1">安全保障</p>
                   <ul className="space-y-1 list-disc list-inside">
                     <li>DROP / ALTER / TRUNCATE 等危险操作始终被禁止</li>

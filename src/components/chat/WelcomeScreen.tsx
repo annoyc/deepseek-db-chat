@@ -4,6 +4,7 @@ import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
 import { generateSuggestions } from '@/server/functions/generate-suggestions'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@/lib/constants'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (question: string) => void
@@ -26,15 +27,15 @@ const features = [
     icon: Shield,
     title: '安全可靠',
     description: 'AES-256 加密存储，SQL 三重校验，危险操作全面拦截',
-    color: 'text-green-600',
+    color: 'text-primary',
     bg: 'bg-green-50',
   },
   {
     icon: Eye,
     title: '过程透明',
     description: 'AI 思考过程与工具调用完全可视化，每一步有迹可循',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
+    color: 'text-primary',
+    bg: 'bg-primary/10',
   },
   {
     icon: Lock,
@@ -127,14 +128,14 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-8 min-h-full flex flex-col justify-center">
         {/* Hero */}
         <div className="text-center space-y-4">
-          <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-emerald-200/60 anim-logo d-0">
-            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="DBPilot" className="w-full h-full" />
+          <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden shadow-lg shadow-primary/20 anim-logo d-0">
+            <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="w-full h-full" />
           </div>
           <div className="space-y-1.5">
             <h1 className="text-3xl font-bold text-gray-900 tracking-tight anim-up d-1">
-              DBPilot
+              {APP_NAME}
             </h1>
-            <p className="text-sm text-gray-500 anim-up d-2">AI 数据库领航助手 — 用自然语言探索你的数据</p>
+            <p className="text-sm text-gray-500 anim-up d-2">数据查询与知识问答一体化工作台</p>
           </div>
           {connectionStatus === 'error' ? (
             <div className="anim-up d-3">
@@ -199,7 +200,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                   <button
                     key={`${refreshKey}-${i}`}
                     onClick={() => onSuggestionClick(text)}
-                    className={`cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-green-400 hover:text-green-700 hover:bg-green-50/50 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                    className={`cursor-pointer text-left px-4 py-3 text-sm text-gray-600 bg-white border border-gray-100 rounded-xl hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300`}
                     style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
                   >
                     {text}

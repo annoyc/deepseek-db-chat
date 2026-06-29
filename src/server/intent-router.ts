@@ -149,7 +149,7 @@ export async function classifyIntentWithLLM(
 
     const parsed = result.output
     if (!parsed) {
-      return fallbackClassification('classifier returned no structured output', 0.9)
+      return fallbackClassification('classifier returned no structured output')
     }
 
     return {
@@ -164,7 +164,7 @@ export async function classifyIntentWithLLM(
     }
   } catch (err) {
     console.error('[intent-router] classifyIntentWithLLM failed:', err)
-    return fallbackClassification('classification call failed', 0.9)
+    return fallbackClassification('classification call failed')
   }
 }
 

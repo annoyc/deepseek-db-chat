@@ -45,7 +45,7 @@ export function DatabaseList() {
             className={cn(
               'group relative flex items-center px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border',
               isActive
-                ? 'bg-green-50 text-green-800 border-green-200/80'
+                ? 'bg-primary/10 text-primary border-primary/20'
                 : 'text-gray-600 hover:bg-gray-100/80 border-transparent',
             )}
             onClick={() => setActiveConnection(conn.id)}

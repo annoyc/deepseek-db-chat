@@ -70,7 +70,7 @@ function renderWithTrend(children: ReactNode): ReactNode {
     const text = match[0]
     const isUp = text.includes('↑')
     parts.push(
-      <span key={match.index} className={isUp ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>
+      <span key={match.index} className={isUp ? 'text-primary font-medium' : 'text-red-500 font-medium'}>
         {text}
       </span>
     )
@@ -158,12 +158,12 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           ),
           hr: () => <hr className="my-3 border-gray-200" />,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-3 border-green-400 pl-3 my-2 text-sm text-gray-600 italic">
+            <blockquote className="border-l-3 border-primary pl-3 my-2 text-sm text-gray-600 italic">
               {children}
             </blockquote>
           ),
           a: ({ href, children }) => (
-            <a href={href} className="text-green-700 underline hover:text-green-800" target="_blank" rel="noopener noreferrer">
+            <a href={href} className="text-primary underline hover:text-primary/80" target="_blank" rel="noopener noreferrer">
               {children}
             </a>
           ),

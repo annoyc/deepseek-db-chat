@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react'
-import { Database, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, ChevronDown, ChevronRight, Server } from 'lucide-react'
+import { Database, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, ChevronDown, Server } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AppModeSwitch, type AppMode } from './AppModeSwitch'
 import { DatabaseList } from './DatabaseList'
 import { ChatHistory } from './ChatHistory'
 import { AddConnectionDialog } from './AddConnectionDialog'
 import { ApiKeyDialog } from './ApiKeyDialog'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
+import { APP_NAME } from '@/lib/constants'
 
 interface SidebarProps {
   collapsed?: boolean
   onToggleCollapse?: () => void
+  activeApp: AppMode
+  onAppChange: (app: AppMode) => void
 }
 
-export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppChange }: SidebarProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
   const [dbSectionCollapsed, setDbSectionCollapsed] = useState(false)
@@ -49,10 +53,10 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer" onClick={onToggleCollapse}>
-                <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="DBPilot" className="w-full h-full" />
+                <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="w-full h-full" />
               </div>
               {!collapsed && (
-                <span className="font-semibold text-base text-gray-900 ml-2.5">DBPilot</span>
+                <span className="font-semibold text-[15px] text-gray-900 ml-2.5 tracking-tight">{APP_NAME}</span>
               )}
             </div>
             {!collapsed && <button
@@ -64,10 +68,12 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
             </button>}
           </div>
 
+          <AppModeSwitch activeApp={activeApp} onAppChange={onAppChange} collapsed={collapsed} />
+
           {!collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-green-500 hover:text-green-700 hover:bg-green-50/50 transition-colors text-xs font-medium"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-xs font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
               添加数据库连接
@@ -76,7 +82,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
           {collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="p-2 hover:bg-gray-200 rounded text-sm text-gray-500 hover:text-green-700 transition-colors"
+              className="p-2 hover:bg-gray-200 rounded text-sm text-gray-500 hover:text-primary transition-colors"
               title="添加数据库连接"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -112,7 +118,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
               className="flex justify-center py-1"
               title={activeConn.name}
             >
-              <div className="w-7 h-7 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center text-green-700">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
                 <Server className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -145,7 +151,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
             {!collapsed && (
               <button
                 onClick={(e) => { e.stopPropagation(); createNewSession() }}
-                className="p-0.5 hover:bg-green-100 rounded text-gray-500 hover:text-green-700 transition-colors"
+                className="p-0.5 hover:bg-primary/10 rounded text-gray-500 hover:text-primary transition-colors"
                 title="新对话"
               >
                 <Plus className="w-4 h-4" />
@@ -164,7 +170,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
                   className={cn(
                     'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
                     activeSessionId === session.id
-                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      ? 'bg-primary/10 text-primary border border-primary/20'
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-transparent'
                   )}
                   title={session.title}

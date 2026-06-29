@@ -19,6 +19,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   const [paused, setPaused] = useState(false)
   const [feedback, setFeedback] = useState('')
   const feedbackRef = useRef<HTMLTextAreaElement>(null)
+  const actionSubmittedRef = useRef(false)
   const cancelSqlRef = useRef(cancelSql)
   cancelSqlRef.current = cancelSql
   const pausedRef = useRef(paused)
@@ -36,12 +37,17 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
   useEffect(() => {
     if (!isPending) return
+    actionSubmittedRef.current = false
     setCountdown(CONFIRM_TIMEOUT_SEC)
     const interval = setInterval(() => {
       if (pausedRef.current) return
       setCountdown((prev) => {
         if (prev <= 1) {
-          cancelSqlRef.current(messageId)
+          clearInterval(interval)
+          if (!actionSubmittedRef.current) {
+            actionSubmittedRef.current = true
+            cancelSqlRef.current(messageId)
+          }
           return 0
         }
         return prev - 1
@@ -58,8 +64,22 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   const handleSubmitFeedback = useCallback(() => {
     const text = feedback.trim()
     if (!text) return
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
     reviseSql(messageId, text)
   }, [reviseSql, messageId, feedback])
+
+  const handleConfirm = useCallback(() => {
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
+    confirmSql(messageId)
+  }, [confirmSql, messageId])
+
+  const handleCancel = useCallback(() => {
+    if (actionSubmittedRef.current) return
+    actionSubmittedRef.current = true
+    cancelSql(messageId)
+  }, [cancelSql, messageId])
 
   const handleFeedbackKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -99,7 +119,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
         ) : isWarning ? (
           <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 animate-pulse" />
         ) : (
-          <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 ${isConfirmed ? 'text-green-600 animate-spin' : 'text-amber-500'}`} />
+          <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 ${isConfirmed ? 'text-primary animate-spin' : 'text-amber-500'}`} />
         )}
         <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
         {isPending && (
@@ -107,7 +127,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
             {paused ? '已暂停' : isWarning ? `即将超时 (${countdown}s)` : `待确认 (${countdown}s)`}
           </span>
         )}
-        {isConfirmed && <span className="text-xs text-green-600 ml-0.5 font-medium">执行中...</span>}
+        {isConfirmed && <span className="text-xs text-primary ml-0.5 font-medium">执行中...</span>}
         {isExecuted && (
           <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
             成功
@@ -190,12 +210,12 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
                 按建议重新生成
               </Button>
             ) : (
-              <Button onClick={() => confirmSql(messageId)} size="sm" className="h-7 text-xs px-3">
+              <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
                 <Play className="size-3 mr-1" />
                 确认执行
               </Button>
             )}
-            <Button onClick={() => cancelSql(messageId)} variant="outline" size="sm" className="h-7 text-xs px-3">
+            <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs px-3">
               <X className="size-3 mr-1" />
               取消
             </Button>
