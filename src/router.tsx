@@ -4,7 +4,7 @@ import { routeTree } from './routeTree.gen'
 export function getRouter() {
   const router = createRouter({
     routeTree,
-    basepath: '/dbpilot',
+    basepath: '/workbench',
     scrollRestoration: true,
     defaultNotFoundComponent: () => <p>Not Found</p>,
   })

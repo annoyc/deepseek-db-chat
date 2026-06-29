@@ -6,7 +6,7 @@ import { nitro } from 'nitro/vite'
 import path from 'node:path'
 
 export default defineConfig({
-  base: '/dbpilot/',
+  base: '/workbench/',
   server: {
     port: 3000,
   },
@@ -17,7 +17,7 @@ export default defineConfig({
   },
   plugins: [
     tanstackStart(),
-    nitro({ baseURL: '/dbpilot' }),
+    nitro({ baseURL: '/workbench' }),
     react(),
     tailwindcss(),
   ],
