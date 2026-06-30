@@ -5,6 +5,7 @@ import remarkBreaks from 'remark-breaks'
 
 interface MarkdownContentProps {
   content: string
+  isStreaming?: boolean
 }
 
 const BOX_CHARS = /[│┌┐└┘├┤┬┴┼]/
@@ -82,9 +83,9 @@ function renderWithTrend(children: ReactNode): ReactNode {
   return parts.length > 0 ? <>{parts}</> : children
 }
 
-export function MarkdownContent({ content }: MarkdownContentProps) {
+export function MarkdownContent({ content, isStreaming = false }: MarkdownContentProps) {
   return (
-    <div className="px-2 min-w-0 w-full max-w-full text-gray-800 animate-in fade-in duration-300">
+    <div className={`px-2 min-w-0 w-full max-w-full text-gray-800 animate-in fade-in duration-300 ${isStreaming ? 'streaming-markdown' : ''}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
@@ -171,6 +172,7 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
       >
         {content}
       </ReactMarkdown>
+      {isStreaming && <span className="streaming-caret" aria-hidden="true" />}
     </div>
   )
 }

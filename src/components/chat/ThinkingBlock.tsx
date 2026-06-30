@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ThinkingBlockProps {
@@ -62,7 +62,7 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors border-b border-gray-100"
       >
-        {isStreaming && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin flex-shrink-0" />}
+        {isStreaming && <span className="streaming-thinking-dot flex-shrink-0" aria-hidden="true" />}
         {expanded ? (
           <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
         ) : (

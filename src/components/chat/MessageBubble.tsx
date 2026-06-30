@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@/lib/types'
-import { Loader2, User } from 'lucide-react'
+import { User } from 'lucide-react'
 import { ThinkingBlock } from './ThinkingBlock'
 import { ToolCallStatus } from './ToolCallStatus'
 import { QueryPlanBlock } from './QueryPlanBlock'
@@ -15,11 +15,22 @@ interface MessageBubbleProps {
   toolCallExpanded?: boolean
 }
 
+function formatStreamingStatus(text?: string) {
+  const trimmed = text?.trim().replace(/[.。…\s]+$/u, '')
+  return trimmed || '正在生成'
+}
+
 function StreamingIndicator({ text }: { text?: string }) {
+  const displayText = formatStreamingStatus(text)
+
   return (
-    <div className="flex items-center gap-1.5 py-1 text-gray-400">
-      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      <span className="text-xs">{text || '处理中...'}</span>
+    <div className="streaming-wait flex items-center gap-1.5 px-2 py-1.5" role="status" aria-live="polite" aria-label={displayText}>
+      <span className="streaming-wait-text">{displayText}</span>
+      <span className="streaming-ellipsis" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
     </div>
   )
 }
@@ -65,7 +76,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
             return <div key={`tc-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><ToolCallStatus toolCall={tc} defaultExpanded={toolCallExpanded} /></div>
           }
           case 'text':
-            return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} /> : null
+            return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} isStreaming={isLastText && i === parts.length - 1} /> : null
           default:
             return null
         }
@@ -129,7 +140,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
       )}
 
       {hasContent && (
-        <MarkdownContent content={message.content} />
+        <MarkdownContent content={message.content} isStreaming={isStreaming} />
       )}
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}

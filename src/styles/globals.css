@@ -63,20 +63,127 @@ select:disabled,
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
-@keyframes typing {
-  0% { opacity: 0.3; }
-  50% { opacity: 1; }
-  100% { opacity: 0.3; }
+@keyframes streaming-caret-pulse {
+  0%, 100% {
+    opacity: 0.32;
+    transform: translateY(1px) scaleY(0.88);
+    box-shadow: 0 0 0 rgba(20, 138, 255, 0);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(1px) scaleY(1);
+    box-shadow: 0 0 14px rgba(20, 138, 255, 0.28);
+  }
 }
 
-.typing-indicator span {
-  animation: typing 1.4s infinite;
+@keyframes streaming-text-settle {
+  from {
+    opacity: 0.72;
+    filter: blur(0.6px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
 }
-.typing-indicator span:nth-child(2) {
-  animation-delay: 0.2s;
+
+@keyframes streaming-dot-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.typing-indicator span:nth-child(3) {
-  animation-delay: 0.4s;
+
+@keyframes streaming-ellipsis-rise {
+  0%, 100% {
+    opacity: 0.34;
+    transform: translateY(0);
+  }
+  42% {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+}
+
+.streaming-markdown > :nth-last-child(2) {
+  animation: streaming-text-settle 180ms ease-out both;
+}
+
+.streaming-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 3px;
+  border-radius: 999px;
+  vertical-align: -0.16em;
+  background: linear-gradient(180deg, rgba(20, 138, 255, 0.35), #148AFF 46%, rgba(20, 138, 255, 0.35));
+  animation: streaming-caret-pulse 1.05s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.streaming-wait {
+  color: #64748b;
+}
+
+.streaming-wait-text {
+  font-size: 13px;
+  line-height: 1.55;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.streaming-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #94a3b8;
+  transform: translateY(1px);
+}
+
+.streaming-ellipsis span {
+  width: 3.5px;
+  height: 3.5px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: streaming-ellipsis-rise 1.25s ease-in-out infinite;
+}
+
+.streaming-ellipsis span:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.streaming-ellipsis span:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+.streaming-thinking-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #148AFF;
+  box-shadow: 0 0 0 4px rgba(20, 138, 255, 0.12);
+  animation: streaming-dot-breathe 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streaming-markdown > :nth-last-child(2),
+  .streaming-caret,
+  .streaming-thinking-dot,
+  .streaming-ellipsis span {
+    animation: none;
+  }
+
+  .streaming-caret,
+  .streaming-thinking-dot {
+    opacity: 0.72;
+  }
+
+  .streaming-ellipsis span {
+    opacity: 0.62;
+  }
 }
 
 /* Welcome screen entrance animations */
