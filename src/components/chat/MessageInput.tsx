@@ -62,9 +62,9 @@ export function MessageInput() {
   }, [isProd, sqlPermission, setSqlPermission])
 
   return (
-    <div className="px-[10%] pb-4 pt-2 bg-[#f5f5f0]">
-      <div className="mx-auto">
-        <div className="border border-gray-300 rounded-2xl bg-white shadow-sm focus-within:border-gray-400 focus-within:shadow-md transition-shadow">
+    <div className="px-4 pb-4 pt-2 md:px-6 lg:px-[6%] 2xl:px-[12%]">
+      <div className="mx-auto max-w-4xl 2xl:max-w-5xl">
+        <div className="glass-panel rounded-[18px] transition-all focus-within:border-primary/35 focus-within:shadow-[0_20px_55px_rgba(15,118,110,0.14)]">
           <textarea
             ref={textareaRef}
             value={input}
@@ -73,33 +73,33 @@ export function MessageInput() {
             placeholder={activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
             disabled={!activeConnectionId || isStreaming}
             rows={2}
-            className="w-full resize-none px-4 pt-4 pb-2 text-sm bg-transparent outline-none placeholder-gray-400 disabled:opacity-50 max-h-[200px] leading-relaxed"
+            className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
           />
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between gap-3 px-3 pb-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <div className="relative">
                 <button
                   onClick={() => setShowModelMenu(!showModelMenu)}
-                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition-colors px-2 py-1 rounded-lg hover:bg-gray-100"
+                  className="control-chip flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-stone-600 transition-colors hover:bg-white hover:text-stone-900"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                  <span>{currentProvider.name} / {currentModel.name}</span>
+                  <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-primary" />
+                  <span className="truncate">{currentProvider.name} / {currentModel.name}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
 
                 {showModelMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                    <div className="absolute bottom-full left-0 mb-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-56">
-                      <div className="flex border-b border-gray-100">
+                    <div className="absolute bottom-full left-0 z-20 mb-2 min-w-64 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-xl">
+                      <div className="flex border-b border-stone-100">
                         {PROVIDERS.map((p) => (
                           <button
                             key={p.id}
                             onClick={() => setProvider(p.id)}
-                            className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                            className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors ${
                               p.id === provider
                                 ? 'text-primary border-b-2 border-primary'
-                                : 'text-gray-500 hover:text-gray-700'
+                                : 'text-stone-500 hover:text-stone-800'
                             }`}
                           >
                             {p.name}
@@ -110,13 +110,13 @@ export function MessageInput() {
                         <button
                           key={`${m.provider}-${m.id}`}
                           onClick={() => { setModel(m.id); setShowModelMenu(false) }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                            m.id === model ? 'text-primary font-medium' : 'text-gray-700'
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors flex items-center justify-between ${
+                            m.id === model ? 'text-primary font-medium' : 'text-stone-700'
                           }`}
                         >
                           <div>
                             <div className="font-medium">{m.name}</div>
-                            <div className="text-xs text-gray-400">{m.description}</div>
+                            <div className="text-xs text-stone-400">{m.description}</div>
                           </div>
                           {m.id === model && (
                             <div className="w-2 h-2 rounded-full bg-primary" />
@@ -131,10 +131,10 @@ export function MessageInput() {
               <div className="flex items-center">
                 <button
                   onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
-                  className={`flex items-center gap-1 border px-2.5 py-0.5 text-xs transition-all ${
+                  className={`flex items-center gap-1 border px-2.5 py-1 text-xs font-medium transition-all ${
                     thinkingMode === 'enabled'
-                      ? 'border-primary/50 text-primary'
-                      : 'border-gray-300 text-gray-400'
+                      ? 'border-primary/50 bg-primary/5 text-primary'
+                      : 'border-stone-300 text-stone-500'
                   } ${thinkingMode === 'enabled' ? 'rounded-l-full border-r-0' : 'rounded-full'}`}
                 >
                   <Atom className="w-3.5 h-3.5" />
@@ -144,8 +144,8 @@ export function MessageInput() {
                   <select
                     value={reasoningEffort}
                     onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
-                    className="appearance-none border border-primary/50 text-primary bg-transparent rounded-r-full pl-1.5 pr-4 py-0.5 text-xs outline-none cursor-pointer hover:bg-primary/5 transition-colors"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23148AFF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+                    className="appearance-none border border-primary/50 bg-primary/5 text-primary rounded-r-full pl-1.5 pr-4 py-1 text-xs outline-none cursor-pointer hover:bg-primary/10 transition-colors"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%230f766e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
                   >
                     <option value="high">高</option>
                     <option value="max">最高</option>
@@ -162,10 +162,10 @@ export function MessageInput() {
                       setSqlPermission('readonly')
                     }
                   }}
-                  className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all ${
+                  className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
                     sqlPermission === 'write'
                       ? 'border-amber-500 text-amber-600'
-                      : 'border-gray-300 text-gray-500'
+                      : 'border-stone-300 text-stone-500'
                   }`}
                   title={sqlPermission === 'write' ? '已允许写操作（INSERT/UPDATE/DELETE），AI 生成的写 SQL 需二次确认' : '仅允许查询操作'}
                 >
@@ -179,6 +179,7 @@ export function MessageInput() {
               <button
                 onClick={stopStreaming}
                 className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
+                title="停止生成"
               >
                 <Square className="w-4 h-4" fill="currentColor" />
               </button>
@@ -189,8 +190,9 @@ export function MessageInput() {
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                   canSend
                     ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-stone-200 text-stone-400 cursor-not-allowed'
                 }`}
+                title="发送"
               >
                 <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
               </button>
@@ -198,7 +200,7 @@ export function MessageInput() {
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-2">
+        <p className="mt-2 text-center text-xs text-stone-400">
           {isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
         </p>
       </div>

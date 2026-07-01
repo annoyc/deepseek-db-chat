@@ -171,13 +171,13 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   if (message.role === 'user') {
     return (
       <div className="flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
-        <div className="max-w-[70%]">
-          <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-primary text-primary-foreground">
+        <div className="max-w-[min(72%,760px)]">
+          <div className="rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
         </div>
-        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-1">
-          <User className="w-4 h-4 text-gray-600" />
+        <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white/80 text-stone-600 shadow-sm">
+          <User className="w-4 h-4" />
         </div>
       </div>
     )

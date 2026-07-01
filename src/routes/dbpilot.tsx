@@ -28,11 +28,12 @@ function DbpilotPage() {
   const navigate = useNavigate()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [vizPanelCollapsed, setVizPanelCollapsed] = useState(false)
-  const [vizWidth, setVizWidth] = useState(() => Math.round(DEFAULT_VIZ_VIEWPORT_W * 0.38))
+  const [vizWidth, setVizWidth] = useState(() => responsiveVizWidth())
   const userResizedRef = useRef(false)
   const draggingRef = useRef(false)
   const startXRef = useRef(0)
   const startWRef = useRef(0)
+  const latestXRef = useRef(0)
   const { activeSession } = useChatStore()
 
   const hasVisualization = useMemo(() => {
@@ -45,10 +46,6 @@ function DbpilotPage() {
   const handleAppChange = useCallback((app: AppMode) => {
     navigate({ to: app === 'knowledge' ? '/knowledge' : '/dbpilot' })
   }, [navigate])
-
-  useEffect(() => {
-    setVizWidth(responsiveVizWidth())
-  }, [])
 
   const onDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -63,11 +60,12 @@ function DbpilotPage() {
     let rafPending = false
     const onMove = (e: MouseEvent) => {
       if (!draggingRef.current) return
+      latestXRef.current = e.clientX
       if (rafPending) return
       rafPending = true
       requestAnimationFrame(() => {
         rafPending = false
-        const delta = startXRef.current - e.clientX
+        const delta = startXRef.current - latestXRef.current
         const next = Math.min(VIZ_MAX_W, Math.max(VIZ_MIN_W, startWRef.current + delta))
         setVizWidth(next)
       })
@@ -99,7 +97,7 @@ function DbpilotPage() {
   }, [])
 
   return (
-    <div className="flex h-screen">
+    <div className="app-canvas flex h-screen">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((collapsed) => !collapsed)}
@@ -119,7 +117,7 @@ function DbpilotPage() {
             {/* Drag handle */}
             <div
               onMouseDown={onDragStart}
-              className="w-1 flex-shrink-0 cursor-col-resize group relative hover:bg-blue-400 active:bg-blue-500 transition-colors z-50"
+              className="group relative z-50 w-1 flex-shrink-0 cursor-col-resize transition-colors hover:bg-primary/45 active:bg-primary/70"
             >
               <div className="absolute inset-y-0 -left-1 -right-1 cursor-col-resize bg-transparent" />
             </div>

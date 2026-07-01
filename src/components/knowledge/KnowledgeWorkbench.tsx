@@ -22,7 +22,7 @@ export function KnowledgeWorkbench({
   const { activeEvidenceMessage } = useKnowledgeChatStore()
 
   return (
-    <div className="flex h-screen">
+    <div className="app-canvas flex h-screen">
       <KnowledgeSidebar
         activeApp={activeApp}
         onAppChange={onAppChange}

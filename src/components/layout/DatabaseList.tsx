@@ -14,12 +14,14 @@ export function DatabaseList() {
       ? 'bg-red-500'
       : connectionStatus === 'testing'
         ? 'bg-yellow-500 animate-pulse-dot'
-        : 'bg-green-500'
+        : connectionStatus === 'success'
+          ? 'bg-green-500'
+          : 'bg-gray-300'
     : 'bg-gray-300'
 
   if (connections.length === 0) {
     return (
-      <div className="px-3 py-2 text-xs text-gray-400 italic">
+      <div className="px-3 py-2 text-xs text-stone-400 italic">
         暂无连接
       </div>
     )
@@ -43,10 +45,10 @@ export function DatabaseList() {
           <div
             key={conn.id}
             className={cn(
-              'group relative flex items-center px-3 py-2 text-xs rounded-lg transition-colors cursor-pointer border',
+              'group relative flex items-center px-3 py-2.5 text-xs rounded-xl transition-all duration-200 cursor-pointer border',
               isActive
-                ? 'bg-primary/10 text-primary border-primary/20'
-                : 'text-gray-600 hover:bg-gray-100/80 border-transparent',
+                ? 'bg-white text-primary border-primary/25 shadow-sm'
+                : 'text-stone-600 hover:bg-white/70 hover:text-stone-900 border-transparent',
             )}
             onClick={() => setActiveConnection(conn.id)}
           >
@@ -57,7 +59,7 @@ export function DatabaseList() {
                   'w-2 h-2 rounded-full flex-shrink-0',
                   isActive ? dotColor : 'bg-gray-300'
                 )} />
-                <span className="truncate font-medium">{conn.name}</span>
+                  <span className="truncate font-semibold">{conn.name}</span>
                 {envInfo.label && (
                   <span className={cn(
                     'inline-flex px-1 py-0 text-[10px] leading-[13px] rounded border font-medium flex-shrink-0',
@@ -67,7 +69,7 @@ export function DatabaseList() {
                   </span>
                 )}
               </div>
-              <div className="text-[10px] text-gray-400 truncate ml-[14px]">
+              <div className="text-[10px] text-stone-400 truncate ml-[14px]">
                 {subInfo}
               </div>
             </div>
@@ -76,14 +78,14 @@ export function DatabaseList() {
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingConnection(conn) }}
-                className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-blue-600 transition-colors"
+                className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-primary transition-colors"
                 title="编辑连接"
               >
                 <Pencil className="w-3 h-3" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(conn.id) }}
-                className="p-1 hover:bg-gray-200 rounded text-gray-500 hover:text-red-600 transition-colors"
+                className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-red-600 transition-colors"
                 title="删除连接"
               >
                 <Trash2 className="w-3 h-3" />

@@ -58,23 +58,28 @@ export function KnowledgeSidebar({
     <>
       <aside
         className={cn(
-          'flex h-screen flex-col border-r border-gray-200 bg-slate-50/80 transition-all duration-300 cursor-default select-none',
-          collapsed ? 'w-14' : 'w-64',
+          'app-sidebar flex h-screen flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
+          collapsed ? 'w-15' : 'w-[272px]',
         )}
       >
-        <div className={cn('p-4', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
+        <div className={cn('p-3.5', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
-            <div className="flex items-center">
-              <div className="h-8 w-8 overflow-hidden rounded-lg cursor-pointer" onClick={onToggleCollapse}>
+            <div className="flex min-w-0 items-center">
+              <div className="h-9 w-9 overflow-hidden rounded-xl cursor-pointer shadow-sm ring-1 ring-stone-200/70" onClick={onToggleCollapse}>
                 <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
               </div>
-              {!collapsed && <span className="ml-2.5 text-[15px] font-semibold tracking-tight text-gray-900">{APP_NAME}</span>}
+              {!collapsed && (
+                <div className="ml-2.5 min-w-0">
+                  <div className="truncate text-[15px] font-semibold tracking-tight text-stone-950">{APP_NAME}</div>
+                  <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-stone-400">Knowledge copilot</div>
+                </div>
+              )}
             </div>
 
             {!collapsed && (
               <button
                 onClick={onToggleCollapse}
-                className="rounded p-1.5 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-white/70 hover:text-stone-700"
                 title="收起侧边栏"
               >
                 <PanelLeftClose className="h-4 w-4" />
@@ -87,7 +92,7 @@ export function KnowledgeSidebar({
           {!collapsed ? (
             <button
               onClick={createNewSession}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-xs font-medium text-gray-600 transition-colors hover:border-primary/60 hover:bg-primary/5 hover:text-primary"
+              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               新建问答
@@ -95,7 +100,7 @@ export function KnowledgeSidebar({
           ) : (
             <button
               onClick={createNewSession}
-              className="rounded p-2 text-sm text-gray-500 transition-colors hover:bg-gray-200 hover:text-primary"
+              className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
               title="新建问答"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -103,7 +108,7 @@ export function KnowledgeSidebar({
           )}
         </div>
 
-        <div className={cn('flex-1 w-full overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('subtle-scrollbar flex-1 w-full overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 pt-1">
               <div
@@ -120,10 +125,10 @@ export function KnowledgeSidebar({
             </div>
           ) : (
             <>
-              <div className="border-y border-gray-200/60 py-3">
+              <div className="border-y border-stone-200/70 py-3">
                 <div className="mb-2 flex items-center justify-between px-2">
-                  <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-gray-700">
-                    <Cpu className="h-4 w-4 text-gray-500" />
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                    <Cpu className="h-4 w-4 text-stone-500" />
                     知识库服务
                   </span>
                   {online ? (
@@ -138,13 +143,13 @@ export function KnowledgeSidebar({
                     </span>
                   )}
                 </div>
-                <div className="space-y-2 px-2 text-xs text-gray-500">
+                <div className="space-y-2 px-2 text-xs text-stone-500">
                   <div className="flex items-center gap-2">
-                    <Cpu className="h-3.5 w-3.5 text-gray-400" />
+                    <Cpu className="h-3.5 w-3.5 text-stone-400" />
                     <span className="truncate">{health?.lmModel || 'Executive model'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Globe2 className="h-3.5 w-3.5 text-gray-400" />
+                    <Globe2 className="h-3.5 w-3.5 text-stone-400" />
                     <span>{health?.webSearchAvailable ? '联网搜索可用' : '联网搜索未配置或未知'}</span>
                   </div>
                   {health?.error && (
@@ -157,13 +162,13 @@ export function KnowledgeSidebar({
               </div>
 
               <div className="py-3">
-                <div className="mb-2 flex items-center gap-1.5 px-2 text-xs font-medium uppercase tracking-wider text-gray-700">
-                  <MessageSquarePlus className="h-4 w-4 text-gray-500" />
+                <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                  <MessageSquarePlus className="h-4 w-4 text-stone-500" />
                   问答历史
                 </div>
 
                 {sortedSessions.length === 0 ? (
-                  <div className="px-2 py-8 text-center text-sm text-gray-400">暂无历史问答</div>
+                  <div className="px-2 py-8 text-center text-sm text-stone-400">暂无历史问答</div>
                 ) : (
                   <div className="space-y-1">
                     {sortedSessions.map((session) => {
@@ -172,17 +177,17 @@ export function KnowledgeSidebar({
                         <div
                           key={session.id}
                           className={cn(
-                            'group flex items-center gap-2 rounded-lg px-3 py-2 transition-colors',
-                            active ? 'bg-primary/10 text-primary ring-1 ring-primary/20' : 'text-gray-600 hover:bg-gray-100',
+                            'group flex items-center gap-2 rounded-xl px-3 py-2 transition-all duration-200',
+                            active ? 'bg-white text-primary shadow-sm ring-1 ring-primary/20' : 'text-stone-600 hover:bg-white/70 hover:text-stone-900',
                           )}
                         >
                           <button onClick={() => setActiveSession(session.id)} className="min-w-0 flex-1 text-left">
                             <div className="truncate text-sm font-medium">{session.title}</div>
-                            <div className="text-xs text-gray-400">{getRelativeTime(session.updatedAt)}</div>
+                            <div className="text-xs text-stone-400">{getRelativeTime(session.updatedAt)}</div>
                           </button>
                           <button
                             onClick={() => deleteSession(session.id)}
-                            className="rounded-md p-1 text-gray-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                            className="rounded-md p-1 text-stone-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                             title="删除问答"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -197,29 +202,29 @@ export function KnowledgeSidebar({
           )}
         </div>
 
-        <div className="border-t border-gray-200">
+        <div className="border-t border-stone-200/75">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="rounded-lg p-2.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800"
                 title={health?.backendBase || '设置'}
               >
                 <Settings className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={onToggleCollapse}
-                className="rounded-lg p-2.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800"
                 title="展开侧边栏"
               >
                 <PanelLeftOpen className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-3">
+            <div className="flex items-center justify-between px-3 py-2">
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="flex items-center gap-2 rounded-lg p-3 text-xs text-gray-600 transition-colors hover:bg-gray-100"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
                 title={health?.backendBase || '设置'}
               >
                 <Settings className="h-3.5 w-3.5" />

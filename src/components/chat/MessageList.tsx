@@ -2,9 +2,7 @@ import { useEffect, useRef, Fragment, useCallback } from 'react'
 import type { ChatMessage } from '@/lib/types'
 import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
-import { WelcomeScreen } from './WelcomeScreen'
 import { useChatStore } from '@/hooks/useChat'
-import { useDatabaseStore } from '@/hooks/useDatabase'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -13,8 +11,7 @@ interface MessageListProps {
 export function MessageList({ messages }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const { sendMessage, isStreaming } = useChatStore()
-  const { activeConnection, activeConnectionId, connectionStatus, connectionError } = useDatabaseStore()
+  const { isStreaming } = useChatStore()
   const shouldAutoScrollRef = useRef(true)
   const prevLengthRef = useRef(messages.length)
 
@@ -44,16 +41,7 @@ export function MessageList({ messages }: MessageListProps) {
   }, [messages, isStreaming])
 
   if (messages.length === 0) {
-    return (
-      <WelcomeScreen
-        onSuggestionClick={sendMessage}
-        hasConnection={!!activeConnection}
-        connectionName={activeConnection?.name}
-        connectionStatus={connectionStatus}
-        connectionError={connectionError}
-        activeConnectionId={activeConnectionId}
-      />
-    )
+    return null
   }
 
   const lastAssistantId = (() => {
@@ -64,23 +52,25 @@ export function MessageList({ messages }: MessageListProps) {
   })()
 
   return (
-    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto overflow-x-hidden px-[10%] py-4 space-y-4">
-      {messages.map((message) => (
-        <Fragment key={message.id}>
-          <MessageBubble
-            message={message}
-            isStreaming={isStreaming && message.id === lastAssistantId}
-          />
-          {message.role === 'assistant' && message.answerDuration != null && (
-            <TaskCompleteIndicator
-              duration={message.answerDuration}
-              queryCount={message.answerQueryCount ?? 0}
-              modelName={message.answerModel ?? ''}
+    <div ref={containerRef} onScroll={handleScroll} className="subtle-scrollbar h-full overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6 lg:px-[6%] 2xl:px-[12%]">
+      <div className="mx-auto max-w-4xl space-y-4 2xl:max-w-5xl">
+        {messages.map((message) => (
+          <Fragment key={message.id}>
+            <MessageBubble
+              message={message}
+              isStreaming={isStreaming && message.id === lastAssistantId}
             />
-          )}
-        </Fragment>
-      ))}
-      <div ref={bottomRef} />
+            {message.role === 'assistant' && message.answerDuration != null && (
+              <TaskCompleteIndicator
+                duration={message.answerDuration}
+                queryCount={message.answerQueryCount ?? 0}
+                modelName={message.answerModel ?? ''}
+              />
+            )}
+          </Fragment>
+        ))}
+        <div ref={bottomRef} />
+      </div>
     </div>
   )
 }

@@ -1,40 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #148AFF;
+  --color-primary: #0f766e;
   --color-primary-foreground: #ffffff;
-  --color-sidebar: #f8fafc;
-  --color-sidebar-border: #e2e8f0;
+  --color-sidebar: #f2f0ea;
+  --color-sidebar-border: #ddd8cc;
   --color-chat-bg: #ffffff;
-  --color-user-bubble: #148AFF;
-  --color-ai-bubble: #f1f5f9;
-  --color-thinking-bg: #f8fafc;
-  --color-thinking-border: #e2e8f0;
-  --color-tool-badge: #148AFF;
-  --color-danger: #dc2626;
-  --font-sans: "Inter", "system-ui", "-apple-system", "sans-serif";
+  --color-user-bubble: #0f766e;
+  --color-ai-bubble: #f7f4ed;
+  --color-thinking-bg: #f6f3ec;
+  --color-thinking-border: #ddd8cc;
+  --color-tool-badge: #0f766e;
+  --color-danger: #c2410c;
+  --font-sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "system-ui", "sans-serif";
 
   /* shadcn semantic tokens */
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #737373;
+  --color-background: #f7f4ed;
+  --color-foreground: #151515;
+  --color-muted: #eee9dd;
+  --color-muted-foreground: #6f6a60;
   --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
-  --color-accent: #eff6ff;
-  --color-accent-foreground: #0b4ea2;
-  --color-destructive: #dc2626;
-  --color-border: #e5e7eb;
-  --color-input: #e5e7eb;
-  --color-ring: #93c5fd;
-  --color-secondary: #eff6ff;
-  --color-secondary-foreground: #0b4ea2;
+  --color-popover-foreground: #151515;
+  --color-accent: #e5f3f0;
+  --color-accent-foreground: #0f766e;
+  --color-destructive: #c2410c;
+  --color-border: #ded8cb;
+  --color-input: #d6d0c3;
+  --color-ring: #5eead4;
+  --color-secondary: #eef2ff;
+  --color-secondary-foreground: #3730a3;
 }
 
 html, body {
   height: 100%;
   margin: 0;
   font-family: var(--font-sans);
+  color: #151515;
+  background: #f7f4ed;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
@@ -52,6 +56,70 @@ button:disabled,
 select:disabled,
 [role="button"][aria-disabled="true"] {
   cursor: not-allowed;
+}
+
+.app-canvas {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(248,247,243,0.96) 42%, rgba(242,239,231,1) 100%),
+    linear-gradient(90deg, rgba(15,118,110,0.035), transparent 36%, rgba(55,48,163,0.025) 100%),
+    #f8f6f0;
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.68), rgba(242,240,234,0.96)),
+    linear-gradient(90deg, rgba(15,118,110,0.08), transparent 44%),
+    #f2f0ea;
+}
+
+.app-header {
+  background: rgba(255, 255, 255, 0.78);
+  border-color: rgba(98, 88, 70, 0.16);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.72) inset;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(98, 88, 70, 0.16);
+  box-shadow: 0 18px 44px rgba(66, 55, 38, 0.09), 0 1px 0 rgba(255,255,255,0.7) inset;
+  backdrop-filter: blur(18px);
+}
+
+.command-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.82)),
+    #ffffff;
+  border: 1px solid rgba(98, 88, 70, 0.14);
+  box-shadow: 0 24px 70px rgba(56, 46, 31, 0.12), 0 1px 0 rgba(255,255,255,0.82) inset;
+  backdrop-filter: blur(18px);
+}
+
+.quiet-panel {
+  background: rgba(255,255,255,0.62);
+  border: 1px solid rgba(98, 88, 70, 0.13);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.76) inset;
+}
+
+.control-chip {
+  border: 1px solid rgba(98, 88, 70, 0.18);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.72) inset;
+}
+
+.subtle-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(111, 106, 96, 0.28) transparent;
+}
+
+.subtle-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.subtle-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(111, 106, 96, 0.24);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
 }
 
 @keyframes pulse-dot {
@@ -120,7 +188,7 @@ select:disabled,
   margin-left: 3px;
   border-radius: 999px;
   vertical-align: -0.16em;
-  background: linear-gradient(180deg, rgba(20, 138, 255, 0.35), #148AFF 46%, rgba(20, 138, 255, 0.35));
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.35), #0f766e 46%, rgba(15, 118, 110, 0.35));
   animation: streaming-caret-pulse 1.05s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
@@ -163,8 +231,8 @@ select:disabled,
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: #148AFF;
-  box-shadow: 0 0 0 4px rgba(20, 138, 255, 0.12);
+  background: #0f766e;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
   animation: streaming-dot-breathe 1.25s ease-in-out infinite;
 }
 

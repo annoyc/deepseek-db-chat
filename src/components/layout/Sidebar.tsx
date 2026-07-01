@@ -44,24 +44,27 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
     <>
       <aside
         className={cn(
-          'h-screen flex flex-col border-r border-gray-200 bg-slate-50/80 transition-all duration-300 cursor-default select-none',
-          collapsed ? 'w-14' : 'w-64',
+          'app-sidebar h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
+          collapsed ? 'w-15' : 'w-[272px]',
         )}
       >
         {/* Logo + Toggle */}
-        <div className={cn('p-4', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
+        <div className={cn('p-3.5', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
-            <div className="flex items-center">
-              <div className="w-8 h-8 rounded-lg overflow-hidden cursor-pointer" onClick={onToggleCollapse}>
+            <div className="flex min-w-0 items-center">
+              <div className="h-9 w-9 rounded-xl overflow-hidden cursor-pointer shadow-sm ring-1 ring-stone-200/70" onClick={onToggleCollapse}>
                 <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="w-full h-full" />
               </div>
               {!collapsed && (
-                <span className="font-semibold text-[15px] text-gray-900 ml-2.5 tracking-tight">{APP_NAME}</span>
+                <div className="ml-2.5 min-w-0">
+                  <div className="truncate text-[15px] font-semibold tracking-tight text-stone-950">{APP_NAME}</div>
+                  <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-stone-400">Local data copilot</div>
+                </div>
               )}
             </div>
             {!collapsed && <button
               onClick={onToggleCollapse}
-              className="p-1.5 hover:bg-gray-200 rounded text-gray-500 hover:text-gray-700 transition-colors"
+              className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-white/70 hover:text-stone-700"
               title="收起侧边栏"
             >
               <PanelLeftClose className="w-4 h-4" />
@@ -73,7 +76,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
           {!collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 text-gray-600 rounded-lg hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-xs font-medium"
+              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               添加数据库连接
@@ -82,7 +85,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
           {collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="p-2 hover:bg-gray-200 rounded text-sm text-gray-500 hover:text-primary transition-colors"
+              className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
               title="添加数据库连接"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -91,21 +94,22 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
         </div>
 
         {/* Content area */}
-        <div className={cn('flex-1 w-full overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('subtle-scrollbar flex-1 w-full overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')}>
           {/* Database section - collapsible */}
           <div
             className={cn('flex items-center gap-2 py-1.5 cursor-pointer select-none', collapsed ? 'justify-center' : 'px-2')}
             onClick={() => !collapsed && setDbSectionCollapsed(!dbSectionCollapsed)}
           >
-            <Database className="w-4 h-4 text-gray-500" />
+            <Database className="w-4 h-4 text-stone-500" />
             {!collapsed && (
               <>
-                <span className="text-xs font-medium text-gray-700 uppercase tracking-wider flex-1">数据库连接</span>
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">数据库连接</span>
+                <span className="rounded-full bg-stone-200/70 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-stone-500">{connections.length}</span>
                 <div className={cn(
                   'transition-transform duration-200',
                   dbSectionCollapsed ? '-rotate-90' : ''
                 )}>
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
                 </div>
               </>
             )}
@@ -118,7 +122,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
               className="flex justify-center py-1"
               title={activeConn.name}
             >
-              <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
                 <Server className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -126,7 +130,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
 
           {/* Divider between sections */}
           {!collapsed && (
-            <div className="my-2 border-t border-gray-200/60" />
+            <div className="my-3 border-t border-stone-200/70" />
           )}
 
           {/* Chat section - collapsible */}
@@ -135,15 +139,15 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             onClick={() => !collapsed && setChatSectionCollapsed(!chatSectionCollapsed)}
           >
             <div className="flex items-center gap-1.5">
-              <MessageSquarePlus className="w-4 h-4 text-gray-500" />
+              <MessageSquarePlus className="w-4 h-4 text-stone-500" />
               {!collapsed && (
                 <>
-                  <span className="text-xs font-medium text-gray-700 uppercase tracking-wider">对话历史</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">对话历史</span>
                   <div className={cn(
                     'transition-transform duration-200',
                     chatSectionCollapsed ? '-rotate-90' : ''
                   )}>
-                    <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
                   </div>
                 </>
               )}
@@ -151,7 +155,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             {!collapsed && (
               <button
                 onClick={(e) => { e.stopPropagation(); createNewSession() }}
-                className="p-0.5 hover:bg-primary/10 rounded text-gray-500 hover:text-primary transition-colors"
+                className="rounded-md p-0.5 text-stone-500 transition-colors hover:bg-primary/10 hover:text-primary"
                 title="新对话"
               >
                 <Plus className="w-4 h-4" />
@@ -171,7 +175,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
                     'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
                     activeSessionId === session.id
                       ? 'bg-primary/10 text-primary border border-primary/20'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-transparent'
+                      : 'bg-stone-100 text-stone-500 hover:bg-white border border-transparent'
                   )}
                   title={session.title}
                 >
@@ -183,29 +187,29 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-200">
+        <div className="border-t border-stone-200/75">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
                 title="设置"
               >
                 <Settings className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={onToggleCollapse}
-                className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
                 title="展开侧边栏"
               >
                 <PanelLeftOpen className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-3">
+            <div className="flex items-center justify-between px-3 py-2">
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="flex items-center gap-2 p-3 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
               >
                 <Settings className="w-3.5 h-3.5" />
                 设置
