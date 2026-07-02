@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
 import { APP_NAME } from '@/lib/constants'
+import { ToolChainTimeline } from './ToolChainTimeline'
 
 interface KnowledgePanelProps {
   contextOpen: boolean
@@ -56,31 +57,47 @@ const answerModes: { id: KnowledgeAnswerMode; label: string }[] = [
 ]
 
 function ProcessCard({ message }: { message: KnowledgeMessage }) {
+  const toolSteps = message.evidence?.toolSteps ?? []
   const progress = message.evidence?.progress ?? []
-  const hasProgress = progress.length > 0 || message.statusText
-  if (!hasProgress) return null
+  const hasToolSteps = toolSteps.length > 0
+  const running = hasToolSteps ? toolSteps.some((s) => s.status === 'running') : Boolean(message.statusText)
+  const hasContent = hasToolSteps || progress.length > 0
+  if (!hasContent) return null
+
+  const doneCount = toolSteps.filter((s) => s.status !== 'running').length
 
   return (
     <div className="rounded-xl border border-stone-200/70 bg-white/78 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-semibold text-stone-900">
-          {message.statusText ? (
+          {running ? (
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
           ) : (
             <Sparkles className="h-4 w-4 text-primary" />
           )}
-          执行过程
+          工具使用链
         </div>
-        {message.statusText && <span className="text-xs text-stone-400">{message.statusText}</span>}
+        {toolSteps.length > 0 ? (
+          <span className="text-xs text-stone-400">
+            {doneCount}/{toolSteps.length} 已完成
+          </span>
+        ) : (
+          message.statusText && <span className="text-xs text-stone-400">{message.statusText}</span>
+        )}
       </div>
-      <div className="space-y-2">
-        {progress.map((item, index) => (
-          <div key={`${item}-${index}`} className="flex items-center gap-2 text-sm text-stone-600">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
+
+      {toolSteps.length > 0 ? (
+        <ToolChainTimeline steps={toolSteps} />
+      ) : (
+        <div className="space-y-2">
+          {progress.map((item, index) => (
+            <div key={`${item}-${index}`} className="flex items-center gap-2 text-sm text-stone-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -109,6 +126,9 @@ function AssistantMessage({
     (evidence?.subQuestions.length ?? 0) +
     (evidence?.memorySnippets.length ?? 0) +
     (evidence?.webResults.length ?? 0)
+  const hasProcessCard =
+    (evidence?.toolSteps.length ?? 0) > 0 ||
+    (evidence?.progress.length ?? 0) > 0
 
   return (
     <div className="max-w-[760px] space-y-4">
@@ -119,7 +139,7 @@ function AssistantMessage({
           <MarkdownContent content={message.content} />
         </div>
       ) : (
-        isStreaming && (
+        isStreaming && !hasProcessCard && (
           <div className="flex items-center gap-2 py-3 text-sm text-stone-400">
             <Loader2 className="h-4 w-4 animate-spin" />
             {message.statusText || '正在生成...'}

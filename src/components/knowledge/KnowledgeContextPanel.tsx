@@ -1,5 +1,6 @@
-import { Check, ChevronDown, FileText, Globe2, ListChecks, X } from 'lucide-react'
+import { FileText, Globe2, Workflow, X } from 'lucide-react'
 import type { KnowledgeMessage } from '@/lib/knowledge-types'
+import { ToolChainTimeline } from './ToolChainTimeline'
 
 interface KnowledgeContextPanelProps {
   message: KnowledgeMessage | null
@@ -8,7 +9,7 @@ interface KnowledgeContextPanelProps {
 
 export function KnowledgeContextPanel({ message, onClose }: KnowledgeContextPanelProps) {
   const evidence = message?.evidence
-  const progress = evidence?.progress ?? []
+  const toolSteps = evidence?.toolSteps ?? []
   const memorySnippets = evidence?.memorySnippets ?? []
   const webResults = evidence?.webResults ?? []
   const subQuestions = evidence?.subQuestions ?? []
@@ -32,22 +33,17 @@ export function KnowledgeContextPanel({ message, onClose }: KnowledgeContextPane
       <section className="mb-4 rounded-xl border border-stone-200/70 bg-white/78 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
-            <ListChecks className="h-4 w-4 text-primary" />
-            Progress
+            <Workflow className="h-4 w-4 text-primary" />
+            工具使用链
           </div>
-          <ChevronDown className="h-4 w-4 text-stone-400" />
+          {toolSteps.length > 0 && (
+            <span className="text-xs text-stone-400">
+              {toolSteps.filter((s) => s.status !== 'running').length}/{toolSteps.length} 已完成
+            </span>
+          )}
         </div>
-        {progress.length > 0 ? (
-          <div className="space-y-2">
-            {progress.map((item, index) => (
-              <div key={`${item}-${index}`} className="flex items-start gap-2 text-sm text-stone-600">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary">
-                  <Check className="h-3 w-3" />
-                </span>
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
+        {toolSteps.length > 0 ? (
+          <ToolChainTimeline steps={toolSteps} />
         ) : (
           <p className="text-sm text-stone-400">步骤会随着任务执行逐步出现。</p>
         )}

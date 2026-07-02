@@ -8,6 +8,7 @@ import type {
   KnowledgeMessage,
   KnowledgeSession,
   KnowledgeStreamChunk,
+  KnowledgeToolStep,
 } from '@/lib/knowledge-types'
 import { knowledgeChatStream } from '@/server/functions/knowledge-chat'
 
@@ -36,7 +37,39 @@ interface KnowledgeChatState {
 const KnowledgeChatContext = createContext<KnowledgeChatState | null>(null)
 
 function createEmptyEvidence(): KnowledgeEvidence {
-  return { subQuestions: [], memorySnippets: [], webResults: [], progress: [] }
+  return { subQuestions: [], memorySnippets: [], webResults: [], progress: [], toolSteps: [] }
+}
+
+function upsertToolStep(
+  steps: KnowledgeToolStep[],
+  chunk: Extract<KnowledgeStreamChunk, { type: 'tool' }>,
+): KnowledgeToolStep[] {
+  const next = [...steps]
+  const index = next.findIndex((s) => s.id === chunk.id)
+  const incoming: KnowledgeToolStep = {
+    id: chunk.id,
+    name: chunk.name,
+    title: chunk.title,
+    status: chunk.status,
+    detail: chunk.detail,
+    output: chunk.output,
+    durationMs: chunk.durationMs,
+  }
+  if (index === -1) {
+    next.push(incoming)
+    return next
+  }
+  // Merge so a "done" event keeps any detail supplied when the step started.
+  next[index] = { ...next[index], ...incoming, detail: chunk.detail ?? next[index].detail }
+  return next
+}
+
+// When the stream ends (normally or via an error), no tool node should be left
+// spinning: coerce any lingering "running" steps to a terminal state.
+function settleToolSteps(steps: KnowledgeToolStep[], failed: boolean): KnowledgeToolStep[] {
+  return steps.map((s) =>
+    s.status === 'running' ? { ...s, status: failed ? 'error' : 'done' } : s,
+  )
 }
 
 function createAssistantMessage(): KnowledgeMessage {
@@ -72,9 +105,13 @@ async function* parseSSEStream(response: Response, signal?: AbortSignal): AsyncG
       buffer = lines.pop() ?? ''
 
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue
-        const jsonStr = line.slice(6)
-        if (jsonStr === '[DONE]') return
+        if (!line.startsWith('data:')) continue
+        const jsonStr = line.slice(5).trim()
+        if (!jsonStr) continue
+        if (jsonStr === '[DONE]') {
+          yield { type: 'finish' }
+          return
+        }
         try {
           yield JSON.parse(jsonStr) as KnowledgeStreamChunk
         } catch {}
@@ -117,6 +154,7 @@ function mergeEvidence(current: KnowledgeEvidence | undefined, chunk: Extract<Kn
   evidence.memorySnippets = chunk.memorySnippets ?? evidence.memorySnippets
   evidence.webResults = chunk.webResults ?? evidence.webResults
   evidence.progress = current?.progress ?? []
+  evidence.toolSteps = current?.toolSteps ?? []
   return evidence
 }
 
@@ -238,6 +276,15 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
 
     const sessionId = getOrCreateSession()
     const now = new Date().toISOString()
+
+    // Prior turns (oldest first) so the backend can resolve references like
+    // "它/那家/第二个" in follow-up questions. Captured before we append the new
+    // user turn + assistant placeholder below.
+    const history = (sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? [])
+      .filter((m) => m.content.trim())
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content }))
+
     const userMessage: KnowledgeMessage = {
       id: generateId(),
       role: 'user',
@@ -264,6 +311,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       useWebSearch,
       useBaseModel,
       answerMode,
+      history,
     }
 
     try {
@@ -276,16 +324,28 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
 
           if (chunk.type === 'status') {
             last.statusText = chunk.message
-            last.evidence = {
-              ...evidence,
-              progress: evidence.progress.includes(chunk.message)
-                ? evidence.progress
-                : [...evidence.progress, chunk.message],
+            if ((evidence.toolSteps ?? []).length === 0) {
+              last.evidence = {
+                ...evidence,
+                progress: evidence.progress.includes(chunk.message)
+                  ? evidence.progress
+                  : [...evidence.progress, chunk.message],
+              }
             }
           }
 
           if (chunk.type === 'text') {
             last.content += chunk.content
+          }
+
+          if (chunk.type === 'tool') {
+            const toolSteps = upsertToolStep(evidence.toolSteps ?? [], chunk)
+            const runningStep = toolSteps.find((s) => s.status === 'running')
+            last.evidence = {
+              ...evidence,
+              toolSteps,
+            }
+            last.statusText = runningStep ? `${runningStep.title}...` : undefined
           }
 
           if (chunk.type === 'evidence') {
@@ -295,10 +355,18 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
           if (chunk.type === 'error') {
             last.error = chunk.message
             last.content = last.content || `请求失败: ${chunk.message}`
+            last.evidence = {
+              ...evidence,
+              toolSteps: settleToolSteps(evidence.toolSteps ?? [], true),
+            }
           }
 
           if (chunk.type === 'finish') {
             last.statusText = undefined
+            last.evidence = {
+              ...(last.evidence ?? evidence),
+              toolSteps: settleToolSteps((last.evidence ?? evidence).toolSteps ?? [], false),
+            }
           }
 
           messages[messages.length - 1] = last
@@ -310,9 +378,16 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       updateSession(sessionId, (s) => {
         const messages = [...s.messages]
         const last = { ...messages[messages.length - 1] }
+        const evidence = last.evidence
         last.error = message
         last.content = last.content || `请求失败: ${message}`
         last.statusText = undefined
+        if (evidence) {
+          last.evidence = {
+            ...evidence,
+            toolSteps: settleToolSteps(evidence.toolSteps ?? [], true),
+          }
+        }
         messages[messages.length - 1] = last
         return { ...s, messages }
       })
@@ -331,7 +406,15 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       const messages = [...s.messages]
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === 'assistant') {
-          messages[i] = { ...messages[i], statusText: undefined, error: messages[i].content ? undefined : '已停止生成' }
+          const evidence = messages[i].evidence
+          messages[i] = {
+            ...messages[i],
+            statusText: undefined,
+            error: messages[i].content ? undefined : '已停止生成',
+            evidence: evidence
+              ? { ...evidence, toolSteps: settleToolSteps(evidence.toolSteps ?? [], true) }
+              : evidence,
+          }
           break
         }
       }

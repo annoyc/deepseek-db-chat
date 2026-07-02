@@ -41,6 +41,7 @@ function buildBackendPayload(data: KnowledgeChatInput) {
     use_web_search: data.useWebSearch,
     use_base_model: data.useBaseModel,
     answer_mode: data.answerMode,
+    history: (data.history ?? []).map((turn) => ({ role: turn.role, content: turn.content })),
   }
 }
 
@@ -71,6 +72,13 @@ async function emitFallbackChat(
   backendBase: string,
 ) {
   emit(controller, encoder, { type: 'status', message: '连接知识库服务...' })
+  emit(controller, encoder, {
+    type: 'tool',
+    id: 'request',
+    name: 'request',
+    title: '调用知识库服务',
+    status: 'running',
+  })
 
   const response = await fetch(`${backendBase}/chat`, {
     method: 'POST',
@@ -80,24 +88,94 @@ async function emitFallbackChat(
 
   const body = (await response.json().catch(() => ({}))) as MemoChatResponse
   if (!response.ok) {
+    emit(controller, encoder, {
+      type: 'tool',
+      id: 'request',
+      name: 'request',
+      title: '调用知识库服务',
+      status: 'error',
+      output: `HTTP ${response.status}`,
+    })
     throw new Error(body.detail || `知识库服务返回 ${response.status}`)
   }
+  emit(controller, encoder, {
+    type: 'tool',
+    id: 'request',
+    name: 'request',
+    title: '调用知识库服务',
+    status: 'done',
+    output: '已返回结果',
+  })
 
   emit(controller, encoder, { type: 'status', message: '整理检索证据...' })
+
+  const subQuestions = body.sub_questions ?? []
+  const memorySnippets = body.memory_snippets ?? []
+  const webResults = body.web_results ?? []
+
+  // Reconstruct a coarse tool chain from the non-streaming response so the
+  // timeline still renders when the backend lacks the /chat/stream endpoint.
+  if (subQuestions.length > 0) {
+    emit(controller, encoder, {
+      type: 'tool',
+      id: 'intent_analysis',
+      name: 'intent_analysis',
+      title: '意图分析与问题拆解',
+      status: 'done',
+      output: `拆解出 ${subQuestions.length} 个子问题`,
+      detail: subQuestions.join('\n'),
+    })
+  }
+  if (memorySnippets.length > 0) {
+    emit(controller, encoder, {
+      type: 'tool',
+      id: 'memory_query',
+      name: 'memory_query',
+      title: '记忆库检索',
+      status: 'done',
+      output: `检索 ${memorySnippets.length} 条记忆片段`,
+    })
+  }
+  if (webResults.length > 0) {
+    emit(controller, encoder, {
+      type: 'tool',
+      id: 'web_search',
+      name: 'web_search',
+      title: '联网搜索（博查）',
+      status: 'done',
+      output: `命中 ${webResults.length} 条网页结果`,
+    })
+  }
+
   emit(controller, encoder, {
     type: 'evidence',
-    subQuestions: body.sub_questions ?? [],
-    memorySnippets: body.memory_snippets ?? [],
-    webResults: body.web_results ?? [],
+    subQuestions,
+    memorySnippets,
+    webResults,
   })
 
   emit(controller, encoder, { type: 'status', message: '生成最终回答...' })
+  emit(controller, encoder, {
+    type: 'tool',
+    id: 'synthesis',
+    name: 'synthesis',
+    title: '答案合成',
+    status: 'running',
+  })
   const answer = body.answer || '（知识库服务未返回答案）'
   const chars = Array.from(answer)
   for (let i = 0; i < chars.length; i += 8) {
     emit(controller, encoder, { type: 'text', content: chars.slice(i, i + 8).join('') })
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
+  emit(controller, encoder, {
+    type: 'tool',
+    id: 'synthesis',
+    name: 'synthesis',
+    title: '答案合成',
+    status: 'done',
+    output: '合成完成',
+  })
 }
 
 export const knowledgeChatStream = createServerFn({ method: 'POST' })
