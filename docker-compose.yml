@@ -21,6 +21,7 @@ services:
       - DB_USER=${DB_USER:-}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_DATABASE=${DB_DATABASE:-}
+      - MEMO_CHAT_API_BASE=${MEMO_CHAT_API_BASE:-http://172.24.232.86:7860}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
       interval: 30s
