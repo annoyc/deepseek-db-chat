@@ -6,9 +6,11 @@ import { DatabaseList } from './DatabaseList'
 import { ChatHistory } from './ChatHistory'
 import { AddConnectionDialog } from './AddConnectionDialog'
 import { ApiKeyDialog } from './ApiKeyDialog'
+import { SessionLoadingIndicator } from './SessionLoadingIndicator'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { APP_NAME } from '@/lib/constants'
+import { getChatSessionActivity, getSessionActivityLabel } from '@/lib/session-activity'
 
 interface SidebarProps {
   collapsed?: boolean
@@ -22,7 +24,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
   const [dbSectionCollapsed, setDbSectionCollapsed] = useState(false)
   const [chatSectionCollapsed, setChatSectionCollapsed] = useState(false)
-  const { createNewSession, sessions, activeSessionId, setActiveSession } = useChatStore()
+  const { createNewSession, sessions, activeSessionId, streamingSessionId, setActiveSession } = useChatStore()
   const { editingConnection, connections, activeConnectionId } = useDatabaseStore()
 
   useEffect(() => {
@@ -35,10 +37,13 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
   const activeConn = connections.find(c => c.id === activeConnectionId)
 
   // Get recent session titles for collapsed display
-  const recentSessions = [...sessions]
+  const displayableSessions = [...sessions]
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3)
     .filter(s => s.title !== '新对话' || s.messages.length > 0)
+  const recentSessions = [
+    ...displayableSessions.filter(s => getChatSessionActivity(s, streamingSessionId) !== 'idle'),
+    ...displayableSessions,
+  ].filter((session, index, list) => list.findIndex((item) => item.id === session.id) === index).slice(0, 3)
 
   return (
     <>
@@ -167,21 +172,37 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
           {/* Collapsed: show recent sessions as tooltips */}
           {collapsed && recentSessions.length > 0 && (
             <div className="flex flex-col items-center gap-1 mt-1">
-              {recentSessions.map(session => (
-                <button
-                  key={session.id}
-                  onClick={() => setActiveSession(session.id)}
-                  className={cn(
-                    'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
-                    activeSessionId === session.id
-                      ? 'bg-primary/10 text-primary border border-primary/20'
-                      : 'bg-stone-100 text-stone-500 hover:bg-white border border-transparent'
-                  )}
-                  title={session.title}
-                >
-                  {session.title.slice(0, 1).toUpperCase()}
-                </button>
-              ))}
+              {recentSessions.map(session => {
+                const activityState = getChatSessionActivity(session, streamingSessionId)
+                const isSessionInProgress = activityState !== 'idle'
+                const activityLabel = getSessionActivityLabel(activityState)
+
+                return (
+                  <button
+                    key={session.id}
+                    onClick={() => setActiveSession(session.id)}
+                    className={cn(
+                      'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
+                      activeSessionId === session.id
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'bg-stone-100 text-stone-500 hover:bg-white border border-transparent',
+                      isSessionInProgress && 'bg-white text-primary border-primary/30 shadow-sm',
+                      activityState === 'waiting' && 'text-amber-700 border-amber-300/70'
+                    )}
+                    title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
+                  >
+                    {isSessionInProgress ? (
+                      <SessionLoadingIndicator
+                        size="xs"
+                        variant={activityState === 'waiting' ? 'waiting' : 'streaming'}
+                        label={activityLabel}
+                      />
+                    ) : (
+                      session.title.slice(0, 1).toUpperCase()
+                    )}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>

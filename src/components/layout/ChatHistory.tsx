@@ -3,10 +3,12 @@ import { MessageSquare, Trash2, X, Search, PencilLine, Check } from 'lucide-reac
 import { cn, getRelativeTime, getTimeGroup, timeGroupLabels, timeGroupOrder, envConfig, type TimeGroup } from '@/lib/utils'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
+import { getChatSessionActivity, getSessionActivityLabel } from '@/lib/session-activity'
 import type { DbEnv } from '@/lib/types'
+import { SessionLoadingIndicator } from './SessionLoadingIndicator'
 
 export function ChatHistory() {
-  const { sessions, activeSessionId, setActiveSession, deleteSession, renameSession } = useChatStore()
+  const { sessions, activeSessionId, streamingSessionId, setActiveSession, deleteSession, renameSession } = useChatStore()
   const { connections } = useDatabaseStore()
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -124,6 +126,9 @@ export function ChatHistory() {
             <div className="space-y-0.5">
               {groupSessions.map(session => {
                 const isActive = activeSessionId === session.id
+                const activityState = getChatSessionActivity(session, streamingSessionId)
+                const isSessionInProgress = activityState !== 'idle'
+                const activityLabel = getSessionActivityLabel(activityState)
                 const connInfo = getConnectionInfo(session.connectionId)
                 const isRenaming = renamingId === session.id
 
@@ -135,7 +140,10 @@ export function ChatHistory() {
                       isActive
                         ? 'bg-white text-primary border-primary/25 shadow-sm'
                         : 'text-stone-600 hover:bg-white/70 hover:text-stone-900 border-transparent',
+                      isSessionInProgress && 'border-primary/35 bg-white text-primary shadow-[0_8px_24px_rgba(15,118,110,0.08)]',
+                      activityState === 'waiting' && 'border-amber-300/70 text-amber-700 shadow-[0_8px_24px_rgba(245,158,11,0.08)]',
                     )}
+                    title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
                     onClick={() => {
                       if (!isRenaming) setActiveSession(session.id)
                     }}
@@ -169,8 +177,16 @@ export function ChatHistory() {
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 mb-1">
-                          <MessageSquare className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{session.title}</span>
+                          {isSessionInProgress ? (
+                            <SessionLoadingIndicator
+                              className="mt-px"
+                              variant={activityState === 'waiting' ? 'waiting' : 'streaming'}
+                              label={activityLabel}
+                            />
+                          ) : (
+                            <MessageSquare className="w-3 h-3 flex-shrink-0" />
+                          )}
+                          <span className={cn('truncate', isSessionInProgress && 'font-semibold')}>{session.title}</span>
                         </div>
                       )}
                       {/* Meta row: env badge + connection name on left, time pushed to right */}

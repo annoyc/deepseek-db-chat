@@ -12,9 +12,11 @@ import {
   Settings,
   Trash2,
   WifiOff,
+  X,
 } from 'lucide-react'
 import { AppModeSwitch, type AppMode } from '@/components/layout/AppModeSwitch'
 import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
+import { SessionLoadingIndicator } from '@/components/layout/SessionLoadingIndicator'
 import { cn, getRelativeTime } from '@/lib/utils'
 import type { KnowledgeHealth } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
@@ -34,9 +36,10 @@ export function KnowledgeSidebar({
   collapsed = false,
   onToggleCollapse,
 }: KnowledgeSidebarProps) {
-  const { sessions, activeSessionId, setActiveSession, createNewSession, deleteSession } = useKnowledgeChatStore()
+  const { sessions, activeSessionId, streamingSessionId, setActiveSession, createNewSession, deleteSession, stopStreaming } = useKnowledgeChatStore()
   const [health, setHealth] = useState<KnowledgeHealth | null>(null)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -52,7 +55,15 @@ export function KnowledgeSidebar({
     return [...sessions].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   }, [sessions])
 
+  const confirmDeleteSession = confirmDeleteId ? sessions.find((session) => session.id === confirmDeleteId) : null
   const online = health?.status === 'ok'
+
+  const confirmDelete = () => {
+    if (!confirmDeleteId) return
+    if (confirmDeleteId === streamingSessionId) stopStreaming()
+    deleteSession(confirmDeleteId)
+    setConfirmDeleteId(null)
+  }
 
   return (
     <>
@@ -173,20 +184,26 @@ export function KnowledgeSidebar({
                   <div className="space-y-1">
                     {sortedSessions.map((session) => {
                       const active = session.id === activeSessionId
+                      const isSessionStreaming = session.id === streamingSessionId
                       return (
                         <div
                           key={session.id}
                           className={cn(
                             'group flex items-center gap-2 rounded-xl px-3 py-2 transition-all duration-200',
                             active ? 'bg-white text-primary shadow-sm ring-1 ring-primary/20' : 'text-stone-600 hover:bg-white/70 hover:text-stone-900',
+                            isSessionStreaming && 'bg-white text-primary shadow-[0_8px_24px_rgba(15,118,110,0.08)] ring-1 ring-primary/25',
                           )}
+                          title={isSessionStreaming ? `${session.title} · AI 正在工作` : session.title}
                         >
                           <button onClick={() => setActiveSession(session.id)} className="min-w-0 flex-1 text-left">
-                            <div className="truncate text-sm font-medium">{session.title}</div>
+                            <div className="flex items-center gap-2">
+                              {isSessionStreaming && <SessionLoadingIndicator className="mt-px" />}
+                              <span className="truncate text-sm font-medium">{session.title}</span>
+                            </div>
                             <div className="text-xs text-stone-400">{getRelativeTime(session.updatedAt)}</div>
                           </button>
                           <button
-                            onClick={() => deleteSession(session.id)}
+                            onClick={() => setConfirmDeleteId(session.id)}
                             className="rounded-md p-1 text-stone-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                             title="删除问答"
                           >
@@ -234,6 +251,59 @@ export function KnowledgeSidebar({
           )}
         </div>
       </aside>
+
+      {confirmDeleteSession && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/35 backdrop-blur-sm"
+          onClick={() => setConfirmDeleteId(null)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                  <Trash2 className="h-4.5 w-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-stone-950">删除这条问答？</h2>
+                  <p className="mt-1 text-xs leading-5 text-stone-500">
+                    删除后本地历史无法恢复。
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+                title="关闭"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mb-5 rounded-xl border border-stone-200/75 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700">
+              <div className="truncate">{confirmDeleteSession.title}</div>
+              <div className="mt-0.5 text-xs font-normal text-stone-400">{getRelativeTime(confirmDeleteSession.updatedAt)}</div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ApiKeyDialog open={showApiKeyDialog} onClose={() => setShowApiKeyDialog(false)} />
     </>

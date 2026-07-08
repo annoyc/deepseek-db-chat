@@ -19,6 +19,7 @@ interface KnowledgeChatState {
   activeEvidenceMessage: KnowledgeMessage | null
   selectedEvidenceMessageId: string | null
   isStreaming: boolean
+  streamingSessionId: string | null
   useWebSearch: boolean
   useBaseModel: boolean
   answerMode: KnowledgeAnswerMode
@@ -168,6 +169,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [selectedEvidenceMessageId, setSelectedEvidenceMessageId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingSessionId, setStreamingSessionId] = useState<string | null>(null)
   const [useWebSearch, setUseWebSearchState] = useState(false)
   const [useBaseModel, setUseBaseModelState] = useState(true)
   const [answerMode, setAnswerMode] = useState<KnowledgeAnswerMode>('standard')
@@ -315,6 +317,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     }
 
     try {
+      setStreamingSessionId(sessionId)
       const response = await knowledgeChatStream({ data: input })
       for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current.signal)) {
         updateSession(sessionId, (s) => {
@@ -393,6 +396,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       })
     } finally {
       setIsStreaming(false)
+      setStreamingSessionId((current) => (current === sessionId ? null : current))
       updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
     }
   }, [answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch])
@@ -400,7 +404,8 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
     setIsStreaming(false)
-    const sessionId = activeSessionId
+    setStreamingSessionId(null)
+    const sessionId = streamingSessionId ?? activeSessionId
     if (!sessionId) return
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
@@ -420,7 +425,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       }
       return { ...s, messages, taskEndTime: Date.now() }
     })
-  }, [activeSessionId, updateSession])
+  }, [activeSessionId, streamingSessionId, updateSession])
 
   const clearMessages = useCallback(() => {
     if (!activeSessionId) return
@@ -435,6 +440,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     activeEvidenceMessage,
     selectedEvidenceMessageId,
     isStreaming,
+    streamingSessionId,
     useWebSearch,
     useBaseModel,
     answerMode,

@@ -128,6 +128,7 @@ interface ChatState {
   activeSessionId: string | null
   activeSession: ChatSession | null
   isStreaming: boolean
+  streamingSessionId: string | null
   setActiveSession: (id: string) => void
   createNewSession: () => void
   deleteSession: (id: string) => void
@@ -250,6 +251,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const pendingConnectionIdRef = useRef<string | null>(null)
 
   const [isStreaming, setIsStreaming] = useState(false)
+  const [streamingSessionId, setStreamingSessionId] = useState<string | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
@@ -679,6 +681,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setIsStreaming(true)
     abortControllerRef.current = new AbortController()
     const sessionId = getOrCreateSession()
+    setStreamingSessionId(sessionId)
 
     const userMessage: ChatMessage = {
       id: generateId(),
@@ -721,6 +724,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       })
     } finally {
       setIsStreaming(false)
+      setStreamingSessionId((current) => (current === sessionId ? null : current))
     }
   }, [activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
 
@@ -745,6 +749,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const runContinuation = useCallback(async (sessionId: string, connectionId: string, prompt: string) => {
     setIsStreaming(true)
+    setStreamingSessionId(sessionId)
     abortControllerRef.current = new AbortController()
 
     try {
@@ -755,6 +760,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       setIsStreaming(false)
+      setStreamingSessionId((current) => (current === sessionId ? null : current))
     }
   }, [appendAssistantAndProcess, markTaskComplete, generateAiTitleForSession])
 
@@ -870,6 +876,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('[confirmSql] Unexpected error:', err)
       setIsStreaming(false)
+      setStreamingSessionId(null)
       updateSession(activeSessionId, (s) => {
         const messages = s.messages.map((m) => {
           if (m.id === messageId && m.sqlConfirm) {
@@ -1047,8 +1054,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     abortControllerRef.current?.abort()
     abortControllerRef.current = null
 
-    const sessionId = activeSessionId
-    if (!sessionId) return
+    const sessionId = streamingSessionId ?? activeSessionId
+    if (!sessionId) {
+      setIsStreaming(false)
+      setStreamingSessionId(null)
+      return
+    }
 
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
@@ -1081,7 +1092,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     setIsStreaming(false)
-  }, [activeSessionId, updateSession])
+    setStreamingSessionId(null)
+  }, [activeSessionId, streamingSessionId, updateSession])
 
   const clearMessages = useCallback(() => {
     if (!activeSessionId) return
@@ -1093,6 +1105,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     activeSessionId,
     activeSession,
     isStreaming,
+    streamingSessionId,
     setActiveSession: handleSetActiveSession,
     createNewSession,
     deleteSession,
@@ -1111,6 +1124,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     activeSessionId,
     activeSession,
     isStreaming,
+    streamingSessionId,
     handleSetActiveSession,
     createNewSession,
     deleteSession,

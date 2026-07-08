@@ -122,6 +122,90 @@ select:disabled,
   background-clip: padding-box;
 }
 
+@keyframes session-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes session-loader-core {
+  0%, 100% {
+    transform: scale(0.82);
+    opacity: 0.72;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.08), 0 0 8px rgba(15, 118, 110, 0.18);
+  }
+  48% {
+    transform: scale(1);
+    opacity: 1;
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12), 0 0 14px rgba(15, 118, 110, 0.36);
+  }
+}
+
+.session-loading-indicator {
+  --session-loading-size: 14px;
+  position: relative;
+  display: inline-flex;
+  width: var(--session-loading-size);
+  height: var(--session-loading-size);
+  flex: 0 0 auto;
+  border-radius: 999px;
+  isolation: isolate;
+  filter: drop-shadow(0 2px 5px rgba(15, 118, 110, 0.14));
+}
+
+.session-loading-indicator--xs {
+  --session-loading-size: 12px;
+}
+
+.session-loading-indicator--sm {
+  --session-loading-size: 14px;
+}
+
+.session-loading-indicator::before,
+.session-loading-indicator::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+}
+
+.session-loading-indicator::before {
+  inset: 0;
+  background: conic-gradient(
+    from 35deg,
+    transparent 0deg 112deg,
+    rgba(245, 158, 11, 0.45) 132deg,
+    #0f766e 190deg,
+    #5eead4 252deg,
+    transparent 292deg 360deg
+  );
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.12);
+  animation: session-loader-spin 920ms linear infinite;
+}
+
+.session-loading-indicator::after {
+  inset: 3.5px;
+  background: radial-gradient(circle at 38% 30%, #ffffff 0 20%, #fbbf24 22% 30%, #5eead4 34% 60%, #0f766e 76%);
+  animation: session-loader-core 1.28s ease-in-out infinite;
+}
+
+.session-loading-indicator--waiting::before {
+  background: conic-gradient(
+    from 35deg,
+    transparent 0deg 118deg,
+    rgba(15, 118, 110, 0.28) 136deg,
+    #f59e0b 194deg,
+    #fde68a 252deg,
+    transparent 296deg 360deg
+  );
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.16);
+  animation-duration: 1.25s;
+}
+
+.session-loading-indicator--waiting::after {
+  background: radial-gradient(circle at 38% 30%, #ffffff 0 18%, #fde68a 24% 42%, #f59e0b 66%, #b45309 86%);
+  animation-duration: 1.65s;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -237,11 +321,17 @@ select:disabled,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .session-loading-indicator::before,
+  .session-loading-indicator::after,
   .streaming-markdown > :nth-last-child(2),
   .streaming-caret,
   .streaming-thinking-dot,
   .streaming-ellipsis span {
     animation: none;
+  }
+
+  .session-loading-indicator {
+    opacity: 0.78;
   }
 
   .streaming-caret,

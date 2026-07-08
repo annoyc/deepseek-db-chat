@@ -247,6 +247,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
   const {
     activeSession,
     isStreaming,
+    streamingSessionId,
     sendMessage,
     stopStreaming,
     useBaseModel,
@@ -263,6 +264,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const messages = activeSession?.messages ?? []
+  const activeSessionIsStreaming = Boolean(isStreaming && activeSession?.id === streamingSessionId)
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant') return messages[i].id
@@ -271,8 +273,8 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
   }, [messages])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' })
-  }, [messages, isStreaming])
+    bottomRef.current?.scrollIntoView({ behavior: activeSessionIsStreaming ? 'auto' : 'smooth' })
+  }, [messages, activeSessionIsStreaming])
 
   const submit = useCallback((value?: string) => {
     const text = (value ?? input).trim()
@@ -331,7 +333,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
                   ) : (
                     <AssistantMessage
                       message={message}
-                      isStreaming={isStreaming && message.id === lastAssistantId}
+                      isStreaming={activeSessionIsStreaming && message.id === lastAssistantId}
                       onOpenContext={() => openEvidence(message.id)}
                     />
                   )}

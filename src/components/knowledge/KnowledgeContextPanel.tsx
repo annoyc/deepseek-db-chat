@@ -4,10 +4,11 @@ import { ToolChainTimeline } from './ToolChainTimeline'
 
 interface KnowledgeContextPanelProps {
   message: KnowledgeMessage | null
+  width?: number
   onClose: () => void
 }
 
-export function KnowledgeContextPanel({ message, onClose }: KnowledgeContextPanelProps) {
+export function KnowledgeContextPanel({ message, width = 360, onClose }: KnowledgeContextPanelProps) {
   const evidence = message?.evidence
   const toolSteps = evidence?.toolSteps ?? []
   const memorySnippets = evidence?.memorySnippets ?? []
@@ -15,7 +16,10 @@ export function KnowledgeContextPanel({ message, onClose }: KnowledgeContextPane
   const subQuestions = evidence?.subQuestions ?? []
 
   return (
-    <aside className="app-sidebar subtle-scrollbar h-screen w-[360px] flex-shrink-0 overflow-y-auto border-l border-sidebar-border p-4">
+    <aside
+      className="app-sidebar subtle-scrollbar h-screen flex-shrink-0 overflow-y-auto border-l border-sidebar-border p-4"
+      style={{ width }}
+    >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <div className="text-sm font-semibold text-stone-950">证据面板</div>
