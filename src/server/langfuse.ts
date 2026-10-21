@@ -1,6 +1,6 @@
 import './instrumentation'
 import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
-import { getRequestIP } from '@tanstack/react-start/server'
+import { traceContent, traceError, traceMetadata } from '@/core/telemetry'
 import { langfuseSpanProcessor } from './instrumentation'
 
 export { langfuseSpanProcessor }
@@ -14,40 +14,46 @@ export interface TraceOptions {
   tags?: string[]
 }
 
-/**
- * Resolves the userId for tracing: uses the client IP address as a stable user identifier.
- */
+/** Anonymous by default; authenticated callers may explicitly supply an opaque userId. */
 export function resolveUserId(): string | undefined {
-  try {
-    return getRequestIP({ xForwardedFor: true }) ?? undefined
-  } catch (err) {
-    console.warn('[langfuse] Failed to resolve user ID:', err)
-    return undefined
-  }
+  return undefined
 }
 
 /**
  * Wraps an async function inside a traced observation with session/user context.
  * All LLM calls within `fn` are automatically nested as child generations.
  * If Langfuse is not configured (missing env vars), runs `fn` transparently.
- * userId defaults to the client IP address if not explicitly provided.
+ * Raw request IPs are never used as user identifiers.
  */
 export async function withTrace<T>(options: TraceOptions, fn: () => Promise<T>): Promise<T> {
   if (!langfuseSpanProcessor) return fn()
 
   const userId = options.userId || resolveUserId()
 
-  return startActiveObservation(options.name, async (span) => {
-    if (options.input) span.update({ input: options.input })
-    if (options.metadata) span.update({ metadata: options.metadata })
+  let failed = false
+  let failure: unknown
+  const result = await startActiveObservation(options.name, async (span) => {
+    if (options.input) span.update({ input: traceContent(options.input) })
+    if (options.metadata) span.update({ metadata: traceMetadata(options.metadata) })
 
-    return propagateAttributes({
-      userId,
-      sessionId: options.sessionId,
-      tags: options.tags,
-      traceName: options.name,
-    }, fn)
+    try {
+      return await propagateAttributes({
+        userId,
+        sessionId: options.sessionId,
+        tags: options.tags,
+        traceName: options.name,
+      }, fn)
+    } catch (error) {
+      failed = true
+      failure = error
+      // End the observation normally, then rethrow outside the SDK callback so
+      // SDK exception attributes cannot copy SQL/provider response text.
+      span.update({ level: 'ERROR', statusMessage: traceError(error) })
+      return undefined
+    }
   })
+  if (failed) throw failure
+  return result as T
 }
 
 export async function flushTraces(): Promise<void> {

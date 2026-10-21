@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { db } from '@/lib/db'
+import { useSessionPersistence } from './useSessionPersistence'
+import type { PersistenceState } from '@/lib/session-storage'
 import { generateId } from '@/lib/utils'
 import type {
   KnowledgeAnswerMode,
@@ -13,6 +15,8 @@ import type {
 import { knowledgeChatStream } from '@/server/functions/knowledge-chat'
 
 interface KnowledgeChatState {
+  persistenceState: PersistenceState
+  retrySave: () => void
   sessions: KnowledgeSession[]
   activeSessionId: string | null
   activeSession: KnowledgeSession | null
@@ -132,20 +136,7 @@ async function loadSessions(): Promise<KnowledgeSession[]> {
     return sessions
   } catch (err) {
     console.warn('[useKnowledgeChat] Failed to load sessions:', err)
-    return []
-  }
-}
-
-async function saveSessions(sessions: KnowledgeSession[]) {
-  if (typeof window === 'undefined') return
-  try {
-    const toSave = sessions.map((s) => ({ ...s, messages: s.messages.slice(-80) }))
-    await db.transaction('rw', db.knowledgeSessions, async () => {
-      await db.knowledgeSessions.clear()
-      if (toSave.length > 0) await db.knowledgeSessions.bulkPut(toSave)
-    })
-  } catch (err) {
-    console.warn('[useKnowledgeChat] Failed to save sessions:', err)
+    throw err
   }
 }
 
@@ -173,29 +164,29 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const [useWebSearch, setUseWebSearchState] = useState(false)
   const [useBaseModel, setUseBaseModelState] = useState(true)
   const [answerMode, setAnswerMode] = useState<KnowledgeAnswerMode>('standard')
-  const loadedRef = useRef(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [storageLoaded, setStorageLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+  const { persistenceState: saveState, retrySave: retryPersistedSessions } = useSessionPersistence('knowledgeSessions', sessions, storageLoaded)
+  const persistenceState: PersistenceState = loadError ? 'load-error' : saveState
   const sessionsRef = useRef(sessions)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   sessionsRef.current = sessions
 
-  useEffect(() => {
+  const reloadSessions = useCallback(() => {
+    setLoadError(false)
     loadSessions().then((loaded) => {
       setSessions(loaded)
       setActiveSessionId(loaded[0]?.id ?? null)
-      loadedRef.current = true
-    })
+      setStorageLoaded(true)
+    }).catch(() => setLoadError(true))
   }, [])
 
-  useEffect(() => {
-    if (!loadedRef.current) return
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => saveSessions(sessions), 700)
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    }
-  }, [sessions])
+  useEffect(reloadSessions, [reloadSessions])
+  const retrySave = useCallback(() => {
+    if (loadError) reloadSessions()
+    else retryPersistedSessions()
+  }, [loadError, reloadSessions, retryPersistedSessions])
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
 
@@ -232,6 +223,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   }, [activeSessionId])
 
   const createNewSession = useCallback(() => {
+    if (!storageLoaded) return
     const current = sessionsRef.current.find((s) => s.id === activeSessionId)
     if (current && current.messages.length === 0) return
 
@@ -246,7 +238,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     setSessions((prev) => [session, ...prev])
     setActiveSessionId(session.id)
     setSelectedEvidenceMessageId(null)
-  }, [activeSessionId])
+  }, [activeSessionId, storageLoaded])
 
   const deleteSession = useCallback((id: string) => {
     setSessions((prev) => prev.filter((s) => s.id !== id))
@@ -274,7 +266,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
 
   const sendMessage = useCallback(async (content: string) => {
     const trimmed = content.trim()
-    if (!trimmed || isStreaming) return
+    if (!storageLoaded || !trimmed || isStreaming) return
 
     const sessionId = getOrCreateSession()
     const now = new Date().toISOString()
@@ -296,7 +288,8 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     const assistantMessage = createAssistantMessage()
 
     setIsStreaming(true)
-    abortControllerRef.current = new AbortController()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
     setSelectedEvidenceMessageId(assistantMessage.id)
 
     updateSession(sessionId, (s) => ({
@@ -318,9 +311,10 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
 
     try {
       setStreamingSessionId(sessionId)
-      const response = await knowledgeChatStream({ data: input })
-      for await (const chunk of parseSSEStream(response as unknown as Response, abortControllerRef.current.signal)) {
+      const response = await knowledgeChatStream({ data: input, signal: controller.signal })
+      for await (const chunk of parseSSEStream(response as unknown as Response, controller.signal)) {
         updateSession(sessionId, (s) => {
+          if (abortControllerRef.current !== controller || controller.signal.aborted) return s
           const messages = [...s.messages]
           const last = { ...messages[messages.length - 1] }
           const evidence = last.evidence ?? createEmptyEvidence()
@@ -377,6 +371,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         })
       }
     } catch (err) {
+      if (controller.signal.aborted || abortControllerRef.current !== controller) return
       const message = err instanceof Error ? err.message : '知识库问答请求失败'
       updateSession(sessionId, (s) => {
         const messages = [...s.messages]
@@ -395,11 +390,13 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         return { ...s, messages }
       })
     } finally {
-      setIsStreaming(false)
-      setStreamingSessionId((current) => (current === sessionId ? null : current))
-      updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
+      if (abortControllerRef.current === controller) {
+        setIsStreaming(false)
+        setStreamingSessionId((current) => (current === sessionId ? null : current))
+        updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
+      }
     }
-  }, [answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch])
+  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -434,6 +431,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   }, [activeSessionId, updateSession])
 
   const value: KnowledgeChatState = {
+    persistenceState, retrySave,
     sessions,
     activeSessionId,
     activeSession,

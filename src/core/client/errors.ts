@@ -1,20 +1,23 @@
+import { readResponseJson } from './response-body'
+
 export interface ApiError {
   status: number
   message: string
   retryAfter?: number
 }
 
-export async function handleErrorResponse(response: Response): Promise<ApiError> {
+export async function handleErrorResponse(response: Response, signal?: AbortSignal): Promise<ApiError> {
   const status = response.status
   let message = response.statusText
   const retryAfter = response.headers.get('Retry-After')
 
   try {
-    const body = await response.clone().json() as { error?: { message?: string } }
+    const body = await readResponseJson<{ error?: { message?: string } }>(response, signal)
     message = body?.error?.message || message
   }
   catch (err) {
-    console.warn('[errors] Failed to parse error response body:', err)
+    signal?.throwIfAborted()
+    console.warn('[errors] Failed to parse error response body:', err instanceof Error ? err.name : 'UnknownError')
   }
 
   return {

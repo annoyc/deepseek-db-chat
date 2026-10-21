@@ -11,7 +11,7 @@ interface ApiKeyDialogProps {
   onClose: () => void
 }
 
-type EnvStatusMap = Record<string, { hasEnvKey: boolean; maskedKey: string }>
+type EnvStatusMap = Record<string, { hasEnvKey: boolean }>
 
 interface LocalProviderConfig {
   apiKeyInput: string
@@ -37,6 +37,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   const [activeTab, setActiveTab] = useState(provider)
   const [showKey, setShowKey] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [envStatus, setEnvStatus] = useState<EnvStatusMap>({})
   const [localConfigs, setLocalConfigs] = useState<LocalProviderConfigs>({})
 
@@ -49,6 +50,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       setActiveTab(provider)
       setShowKey({})
       setSaving(false)
+      setSaveError('')
       setLocalThinkingCollapse(thinkingCollapseMode)
       setLocalToolCallCollapse(toolCallCollapseMode)
       setLocalMaxSqlExecutions(maxSqlExecutions)
@@ -75,7 +77,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   if (!open) return null
 
   const currentLocal = localConfigs[activeTab] ?? EMPTY_LOCAL
-  const currentEnv = envStatus[activeTab] ?? { hasEnvKey: false, maskedKey: '' }
+  const currentEnv = envStatus[activeTab] ?? { hasEnvKey: false }
   const currentProviderDef = PROVIDERS.find((p) => p.id === activeTab)
   const hasAnyKey = currentLocal.hasSavedKey || currentEnv.hasEnvKey
 
@@ -88,6 +90,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
   const handleSave = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       for (const p of PROVIDERS) {
         const local = localConfigs[p.id]
@@ -111,6 +114,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       onClose()
     } catch (err) {
       console.error('[ApiKeyDialog] Save failed:', err)
+      setSaveError(err instanceof Error ? err.message : '保存失败，请重试')
     } finally {
       setSaving(false)
     }
@@ -166,7 +170,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               <Server className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
               <div className="text-xs text-blue-700">
                 <p className="font-medium">已通过环境变量配置 API Key</p>
-                <p className="mt-0.5 font-mono text-blue-600">{currentEnv.maskedKey}</p>
+                <p className="mt-0.5 text-blue-600">服务器密钥仅在服务端使用，不会保存到浏览器。</p>
                 <p className="mt-1 text-blue-500">
                   {currentLocal.hasSavedKey
                     ? '当前使用浏览器本地保存的 Key（优先级更高）'
@@ -239,7 +243,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               className="w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-mono"
             />
             <p className="text-xs text-gray-400 mt-1">
-              留空则使用默认地址，自建代理或私有部署时填写
+              留空则使用服务器配置的地址。填写自定义地址时，需要同时提供自有 API Key。
             </p>
           </div>
 
@@ -306,6 +310,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           {/* SQL 执行限制 */}
           <div className="border-t border-gray-200 pt-4 space-y-3">
             <div className="text-sm font-medium text-gray-700">SQL 执行限制</div>
+            <p className="text-xs text-amber-700">
+              请使用 MySQL 只读账号连接生产库。默认仅允许查询；写入须由管理员在服务器为指定的非生产数据库显式开启。
+            </p>
             <p className="text-xs text-gray-400 -mt-1">
               每个会话中最多允许执行的 SQL 次数，防止 AI 过度查询
             </p>
@@ -328,6 +335,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             </div>
           </div>
 
+          {saveError && <p role="alert" className="text-xs text-red-600">{saveError}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}

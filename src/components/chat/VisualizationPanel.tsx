@@ -39,7 +39,7 @@ function extractVizItems(messages: ChatMessage[]): VizItem[] {
 
     items.push({
       id: msg.id,
-      sql: msg.sqlConfirm?.sql ?? '',
+      sql: msg.sqlResult.executedSql ?? msg.sqlConfirm?.sql ?? '',
       result: msg.sqlResult,
       intentSummary: msg.sqlConfirm?.intent_summary,
       analysisReport: report,
@@ -109,8 +109,6 @@ function VizItemCard({ item, index, isLast, onQueryClick }: { item: VizItem; ind
     return analyzeChartData(item.result.columns, item.result.rows)
   }, [item.result])
 
-  const sqlAutoChartType = sqlAnalysis?.recommended
-
   return (
     <div className={`px-4 py-4 animate-in fade-in slide-in-from-right-3 duration-300 ${!isLast ? 'border-b border-gray-100' : ''}`}>
       <div className="text-xs text-gray-600 bg-primary/5 border border-primary/15 rounded-lg px-3 py-1.5 leading-relaxed mb-3">
@@ -164,7 +162,7 @@ function VizItemCard({ item, index, isLast, onQueryClick }: { item: VizItem; ind
         <>
           <div className="border-t border-gray-200 my-3" />
           <SectionTitle icon={Sparkles} title="分析总结" />
-          <AnalysisReportCard report={item.analysisReport} result={item.result} sqlChartType={sqlAutoChartType} onQueryClick={onQueryClick} />
+          <AnalysisReportCard report={item.analysisReport} result={item.result} onQueryClick={onQueryClick} />
         </>
       )}
     </div>

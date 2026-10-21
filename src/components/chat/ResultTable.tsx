@@ -5,6 +5,7 @@ import { ResultChart } from './ResultChart'
 import { MetricCards, isKpiResult } from './MetricCards'
 import { DataSummary } from './DataSummary'
 import { cn } from '@/lib/utils'
+import { formatResultStatistic, getResultPage, resultRowsToMarkdown, sortResultRows, toResultNumber } from '@/lib/result-data'
 
 interface ResultTableProps {
   result: SqlResultInfo
@@ -35,41 +36,18 @@ function exportCSV(columns: string[], rows: Record<string, unknown>[], filename 
   URL.revokeObjectURL(url)
 }
 
-function toMarkdownTable(columns: string[], rows: Record<string, unknown>[]): string {
-  const header = `| ${columns.join(' | ')} |`
-  const separator = `| ${columns.map(() => '---').join(' | ')} |`
-  const body = rows
-    .map((r) => `| ${columns.map((c) => String(r[c] ?? '')).join(' | ')} |`)
-    .join('\n')
-  return [header, separator, body].join('\n')
-}
-
 export function ResultTable({ result }: ResultTableProps) {
   const isKpi = isKpiResult(result)
   const [viewMode, setViewMode] = useState<ViewMode>(isKpi ? 'summary' : 'table')
   const [sortCol, setSortCol] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
+  const [page, setPage] = useState(0)
   const { columns, rows, rowCount } = result
 
-  const sortedRows = useMemo(() => {
-    const slice = rows.slice(0, 100)
-    if (!sortCol || !sortDir) return slice
-    return [...slice].sort((a, b) => {
-      const va = a[sortCol]
-      const vb = b[sortCol]
-      if (va === null || va === undefined) return 1
-      if (vb === null || vb === undefined) return -1
-      const na = Number(va)
-      const nb = Number(vb)
-      if (!isNaN(na) && !isNaN(nb)) {
-        return sortDir === 'asc' ? na - nb : nb - na
-      }
-      const sa = String(va)
-      const sb = String(vb)
-      return sortDir === 'asc' ? sa.localeCompare(sb) : sb.localeCompare(sa)
-    })
-  }, [rows, sortCol, sortDir])
+  const sortedRows = useMemo(() => sortResultRows(rows, sortCol, sortDir), [rows, sortCol, sortDir])
+  const currentPage = getResultPage(sortedRows, page)
 
   const columnStats = useMemo(() => {
     if (rows.length < 2) return null
@@ -82,8 +60,8 @@ export function ResultTable({ result }: ResultTableProps) {
         const val = row[col]
         if (val !== null && val !== undefined) {
           stats[col].distinct.add(String(val))
-          const n = Number(val)
-          if (!isNaN(n) && isFinite(n)) {
+          const n = toResultNumber(val)
+          if (n !== null) {
             stats[col].sum += n
             stats[col].count++
             stats[col].min = Math.min(stats[col].min, n)
@@ -96,6 +74,7 @@ export function ResultTable({ result }: ResultTableProps) {
   }, [columns, rows])
 
   const handleSort = useCallback((col: string) => {
+    setPage(0)
     if (sortCol !== col) {
       setSortCol(col)
       setSortDir('asc')
@@ -108,11 +87,15 @@ export function ResultTable({ result }: ResultTableProps) {
   }, [sortCol, sortDir])
 
   const handleCopy = useCallback(async () => {
-    const md = toMarkdownTable(columns, rows.slice(0, 100))
-    await navigator.clipboard.writeText(md)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [columns, rows])
+    setCopyError('')
+    try {
+      await navigator.clipboard.writeText(resultRowsToMarkdown(columns, sortedRows))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopyError('复制失败，请允许剪贴板访问或导出 CSV。')
+    }
+  }, [columns, sortedRows])
 
   const SortIcon = ({ col }: { col: string }) => {
     if (sortCol !== col || !sortDir) return <ArrowUpDown className="w-3 h-3 text-gray-300" />
@@ -124,20 +107,22 @@ export function ResultTable({ result }: ResultTableProps) {
     <div>
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">{rowCount} 行结果</span>
+          <span className="text-xs text-gray-400">{rows.length > 0 ? `已返回 ${rows.length} 行` : `${rowCount} 行结果`}</span>
           {rows.length > 0 && (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => exportCSV(columns, rows, `query-${Date.now()}.csv`)}
+                onClick={() => exportCSV(columns, sortedRows, `query-${Date.now()}.csv`)}
                 className="p-1 rounded hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
-                title="导出 CSV"
+                title={`导出全部已返回的 ${rows.length} 行 CSV（当前排序）`}
+                aria-label={`导出全部已返回的 ${rows.length} 行 CSV`}
               >
                 <Download className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={handleCopy}
                 className="p-1 rounded hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
-                title="复制表格"
+                title={`复制全部已返回的 ${rows.length} 行（当前排序）`}
+                aria-label={`复制全部已返回的 ${rows.length} 行`}
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -163,6 +148,16 @@ export function ResultTable({ result }: ResultTableProps) {
         </div>
       </div>
 
+      {result.truncated && (
+        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          结果已达到 {result.maxRows ?? rows.length} 行上限，可能还有更多数据。图表、统计、复制和导出仅覆盖已返回的行，请缩小查询范围或使用汇总查询。
+        </p>
+      )}
+      {rows.length > 0 && (
+        <p className="px-3 pt-2 text-[11px] text-gray-400">统计、复制和导出覆盖全部已返回的 {rows.length} 行；复制与导出保留当前排序。</p>
+      )}
+      {copyError && <p role="alert" className="px-3 pt-2 text-xs text-red-600">{copyError}</p>}
+
       {viewMode === 'table' ? (
         columns.length > 0 && rows.length > 0 ? (
           <div className="overflow-x-auto max-h-80 px-3 py-2">
@@ -184,7 +179,7 @@ export function ResultTable({ result }: ResultTableProps) {
                 </tr>
               </thead>
               <tbody>
-                {sortedRows.map((row, idx) => (
+                {currentPage.rows.map((row, idx) => (
                   <tr key={idx} className={cn('hover:bg-gray-50/50 transition-colors', idx % 2 === 1 && 'bg-gray-50/30')}>
                     {columns.map((col) => (
                       <td
@@ -244,8 +239,13 @@ export function ResultTable({ result }: ResultTableProps) {
       )}
 
       {viewMode === 'table' && rows.length > 100 && (
-        <div className="px-3 py-2 text-center text-xs text-gray-400 border-t border-gray-100">
-          显示前 100 行（共 {rowCount} 行）
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-gray-500 border-t border-gray-100">
+          <span>第 {currentPage.start + 1}–{currentPage.end} 行 / 已返回 {rows.length} 行</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setPage(currentPage.page - 1)} disabled={currentPage.page === 0} className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-40">上一页</button>
+            <span>{currentPage.page + 1}/{currentPage.pageCount}</span>
+            <button onClick={() => setPage(currentPage.page + 1)} disabled={currentPage.page + 1 === currentPage.pageCount} className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-40">下一页</button>
+          </div>
         </div>
       )}
     </div>
@@ -281,6 +281,5 @@ function formatDate(d: Date): string {
 }
 
 function formatNumber(n: number): string {
-  if (Number.isInteger(n)) return n.toLocaleString('zh-CN')
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  return formatResultStatistic(n)
 }

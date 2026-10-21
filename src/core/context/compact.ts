@@ -114,6 +114,7 @@ export class CompactTool {
       return compactContent
     }
     catch (err) {
+      signal?.throwIfAborted()
       console.warn('[compact] Compaction failed, returning original:', err)
       return content
     }
@@ -218,6 +219,7 @@ export class CompactMessage {
       ]
     }
     catch (err) {
+      signal?.throwIfAborted()
       console.warn('[compact] History compaction failed, returning original:', err)
       return messages
     }

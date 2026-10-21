@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { createModel, generateText, getProvider } from '@/core'
-import { decrypt } from '@/server/crypto'
+import { resolveAiCredentials } from '@/server/ai-credentials'
+import { sanitizeModelData } from '@/lib/masking'
 import { withTrace } from '@/server/langfuse'
 
 interface ClassifyInput {
@@ -34,6 +36,7 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
   .inputValidator((data: ClassifyInput) => data)
   .handler(
     async ({ data }): Promise<ChartColumnClassification | null> => {
+      const signal = getRequest().signal
       return withTrace({
         name: 'classify-chart-columns',
         sessionId: data.sessionId,
@@ -41,18 +44,16 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
         tags: ['chart-classify'],
       }, async () => {
         try {
-          const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
-          const providerId = data.provider ?? 'deepseek'
+            const providerId = data.provider ?? 'deepseek'
           const providerDef = getProvider(providerId)
           const model = createModel({
             provider: providerId as any,
             model: data.model || providerDef.defaultModel,
             thinking: { type: 'disabled' },
-            apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
-            baseURL: data.baseURL || undefined,
+            ...resolveAiCredentials(providerId, data.apiKey, data.baseURL),
           } as any)
 
-          const sample = data.sampleRows.slice(0, 3)
+          const sample = sanitizeModelData(data.sampleRows.slice(0, 3)) as Record<string, unknown>[]
           const prompt = [
             `列名：${data.columns.join(', ')}`,
             `样本数据（前 ${sample.length} 行）：`,
@@ -64,6 +65,7 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
             system: CLASSIFIER_PROMPT,
             prompt,
             maxSteps: 1,
+            signal,
           })
 
           const jsonMatch = result.text.match(/\{[\s\S]*\}/)
@@ -78,6 +80,7 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
 
           return { labelCol: validLabel, valueCols: validValues }
         } catch (err) {
+          signal.throwIfAborted()
           console.warn('[classify-chart-columns] Classification failed:', err)
           return null
         }

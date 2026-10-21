@@ -103,6 +103,7 @@ export async function generateStructuredOutput<T extends z.ZodTypeAny>(
       })
     }
     catch (error) {
+      signal?.throwIfAborted()
       if (error instanceof StopLoop) {
         throw error
       }

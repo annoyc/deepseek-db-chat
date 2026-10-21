@@ -66,6 +66,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
   let consecutiveDuplicateSteps = 0
 
   while (stepRef.value < maxSteps) {
+    signal?.throwIfAborted()
     stepRef.value++
     yield { type: 'step', step: stepRef.value }
 
@@ -114,13 +115,17 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       })
 
       let stepResult
-      while (true) {
-        const iterResult = await stepGen.next()
-        if (iterResult.done) {
-          stepResult = iterResult.value
-          break
+      try {
+        while (true) {
+          const iterResult = await stepGen.next()
+          if (iterResult.done) {
+            stepResult = iterResult.value
+            break
+          }
+          yield iterResult.value
         }
-        yield iterResult.value
+      } finally {
+        await stepGen.return(undefined as never)
       }
 
       mergeUsage(totalUsage, stepResult.usage)
@@ -212,6 +217,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       return { text: stepResult.text, output: undefined, usage: totalUsage }
     }
     catch (error) {
+      signal?.throwIfAborted()
       if (error instanceof StopLoop) {
         return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
       }

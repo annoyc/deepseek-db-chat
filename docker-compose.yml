@@ -3,27 +3,31 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: db-pilot:latest
+    image: ${APP_IMAGE:-db-pilot:latest}
     container_name: db-pilot
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_BIND_HOST:-127.0.0.1}:${APP_PORT:-3000}:3000"
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - DEEPSEEK_API_BASE_URL=${DEEPSEEK_API_BASE_URL:-}
       - BAILIAN_API_KEY=${BAILIAN_API_KEY}
       - BAILIAN_API_BASE_URL=${BAILIAN_API_BASE_URL:-}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_BASE_URL=${LANGFUSE_BASE_URL:-}
+      - LANGFUSE_CAPTURE_CONTENT=${LANGFUSE_CAPTURE_CONTENT:-false}
+      - SQL_WRITE_ENABLED=${SQL_WRITE_ENABLED:-false}
+      - SQL_WRITE_ALLOWLIST=${SQL_WRITE_ALLOWLIST:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
       - DB_HOST=${DB_HOST:-}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - DB_DATABASE=${DB_DATABASE:-}
-      - MEMO_CHAT_API_BASE=${MEMO_CHAT_API_BASE:-http://172.24.232.86:7860}
+      - MEMO_CHAT_API_BASE=${MEMO_CHAT_API_BASE:-http://127.0.0.1:7860}
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/workbench/dbpilot"]
       interval: 30s
       timeout: 5s
       retries: 3

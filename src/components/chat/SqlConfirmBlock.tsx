@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { CheckCircle2, Loader2, XCircle, Play, X, ArrowRight, AlertTriangle, Send, RotateCcw } from 'lucide-react'
+import { CheckCircle2, Loader2, XCircle, Play, X, ArrowRight, Send, RotateCcw } from 'lucide-react'
 import type { SqlConfirmInfo, SqlResultInfo } from '@/lib/types'
 import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
-
-const CONFIRM_TIMEOUT_SEC = 60
-const WARN_THRESHOLD_SEC = 10
+import { isSubmitKey } from '@/lib/keyboard'
 
 interface SqlConfirmBlockProps {
   info: SqlConfirmInfo
@@ -14,16 +12,10 @@ interface SqlConfirmBlockProps {
 }
 
 export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProps) {
-  const { confirmSql, cancelSql, reviseSql } = useChatStore()
-  const [countdown, setCountdown] = useState(CONFIRM_TIMEOUT_SEC)
-  const [paused, setPaused] = useState(false)
+  const { confirmSql, cancelSql, reviseSql, isStreaming } = useChatStore()
   const [feedback, setFeedback] = useState('')
   const feedbackRef = useRef<HTMLTextAreaElement>(null)
   const actionSubmittedRef = useRef(false)
-  const cancelSqlRef = useRef(cancelSql)
-  cancelSqlRef.current = cancelSql
-  const pausedRef = useRef(paused)
-  pausedRef.current = paused
 
   const isLoading = info.status === 'loading'
   const isExecuted = info.status === 'executed'
@@ -33,56 +25,35 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
   const isError = info.status === 'error'
   const isRevised = info.status === 'revised'
 
-  const isWarning = isPending && countdown <= WARN_THRESHOLD_SEC
-
   useEffect(() => {
     if (!isPending) return
     actionSubmittedRef.current = false
-    setCountdown(CONFIRM_TIMEOUT_SEC)
-    const interval = setInterval(() => {
-      if (pausedRef.current) return
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          if (!actionSubmittedRef.current) {
-            actionSubmittedRef.current = true
-            cancelSqlRef.current(messageId)
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
   }, [isPending, messageId])
-
-  const handleMouseEnter = useCallback(() => setPaused(true), [])
-  const handleMouseLeave = useCallback(() => {
-    if (!feedback) setPaused(false)
-  }, [feedback])
 
   const handleSubmitFeedback = useCallback(() => {
     const text = feedback.trim()
-    if (!text) return
+    if (!text || isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     reviseSql(messageId, text)
-  }, [reviseSql, messageId, feedback])
+  }, [reviseSql, messageId, feedback, isStreaming])
 
   const handleConfirm = useCallback(() => {
+    if (isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     confirmSql(messageId)
-  }, [confirmSql, messageId])
+  }, [confirmSql, messageId, isStreaming])
 
   const handleCancel = useCallback(() => {
+    if (isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     cancelSql(messageId)
-  }, [cancelSql, messageId])
+  }, [cancelSql, messageId, isStreaming])
 
   const handleFeedbackKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (isSubmitKey(e)) {
       e.preventDefault()
       handleSubmitFeedback()
     }
@@ -105,26 +76,22 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
   return (
     <div
-      className={`border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300 ${isError ? 'border-red-200' : isWarning ? 'border-amber-300' : 'border-gray-200'}`}
-      onMouseEnter={isPending ? handleMouseEnter : undefined}
-      onMouseLeave={isPending ? handleMouseLeave : undefined}
+      className={`border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300 ${isError ? 'border-red-200' : 'border-gray-200'}`}
     >
-      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : isWarning ? 'border-amber-100' : 'border-gray-100'}`}>
+      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : 'border-gray-100'}`}>
         {isExecuted ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
         ) : isError ? (
           <XCircle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
         ) : isRevised ? (
           <RotateCcw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-        ) : isWarning ? (
-          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 animate-pulse" />
         ) : (
           <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 ${isConfirmed ? 'text-primary animate-spin' : 'text-amber-500'}`} />
         )}
         <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
         {isPending && (
-          <span className={`text-xs ml-0.5 ${isWarning ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
-            {paused ? '已暂停' : isWarning ? `即将超时 (${countdown}s)` : `待确认 (${countdown}s)`}
+          <span className="text-xs ml-0.5 text-gray-400">
+            等待确认，不会自动执行
           </span>
         )}
         {isConfirmed && <span className="text-xs text-primary ml-0.5 font-medium">执行中...</span>}
@@ -186,7 +153,6 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
                 onKeyDown={handleFeedbackKeyDown}
-                onFocus={handleMouseEnter}
                 placeholder="对结果不满意？输入修改建议，如：加上时间条件、改为 LEFT JOIN、只查前10条..."
                 className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 pr-9 resize-none bg-gray-50/50 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
                 rows={1}
@@ -194,6 +160,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
               {feedback.trim() && (
                 <button
                   onClick={handleSubmitFeedback}
+                  disabled={isStreaming}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
                   title="提交修改建议 (Enter)"
                 >
@@ -205,23 +172,21 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
           <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-50">
             {feedback.trim() ? (
-              <Button onClick={handleSubmitFeedback} size="sm" className="h-7 text-xs px-3">
+              <Button onClick={handleSubmitFeedback} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <RotateCcw className="size-3 mr-1" />
                 按建议重新生成
               </Button>
             ) : (
-              <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
+              <Button onClick={handleConfirm} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <Play className="size-3 mr-1" />
                 确认执行
               </Button>
             )}
-            <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs px-3">
+            <Button onClick={handleCancel} disabled={isStreaming} variant="outline" size="sm" className="h-7 text-xs px-3">
               <X className="size-3 mr-1" />
               取消
             </Button>
-            {paused && !feedback.trim() && (
-              <span className="text-[11px] text-gray-400 ml-auto">鼠标悬停已暂停倒计时</span>
-            )}
+            {isStreaming && <span className="text-[11px] text-gray-400">请等待当前任务结束后确认</span>}
           </div>
         </div>
       )}

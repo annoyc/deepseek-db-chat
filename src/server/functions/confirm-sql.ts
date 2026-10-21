@@ -1,7 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { executeQuery } from '@/server/database'
 import { decrypt } from '@/server/crypto'
 import { validateSql } from '@/lib/sql-guard'
+import { resolveSqlPermission } from '@/server/sql-policy'
+import { z } from 'zod'
 import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
 
 interface ConfirmSqlInput {
@@ -15,10 +18,22 @@ export type SqlExecuteResult =
   | { success: false; error: string }
 
 export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: false })
-  .inputValidator((data: ConfirmSqlInput) => data)
+  .inputValidator((data: ConfirmSqlInput) => z.object({
+    connection: z.object({
+      id: z.string().min(1).max(200), name: z.string().max(200),
+      host: z.string().min(1).max(255), port: z.number().int().min(1).max(65535),
+      user: z.string().max(200), password: z.string().max(16_384),
+      database: z.string().min(1).max(200),
+      env: z.enum(['dev', 'test', 'staging', 'prod']).default('prod'),
+      createdAt: z.string(),
+    }),
+    sql: z.string().min(1).max(200_000),
+    sqlPermission: z.enum(['readonly', 'write']).optional(),
+  }).parse(data))
   .handler(
     async ({ data }): Promise<SqlExecuteResult> => {
-      const validation = validateSql(data.sql, data.sqlPermission)
+      const permission = resolveSqlPermission(data.connection, data.sqlPermission)
+      const validation = validateSql(data.sql, permission)
       if (!validation.allowed) {
         return {
           success: false,
@@ -31,7 +46,7 @@ export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: fal
           ...data.connection,
           password: decrypt(data.connection.password),
         }
-        const result = await executeQuery(decryptedConnection, data.sql)
+        const result = await executeQuery(decryptedConnection, data.sql, permission, getRequest().signal)
         return { success: true, data: result }
       } catch (err) {
         console.error('[confirm-sql] Execute error:', err)

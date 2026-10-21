@@ -1,12 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { createModel, generateText, getProvider } from '@/core'
-import { decrypt } from '@/server/crypto'
+import { resolveAiCredentials } from '@/server/ai-credentials'
+import { parseAnswerCheck, type AnswerCheck } from '@/lib/answer-check'
 import { withTrace } from '@/server/langfuse'
 
 interface ClassifyInput {
   assistantContent: string
   hasToolCalls: boolean
   isContinuation: boolean
+  evidence?: string
   provider?: string
   model?: string
   apiKey?: string
@@ -14,40 +17,18 @@ interface ClassifyInput {
   sessionId?: string
 }
 
-const CLASSIFIER_PROMPT = `你是一个幻觉检测分类器。判断数据库助手的回复是否包含编造的内容。
-
-你将收到以下上下文信息：
-1. 助手的回复文本
-2. hasToolCalls：助手在本轮是否调用了工具
-3. isContinuation：当前会话中是否存在真实的 SQL 执行记录
-
-【最高优先级规则】：
-如果 isContinuation = true，说明助手的上下文中包含真实的 SQL 执行结果。此时助手回复中出现的任何具体数据（姓名、手机号、邮箱、数字、ID、状态值等）都应被视为来自真实执行结果或会话历史记录，不算幻觉。只有当助手在 isContinuation=true 时编造了明显超出执行结果范围的内容（例如执行结果只有查询数据，助手却声称删除了100条记录），才判定为幻觉。
-
-【核心判断逻辑】：
-
-hasFakeResult = true（幻觉）的情况：
-- isContinuation=false 且 hasToolCalls=false 时，助手声称 SQL 已执行成功或展示了具体的查询数据（姓名、手机号、邮箱等）
-- isContinuation=false 时，助手承诺要执行某个动作（如"让我查一下"、"我来删除"），但 hasToolCalls 为 false，即没有实际调用工具
-- isContinuation=false 时，助手编造了不存在的查询数据，且这些数据不可能来自任何真实来源
-
-hasFakeResult = false（正常）的情况：
-- isContinuation 为 true 时，助手分析、总结、转述之前真正执行过的 SQL 结果 — 这是合法的回复
-- 助手调用了工具（hasToolCalls=true），说明它正在通过工具获取数据
-- 助手展示 SQL 供用户确认执行（如"以下是生成的 SQL，请确认后执行"）
-- 助手做知识解答或规划下一步操作
-
-输出格式（JSON）：
-{
-  "hasFakeResult": boolean
-}
-
-只输出 JSON，不要输出其他任何内容。`
+const CLASSIFIER_PROMPT = `你是数据库助手回复的辅助检查器。对照提供的真实查询结果检查是否存在明显编造或矛盾。
+只有 evidence 中的数据可以作为数值依据；hasToolCalls 和 isContinuation 仅表示流程状态，不证明任何具体数字正确。
+没有 evidence 时不要推断已有真实数据。若助手声称已经执行 SQL 或给出查询结果，但没有执行证据，应标记可疑。
+结构探查、知识解释、待确认 SQL 不属于已执行结果。分析必须尊重 evidence 中的截断范围，不得把样本统计当作全表指标。
+检查仅作为辅助，未发现明显问题也不代表已经验证业务口径或全部计算。
+仅输出 JSON：{"hasFakeResult": boolean}`
 
 export const classifyHallucination = createServerFn({ method: 'POST' })
   .inputValidator((data: ClassifyInput) => data)
   .handler(
-    async ({ data }): Promise<{ hasFakeResult: boolean }> => {
+    async ({ data }): Promise<AnswerCheck> => {
+      const signal = getRequest().signal
       return withTrace({
         name: 'classify-hallucination',
         sessionId: data.sessionId,
@@ -55,20 +36,19 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
         tags: ['hallucination'],
       }, async () => {
         try {
-          const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
-          const provider = data.provider ?? 'deepseek'
+            const provider = data.provider ?? 'deepseek'
           const providerDef = getProvider(provider)
           const model = createModel({
             provider: provider as any,
             model: data.model || providerDef.defaultModel,
             thinking: { type: 'disabled' },
-            apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
-            baseURL: data.baseURL || undefined,
+            ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
           } as any)
 
           const promptParts = [
             `hasToolCalls：${data.hasToolCalls ? '是' : '否'}`,
             `isContinuation：${data.isContinuation ? '是' : '否'}`,
+            `查询结果证据：${data.evidence || "未提供执行结果"}`,
             `\n助手回复：${data.assistantContent}`,
           ]
 
@@ -77,17 +57,14 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
             system: CLASSIFIER_PROMPT,
             prompt: promptParts.join('\n'),
             maxSteps: 1,
+            signal,
           })
 
-          const jsonMatch = result.text.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0])
-            return { hasFakeResult: Boolean(parsed.hasFakeResult) }
-          }
-          return { hasFakeResult: false }
+          return parseAnswerCheck(result.text)
         } catch (err) {
+          signal.throwIfAborted()
           console.error('[classify] Hallucination classification failed:', err)
-          return { hasFakeResult: false }
+          return { hasFakeResult: null, status: 'unavailable' }
         }
       })
     }

@@ -31,7 +31,7 @@ export interface StrictToolDefinition<T extends z.ZodObject> {
   strict: true
   required?: boolean
   schema: T
-  execute: (args: z.infer<T>) => ToolResult | Promise<ToolResult>
+  execute: (args: z.infer<T>, context: { signal: AbortSignal }) => ToolResult | Promise<ToolResult>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig
@@ -43,7 +43,7 @@ export interface NonStrictToolDefinition<T extends z.ZodObject> {
   strict?: false
   required?: boolean
   schema: T
-  execute: (args: z.infer<T>) => ToolResult | Promise<ToolResult>
+  execute: (args: z.infer<T>, context: { signal: AbortSignal }) => ToolResult | Promise<ToolResult>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig

@@ -1,11 +1,30 @@
 import mysql from 'mysql2/promise'
 import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
 import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constants'
-import { validateSql } from '@/lib/sql-guard'
+import { prepareSqlForExecution } from '@/lib/sql-guard'
+import type { SqlPermission } from '@/lib/sql-guard'
+import { resolveSqlPermission } from './sql-policy'
 import { subsetTables } from './schema-subsetting'
 
 const pools = new Map<string, mysql.Pool>()
 const poolFingerprints = new Map<string, string>()
+
+/** Metadata/profiling queries get the same deadline as user-confirmed SQL. */
+async function queryWithTimeout(pool: mysql.Pool, sql: string, values?: unknown[]) {
+  const connection = await pool.getConnection()
+  let destroyed = false
+  try {
+    return await connection.query({ sql, timeout: QUERY_TIMEOUT_MS }, values)
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'PROTOCOL_SEQUENCE_TIMEOUT') {
+      destroyed = true
+      connection.destroy()
+    }
+    throw error
+  } finally {
+    if (!destroyed) connection.release()
+  }
+}
 
 function connectionFingerprint(conn: DatabaseConnection): string {
   return `${conn.host}|${conn.port}|${conn.user}|${conn.password}|${conn.database}`
@@ -62,7 +81,7 @@ async function detectDictTable(pool: mysql.Pool, database: string, tableNames: s
     if (!actualName) continue
 
     // Get columns of this candidate table
-    const [cols] = await pool.query(
+    const [cols] = await queryWithTimeout(pool,
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
       [database, actualName],
     )
@@ -86,7 +105,7 @@ async function detectDictTable(pool: mysql.Pool, database: string, tableNames: s
 async function loadDictCache(pool: mysql.Pool, info: DictTableInfo): Promise<DictCache> {
   const cache: DictCache = new Map()
   try {
-    const [rows] = await pool.query(
+    const [rows] = await queryWithTimeout(pool,
       `SELECT \`${info.typeColumn}\` AS dict_type, \`${info.valueColumn}\` AS dict_value, \`${info.labelColumn}\` AS dict_label
        FROM \`${info.tableName}\`
        WHERE \`${info.typeColumn}\` IS NOT NULL AND \`${info.labelColumn}\` IS NOT NULL
@@ -179,6 +198,8 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
     connectTimeout: 10_000,
     waitForConnections: true,
     queueLimit: 0,
+    supportBigNumbers: true,
+    bigNumberStrings: true,
   })
 
   pools.set(connection.id, pool)
@@ -220,46 +241,56 @@ export async function testConnection(connection: DatabaseConnection): Promise<{ 
  */
 async function tableExists(connection: DatabaseConnection, tableName: string): Promise<boolean> {
   const pool = getPool(connection)
-  const [rows] = await pool.query(
+  const [rows] = await queryWithTimeout(pool,
     `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
     [connection.database, tableName],
   )
   return ((rows as Record<string, unknown>[])[0]?.cnt as number) > 0
 }
 
-/**
- * Auto-inject LIMIT into SELECT statements that lack one.
- * Returns the original SQL unchanged for non-SELECT or statements that already have LIMIT.
- */
-function ensureSelectLimit(sql: string, maxRows: number): string {
-  const trimmed = sql.trim()
-  // Only apply to SELECT / WITH queries
-  if (!/^\s*(SELECT|WITH)\b/i.test(trimmed)) return trimmed
-  // Already has a LIMIT clause at the top level (crude but effective for generated SQL)
-  if (/\bLIMIT\s+\d+/i.test(trimmed)) return trimmed
-  return `${trimmed.replace(/;?\s*$/, '')} LIMIT ${maxRows}`
-}
-
-export async function executeQuery(connection: DatabaseConnection, sql: string): Promise<SqlResultInfo> {
+export async function executeQuery(connection: DatabaseConnection, sql: string, requestedPermission: SqlPermission = 'readonly', signal?: AbortSignal): Promise<SqlResultInfo> {
+  signal?.throwIfAborted()
+  // The final database boundary re-checks trusted server policy even when called outside the RPC.
+  const prepared = prepareSqlForExecution(sql, resolveSqlPermission(connection, requestedPermission), MAX_RESULT_ROWS)
   const pool = getPool(connection)
   const start = Date.now()
 
-  // Enforce result row limit for safety
-  const safeSql = ensureSelectLimit(sql, MAX_RESULT_ROWS)
-
   const conn = await pool.getConnection()
+  let destroyed = false
+  let rejectAbort: (error: Error) => void = () => {}
+  const aborted = new Promise<never>((_, reject) => { rejectAbort = reject })
+  const destroyConnection = () => {
+    if (!destroyed) {
+      destroyed = true
+      conn.destroy()
+    }
+  }
+  const onAbort = () => {
+    destroyConnection()
+    // mysql2 destroy() closes the socket but does not guarantee that an in-flight
+    // query promise settles. Stop awaiting it independently of driver callbacks.
+    rejectAbort(new Error('SQL request aborted'))
+  }
+  signal?.addEventListener('abort', onAbort, { once: true })
   try {
-    const [rows, fields] = await conn.query({
-      sql: safeSql,
+    if (signal?.aborted) {
+      destroyConnection()
+      signal.throwIfAborted()
+    }
+    const query = conn.query({
+      sql: prepared.sql,
       timeout: QUERY_TIMEOUT_MS,
     })
+    const [rows, fields] = await (signal ? Promise.race([query, aborted]) : query)
+    signal?.throwIfAborted()
 
     const executionTime = Date.now() - start
 
     if (Array.isArray(rows)) {
       const columns = fields ? (fields as mysql.FieldPacket[]).map((f) => f.name) : []
       // BigInt-safe serialization: convert to String to preserve precision
-      const data = JSON.parse(JSON.stringify(rows, (_key, value) =>
+      const truncated = rows.length > MAX_RESULT_ROWS
+      const data = JSON.parse(JSON.stringify(rows.slice(0, MAX_RESULT_ROWS), (_key, value) =>
         typeof value === 'bigint' ? String(value) : value
       )) as Record<string, unknown>[]
       return {
@@ -267,24 +298,42 @@ export async function executeQuery(connection: DatabaseConnection, sql: string):
         rows: data,
         rowCount: data.length,
         executionTime,
+        executedSql: prepared.sql,
+        truncated,
+        maxRows: MAX_RESULT_ROWS,
+        resultLimitApplied: prepared.resultLimitApplied || truncated,
       }
     }
 
     const result = rows as mysql.ResultSetHeader
     return {
       columns: ['affectedRows', 'insertId', 'changedRows'],
-      rows: [{ affectedRows: Number(result.affectedRows), insertId: Number(result.insertId), changedRows: Number(result.changedRows) }],
+      rows: [{ affectedRows: result.affectedRows, insertId: result.insertId, changedRows: result.changedRows }],
       rowCount: 1,
       executionTime,
+      executedSql: prepared.sql,
+      truncated: false,
+      resultLimitApplied: false,
     }
+  } catch (error) {
+    if (signal?.aborted) {
+      const cancelled = new Error(prepared.isWrite
+        ? 'SQL 请求已取消；写操作可能已经提交，断开连接不代表回滚，请核对数据库结果'
+        : 'SQL 请求已取消，数据库连接已断开')
+      cancelled.name = 'AbortError'
+      throw cancelled
+    }
+    if ((error as { code?: string })?.code === 'PROTOCOL_SEQUENCE_TIMEOUT') destroyConnection()
+    throw error
   } finally {
-    conn.release()
+    signal?.removeEventListener('abort', onAbort)
+    if (!destroyed) conn.release()
   }
 }
 
 export async function listTables(connection: DatabaseConnection): Promise<string[]> {
   const pool = getPool(connection)
-  const [rows] = await pool.query('SHOW TABLES')
+  const [rows] = await queryWithTimeout(pool, 'SHOW TABLES')
   return (rows as Record<string, string>[]).map((row) => Object.values(row)[0])
 }
 
@@ -296,7 +345,7 @@ async function getForeignKeys(connection: DatabaseConnection, tableName: string)
   const pool = getPool(connection)
 
   // Outgoing: columns in this table that reference other tables
-  const [outgoing] = await pool.query(
+  const [outgoing] = await queryWithTimeout(pool,
     `SELECT
        kcu.COLUMN_NAME,
        kcu.REFERENCED_TABLE_NAME,
@@ -311,7 +360,7 @@ async function getForeignKeys(connection: DatabaseConnection, tableName: string)
   )
 
   // Incoming: columns in other tables that reference this table
-  const [incoming] = await pool.query(
+  const [incoming] = await queryWithTimeout(pool,
     `SELECT
        kcu.TABLE_NAME AS source_table,
        kcu.COLUMN_NAME AS source_column,
@@ -391,7 +440,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
     } catch (err) { console.warn('[database] Dict cache init skipped:', err) }
   }
 
-  const [columns] = await pool.query(
+  const [columns] = await queryWithTimeout(pool,
     `SELECT COLUMN_NAME, COLUMN_TYPE, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT, COLUMN_COMMENT, EXTRA
      FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
@@ -399,10 +448,10 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
     [connection.database, tableName],
   )
 
-  const [indexes] = await pool.query(`SHOW INDEX FROM \`${tableName}\``)
+  const [indexes] = await queryWithTimeout(pool, `SHOW INDEX FROM \`${tableName}\``)
 
   // Get table row count for context
-  const [countResult] = await pool.query(
+  const [countResult] = await queryWithTimeout(pool,
     `SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
     [connection.database, tableName],
   )
@@ -503,7 +552,7 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
     try {
       const dateHints: string[] = []
       for (const dc of dateCols.slice(0, 3)) {
-        const [rangeRows] = await pool.query(
+        const [rangeRows] = await queryWithTimeout(pool,
           `SELECT MIN(\`${dc}\`) AS min_val, MAX(\`${dc}\`) AS max_val FROM \`${tableName}\` WHERE \`${dc}\` IS NOT NULL`,
         )
         const range = (rangeRows as Record<string, unknown>[])[0]
@@ -523,13 +572,13 @@ export async function getTableSchema(connection: DatabaseConnection, tableName: 
       const distHints: string[] = []
       for (const ec of enumLikeCols.slice(0, 8)) {
         // First check cardinality — skip high-cardinality columns (not truly enum-like)
-        const [cardRows] = await pool.query(
+        const [cardRows] = await queryWithTimeout(pool,
           `SELECT COUNT(DISTINCT \`${ec.name}\`) AS card FROM \`${tableName}\` WHERE \`${ec.name}\` IS NOT NULL`,
         )
         const cardinality = Number((cardRows as Record<string, unknown>[])[0]?.card ?? 0)
         if (cardinality > 30 || cardinality === 0) continue
 
-        const [distRows] = await pool.query(
+        const [distRows] = await queryWithTimeout(pool,
           `SELECT \`${ec.name}\` AS val, COUNT(*) AS cnt FROM \`${tableName}\` WHERE \`${ec.name}\` IS NOT NULL GROUP BY \`${ec.name}\` ORDER BY cnt DESC LIMIT 15`,
         )
         const dist = (distRows as Record<string, unknown>[])
@@ -560,7 +609,7 @@ export async function getDatabaseOverview(connection: DatabaseConnection, userQu
 
   // Parallel: fetch tables and FKs simultaneously
   const [tablesResult, fksResult] = await Promise.all([
-    pool.query(
+    queryWithTimeout(pool,
       `SELECT TABLE_NAME, TABLE_ROWS, TABLE_COMMENT, AUTO_INCREMENT
        FROM INFORMATION_SCHEMA.TABLES
        WHERE TABLE_SCHEMA = ?
@@ -568,7 +617,7 @@ export async function getDatabaseOverview(connection: DatabaseConnection, userQu
        ORDER BY TABLE_NAME`,
       [connection.database],
     ),
-    pool.query(
+    queryWithTimeout(pool,
       `SELECT
          kcu.TABLE_NAME,
          kcu.COLUMN_NAME,
@@ -706,7 +755,7 @@ async function inferJoinPaths(
 
   try {
     // Get all columns ending with _id across the database
-    const [idCols] = await pool.query(
+    const [idCols] = await queryWithTimeout(pool,
       `SELECT TABLE_NAME, COLUMN_NAME
        FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = ?
@@ -766,41 +815,34 @@ async function inferJoinPaths(
  * Used for pre-execution safety analysis.
  */
 export async function explainQuery(connection: DatabaseConnection, sql: string): Promise<string> {
-  const validation = validateSql(sql, 'readonly')
-  if (!validation.allowed) {
-    throw new Error(`EXPLAIN 拒绝执行: ${validation.reason}`)
-  }
+  const prepared = prepareSqlForExecution(sql, 'readonly')
+  if (!prepared.isSelect) throw new Error('EXPLAIN 仅支持 SELECT 查询')
 
   const pool = getPool(connection)
-  const conn = await pool.getConnection()
-  try {
-    const [rows] = await conn.query({ sql: `EXPLAIN ${sql}`, timeout: QUERY_TIMEOUT_MS })
-    const explainRows = rows as Record<string, unknown>[]
+  const [rows] = await queryWithTimeout(pool, `EXPLAIN ${prepared.sql}`)
+  const explainRows = rows as Record<string, unknown>[]
 
-    if (explainRows.length === 0) return 'EXPLAIN 无结果'
+  if (explainRows.length === 0) return 'EXPLAIN 无结果'
 
-    let result = 'EXPLAIN 执行计划:\n'
-    for (const row of explainRows) {
-      const id = row.id ?? '?'
-      const type = row.type ?? '?'  // ALL, index, range, ref, eq_ref, const, system
-      const table = row.table ?? '?'
-      const possibleKeys = row.possible_keys ?? 'none'
-      const key = row.key ?? 'none'
-      const rowsEstimate = row.rows ?? '?'
-      const extra = row.Extra ?? ''
-      result += `  [${id}] ${table}: type=${type}, key=${key}, rows≈${rowsEstimate}, extra=${extra}\n`
-    }
-
-    // Warn about full table scans
-    const hasFullScan = explainRows.some(r => r.type === 'ALL' && Number(r.rows) > 10000)
-    if (hasFullScan) {
-      result += '\n⚠️ 检测到全表扫描（type=ALL），查询可能较慢。建议添加合适的 WHERE 条件或索引。'
-    }
-
-    return result
-  } finally {
-    conn.release()
+  let result = 'EXPLAIN 执行计划:\n'
+  for (const row of explainRows) {
+    const id = row.id ?? '?'
+    const type = row.type ?? '?'  // ALL, index, range, ref, eq_ref, const, system
+    const table = row.table ?? '?'
+    const possibleKeys = row.possible_keys ?? 'none'
+    const key = row.key ?? 'none'
+    const rowsEstimate = row.rows ?? '?'
+    const extra = row.Extra ?? ''
+    result += `  [${id}] ${table}: type=${type}, key=${key}, rows≈${rowsEstimate}, extra=${extra}\n`
   }
+
+  // Warn about full table scans
+  const hasFullScan = explainRows.some(r => r.type === 'ALL' && Number(r.rows) > 10000)
+  if (hasFullScan) {
+    result += '\n⚠️ 检测到全表扫描（type=ALL），查询可能较慢。建议添加合适的 WHERE 条件或索引。'
+  }
+
+  return result
 }
 
 export async function closePool(connectionId: string) {
@@ -823,7 +865,7 @@ export async function closePool(connectionId: string) {
  */
 async function columnExists(connection: DatabaseConnection, tableName: string, columnName: string): Promise<boolean> {
   const pool = getPool(connection)
-  const [rows] = await pool.query(
+  const [rows] = await queryWithTimeout(pool,
     `SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
     [connection.database, tableName, columnName],
   )
@@ -859,13 +901,13 @@ export async function getColumnFilterData(
 
   try {
     // Always get row count
-    const [countRows] = await pool.query(
+    const [countRows] = await queryWithTimeout(pool,
       `SELECT COUNT(*) AS cnt FROM \`${tableName}\``,
     )
     result.rowCount = Number((countRows as Record<string, unknown>[])[0]?.cnt ?? 0)
 
     // Get column data type to determine which queries to run
-    const [colInfo] = await pool.query(
+    const [colInfo] = await queryWithTimeout(pool,
       `SELECT DATA_TYPE, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
       [connection.database, tableName, columnName],
@@ -880,7 +922,7 @@ export async function getColumnFilterData(
 
     // MIN/MAX for date-like columns
     if (isDateType) {
-      const [rangeRows] = await pool.query(
+      const [rangeRows] = await queryWithTimeout(pool,
         `SELECT MIN(\`${columnName}\`) AS min_val, MAX(\`${columnName}\`) AS max_val FROM \`${tableName}\``,
       )
       const range = (rangeRows as Record<string, unknown>[])[0]
@@ -891,7 +933,7 @@ export async function getColumnFilterData(
     // DISTINCT values for ENUM/SET columns or columns with low cardinality
     if (isEnumType || !isDateType) {
       try {
-        const [distinctRows] = await pool.query(
+        const [distinctRows] = await queryWithTimeout(pool,
           `SELECT DISTINCT \`${columnName}\` AS val FROM \`${tableName}\`
            WHERE \`${columnName}\` IS NOT NULL AND \`${columnName}\` != ''
            ORDER BY 1 LIMIT 100`,

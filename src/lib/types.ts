@@ -117,6 +117,10 @@ export interface SqlResultInfo {
   rowCount: number
   executionTime: number
   chartColumnHint?: ChartColumnHint
+  executedSql?: string
+  truncated?: boolean
+  maxRows?: number
+  resultLimitApplied?: boolean
 }
 
 export interface AnalysisMetric {

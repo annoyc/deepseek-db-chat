@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { createModel, generateText, getProvider } from '@/core'
+import { resolveAiCredentials } from '@/server/ai-credentials'
 import { decrypt } from '@/server/crypto'
 import { withTrace } from '@/server/langfuse'
 import { listTables, getPool } from '@/server/database'
@@ -37,7 +39,8 @@ const SUGGESTION_PROMPT = `你是一个数据库分析专家。根据以下数�
 export const generateSuggestions = createServerFn({ method: 'POST' })
   .inputValidator((data: GenerateSuggestionsInput) => data)
   .handler(async ({ data }): Promise<string[]> => {
-    return withTrace({
+    const signal = getRequest().signal
+      return withTrace({
       name: 'generate-suggestions',
       sessionId: data.sessionId,
       metadata: { provider: data.provider, model: data.model, database: data.connection.database },
@@ -78,15 +81,13 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
         const tableSummary = tableInfos.slice(0, 40).join('\n')
         const truncated = tableInfos.length > 40 ? `\n...共 ${tableInfos.length} 张表` : ''
 
-        const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
         const provider = data.provider ?? 'deepseek'
         const providerDef = getProvider(provider)
         const model = createModel({
           provider: provider as any,
           model: data.model || providerDef.defaultModel,
           thinking: { type: 'disabled' },
-          apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
-          baseURL: data.baseURL || undefined,
+          ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
         } as any)
 
         const nonce = data.refreshNonce ?? Math.random().toString(36).slice(2, 10)
@@ -98,6 +99,7 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
           system: SUGGESTION_PROMPT,
           prompt: `数据库名称：${decryptedConnection.database}\n数据库中的表：\n${tableSummary}${truncated}${excludeBlock}\n\n(refresh: ${nonce})`,
           maxSteps: 1,
+            signal,
           temperature: 1.2,
         })
 
@@ -122,6 +124,7 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
 
         return suggestions.slice(0, 4)
       } catch (err) {
+          signal.throwIfAborted()
         console.error('[generateSuggestions] Failed:', err)
         return [
           '这个数据库有哪些表？',

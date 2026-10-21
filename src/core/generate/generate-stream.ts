@@ -97,10 +97,14 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
 
 export async function* generateStream<T extends z.ZodTypeAny>(params: GenerateTextParams<T>): AsyncGenerator<StreamEvent> {
   const gen = agentLoop(params, streamStepInvoker)
-  let iterResult = await gen.next()
-  while (!iterResult.done) {
-    yield iterResult.value
-    iterResult = await gen.next()
+  try {
+    let iterResult = await gen.next()
+    while (!iterResult.done) {
+      yield iterResult.value
+      iterResult = await gen.next()
+    }
+    yield { type: 'finish', text: iterResult.value.text, usage: iterResult.value.usage }
+  } finally {
+    await gen.return(undefined as never)
   }
-  yield { type: 'finish', text: iterResult.value.text, usage: iterResult.value.usage }
 }

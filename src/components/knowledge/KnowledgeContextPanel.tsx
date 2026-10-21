@@ -77,7 +77,10 @@ export function KnowledgeContextPanel({ message, width = 360, onClose }: Knowled
 
         {memorySnippets.length > 0 ? (
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">记忆模型片段</div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">历史问答片段</div>
+            <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              历史问答片段，未核验原始依据。涉及交易规则时，请核对原文、适用地区及生效日期。
+            </p>
             <div className="space-y-3">
               {memorySnippets.map((snippet, index) => (
                 <div key={`${snippet.question}-${index}`} className="rounded-lg border border-stone-200/70 bg-stone-50 p-3">
@@ -88,7 +91,7 @@ export function KnowledgeContextPanel({ message, width = 360, onClose }: Knowled
             </div>
           </div>
         ) : (
-          <p className="text-sm text-stone-400">暂无记忆模型证据。</p>
+          <p className="text-sm text-stone-400">暂无历史问答片段。</p>
         )}
       </section>
 

@@ -7,6 +7,8 @@ import { apiStreamRequest } from '@/core/client/stream-request'
 import { getProvider } from '@/core/provider'
 import { buildToolParameters, validateToolConsistency } from '@/core/tool'
 import { startObservation } from '@langfuse/tracing'
+import { sanitizeModelMessages } from '@/lib/masking'
+import { traceContent, traceError, traceMetadata } from '@/core/telemetry'
 
 function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const { messages, response_format, tools = [] } = params
@@ -15,7 +17,7 @@ function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const thinkingParams = provider.buildThinkingParams(config.thinking, config.reasoningEffort)
 
   return omitBy({
-    messages,
+    messages: sanitizeModelMessages(messages),
     model: config.model,
     ...thinkingParams,
     max_tokens: config.maxTokens,
@@ -44,8 +46,8 @@ export async function invoke(config: ModelOptions, params: InvokeParams): Promis
     'llm-call',
     {
       model: config.model!,
-      input: params.messages,
-      metadata: { provider: config.provider, tools: body.tools },
+      input: traceContent(body.messages),
+      metadata: traceMetadata({ provider: config.provider, messageCount: params.messages.length, toolCount: tools.length }),
     },
     { asType: 'generation' },
   )
@@ -54,23 +56,26 @@ export async function invoke(config: ModelOptions, params: InvokeParams): Promis
     const result = await withRetry(
       () => apiRequest<ChatCompletion>(url, config.apiKey!, body, timeout, 'POST', params.signal),
       maxRetries,
+      params.signal,
     )
     generation.update({
-      output: result.choices[0]?.message,
+      output: traceContent(result.choices[0]?.message),
       usageDetails: result.usage ? {
         input: result.usage.prompt_tokens,
         output: result.usage.completion_tokens,
         total: result.usage.total_tokens,
       } : undefined,
-    }).end()
+    })
     return result
   } catch (error) {
     generation.update({
-      output: { error: String(error) },
+      output: undefined,
       level: 'ERROR',
-      statusMessage: String(error),
-    }).end()
+      statusMessage: traceError(error),
+    })
     throw error
+  } finally {
+    generation.end()
   }
 }
 
@@ -87,8 +92,8 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
     'llm-call-stream',
     {
       model: config.model!,
-      input: params.messages,
-      metadata: { provider: config.provider, stream: true, tools: body.tools },
+      input: traceContent(body.messages),
+      metadata: traceMetadata({ provider: config.provider, stream: true, messageCount: params.messages.length, toolCount: tools.length }),
     },
     { asType: 'generation' },
   )
@@ -97,26 +102,28 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
   let lastUsage: ChatCompletionChunk['usage'] | undefined
 
   try {
-    for await (const chunk of apiStreamRequest(url, config.apiKey!, body, timeout, params.signal)) {
+    for await (const chunk of apiStreamRequest(url, config.apiKey!, body, timeout, params.signal, { idleTimeoutMs: config.idleTimeout, deadlineMs: config.streamDeadline })) {
       if (chunk.usage) lastUsage = chunk.usage
       const delta = chunk.choices[0]?.delta
       if (delta?.content) output += delta.content
       yield chunk
     }
     generation.update({
-      output,
+      output: traceContent(output),
       usageDetails: lastUsage ? {
         input: lastUsage.prompt_tokens,
         output: lastUsage.completion_tokens,
         total: lastUsage.total_tokens,
       } : undefined,
-    }).end()
+    })
   } catch (error) {
     generation.update({
-      output: { error: String(error) },
+      output: undefined,
       level: 'ERROR',
-      statusMessage: String(error),
-    }).end()
+      statusMessage: traceError(error),
+    })
     throw error
+  } finally {
+    generation.end()
   }
 }

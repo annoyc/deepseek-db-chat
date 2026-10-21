@@ -4,13 +4,14 @@ import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
 import { PROVIDERS, getModelsForProvider } from '@/lib/constants'
+import { isSubmitKey } from '@/lib/keyboard'
 
 export function MessageInput() {
   const [input, setInput] = useState('')
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showSqlWarning, setShowSqlWarning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { sendMessage, isStreaming, activeSessionId, stopStreaming } = useChatStore()
+  const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { provider, setProvider, model, setModel, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
@@ -25,20 +26,22 @@ export function MessageInput() {
   const providerModels = getModelsForProvider(provider)
   const currentModel = providerModels.find((m) => m.id === model) ?? providerModels[0]
   const currentProvider = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
-  const canSend = input.trim() && !isStreaming && activeConnectionId
+  const historyUnavailable = persistenceState === 'loading' || persistenceState === 'load-error'
+  const historyHint = persistenceState === 'load-error' ? '历史记录读取失败，请先点击“重试读取”' : '正在读取历史记录，请稍候'
+  const canSend = input.trim() && !isStreaming && activeConnectionId && !historyUnavailable
 
   const handleSubmit = useCallback(() => {
     const trimmed = input.trim()
-    if (!trimmed || isStreaming || !activeConnectionId) return
+    if (!trimmed || isStreaming || !activeConnectionId || historyUnavailable) return
     sendMessage(trimmed)
     setInput('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
-  }, [input, isStreaming, activeConnectionId, sendMessage])
+  }, [input, isStreaming, activeConnectionId, historyUnavailable, sendMessage])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (isSubmitKey(e)) {
       e.preventDefault()
       handleSubmit()
     }
@@ -70,8 +73,8 @@ export function MessageInput() {
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder={activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
-            disabled={!activeConnectionId || isStreaming}
+            placeholder={historyUnavailable ? historyHint : activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
+            disabled={!activeConnectionId || isStreaming || historyUnavailable}
             rows={2}
             className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
           />
@@ -201,7 +204,7 @@ export function MessageInput() {
         </div>
 
         <p className="mt-2 text-center text-xs text-stone-400">
-          {isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
+          {historyUnavailable ? historyHint : isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
         </p>
       </div>
 

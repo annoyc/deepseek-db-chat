@@ -3,8 +3,7 @@ import { useLocalStorage } from './useLocalStorage'
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROVIDERS, getDefaultModelForProvider } from '@/lib/constants'
 import type { ModelProvider } from '@/lib/constants'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import { getEncryptedEnvApiKey } from '@/server/functions/settings'
-import { db } from '@/lib/db'
+import { getEnvApiKeyStatus } from '@/server/functions/settings'
 
 export interface ProviderConfig {
   apiKey: string
@@ -104,24 +103,26 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }
   }, [maxSqlExecutions, setMaxSqlExecutions])
 
-  // Auto-fetch env keys once on mount (not on every providerConfigs change)
-  const envFetched = useRef(false)
+  // Remove legacy copies of server keys without returning any secret to the browser.
+  // User-supplied keys are preserved; IndexedDB hydration can complete after mount.
+  const checkedKeys = useRef(new Set<string>())
   useEffect(() => {
-    if (envFetched.current) return
-    envFetched.current = true
-
     for (const p of PROVIDERS) {
-      getEncryptedEnvApiKey({ data: { provider: p.id } }).then(({ encrypted }) => {
-        if (encrypted) {
+      const apiKey = providerConfigs[p.id]?.apiKey
+      if (!apiKey) continue
+      const checkId = `${p.id}:${apiKey}`
+      if (checkedKeys.current.has(checkId)) continue
+      checkedKeys.current.add(checkId)
+      getEnvApiKeyStatus({ data: { provider: p.id, apiKey } }).then(({ isServerKey }) => {
+        if (isServerKey) {
           setProviderConfigs((prev) => {
-            if (prev[p.id]?.apiKey) return prev
-            const existing = prev[p.id] ?? EMPTY_CONFIG
-            return { ...prev, [p.id]: { ...existing, apiKey: encrypted } }
+            if (prev[p.id]?.apiKey !== apiKey) return prev
+            return { ...prev, [p.id]: { ...prev[p.id], apiKey: '' } }
           })
         }
-      }).catch((err) => console.warn('[useSettings] Failed to load env API key:', err))
+      }).catch((err) => console.warn('[useSettings] Failed to check legacy API key:', err))
     }
-  }, [setProviderConfigs])
+  }, [providerConfigs, setProviderConfigs])
 
   const value: SettingsState = {
     provider,

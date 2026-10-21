@@ -3,6 +3,7 @@ import { SlidersHorizontal, CheckCircle2, Loader2, XCircle, Calendar as Calendar
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import { isSubmitKey } from '@/lib/keyboard'
 import type { SmartFilterConfirmInfo, FilterValue } from '@/lib/types'
 import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
@@ -24,14 +25,11 @@ interface SmartFilterConfirmBlockProps {
 }
 
 export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmBlockProps) {
-  const { confirmSmartFilter, cancelSmartFilter, reviseSmartFilter } = useChatStore()
+  const { confirmSmartFilter, cancelSmartFilter, reviseSmartFilter, isStreaming } = useChatStore()
   const [filterValues, setFilterValues] = useState<Record<number, FilterValue>>({})
-  const [countdown, setCountdown] = useState(60)
   const [feedback, setFeedback] = useState('')
   const feedbackInputRef = useRef<HTMLTextAreaElement>(null)
   const actionSubmittedRef = useRef(false)
-  const cancelRef = useRef(cancelSmartFilter)
-  cancelRef.current = cancelSmartFilter
 
   const isLoading = info.status === 'loading'
   const isPending = info.status === 'pending'
@@ -72,26 +70,6 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
     setFilterValues(defaults)
   }, [isPending, info.suggestedFilters])
 
-  // Countdown timer — clears itself immediately when reaching 0 to prevent extra ticks
-  useEffect(() => {
-    if (!isPending) return
-    setCountdown(60)
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          if (!actionSubmittedRef.current) {
-            actionSubmittedRef.current = true
-            cancelRef.current(messageId)
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [isPending, messageId])
-
   const handleValueChange = useCallback((index: number, value: Partial<FilterValue>) => {
     setFilterValues((prev) => ({
       ...prev,
@@ -100,27 +78,29 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
   }, [])
 
   const handleConfirm = useCallback(() => {
+    if (isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     confirmSmartFilter(messageId, filterValues)
-  }, [confirmSmartFilter, messageId, filterValues])
+  }, [confirmSmartFilter, messageId, filterValues, isStreaming])
 
   const handleCancel = useCallback(() => {
+    if (isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     cancelSmartFilter(messageId)
-  }, [cancelSmartFilter, messageId])
+  }, [cancelSmartFilter, messageId, isStreaming])
 
   const handleSubmitFeedback = useCallback(() => {
     const text = feedback.trim()
-    if (!text) return
+    if (!text || isStreaming) return
     if (actionSubmittedRef.current) return
     actionSubmittedRef.current = true
     reviseSmartFilter(messageId, text)
-  }, [reviseSmartFilter, messageId, feedback])
+  }, [reviseSmartFilter, messageId, feedback, isStreaming])
 
   const handleFeedbackKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (isSubmitKey(e)) {
       e.preventDefault()
       handleSubmitFeedback()
     }
@@ -166,7 +146,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
           <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
         )}
         <span className="text-[13px] font-semibold text-gray-800">查询参数微调</span>
-        {isPending && <span className="text-xs text-gray-400 ml-0.5">待确认 ({countdown}s)</span>}
+        {isPending && <span className="text-xs text-gray-400 ml-0.5">等待确认，不会自动跳过</span>}
         {isConfirmed && <span className="text-xs text-primary ml-0.5 font-medium">处理中...</span>}
         {isDone && (
           <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
@@ -221,6 +201,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
               {feedback.trim() && (
                 <button
                   onClick={handleSubmitFeedback}
+                  disabled={isStreaming}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
                   title="提交修改建议 (Enter)"
                 >
@@ -232,23 +213,23 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
           <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-50 bg-gray-50/30">
             {feedback.trim() ? (
-              <Button onClick={handleSubmitFeedback} size="sm" className="h-7 text-xs px-3">
+              <Button onClick={handleSubmitFeedback} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <RotateCcw className="size-3 mr-1" />
                 按建议重新生成
               </Button>
             ) : (
-              <Button onClick={handleConfirm} size="sm" className="h-7 text-xs px-3">
+              <Button onClick={handleConfirm} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <Send className="size-3 mr-1" />
                 确认筛选
               </Button>
             )}
-            <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs px-3">
+            <Button onClick={handleCancel} disabled={isStreaming} variant="outline" size="sm" className="h-7 text-xs px-3">
               <SkipForward className="size-3 mr-1" />
               跳过筛选
             </Button>
             {!feedback.trim() && (
               <span className="text-[11px] text-muted-foreground ml-1">
-                可调整参数后确认，或直接跳过
+                {isStreaming ? '请等待当前任务结束后确认' : '可调整参数后确认，或直接跳过'}
               </span>
             )}
           </div>

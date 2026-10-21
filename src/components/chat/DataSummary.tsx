@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { SqlResultInfo } from '@/lib/types'
+import { formatResultStatistic, toResultNumber } from '@/lib/result-data'
 
 interface DataSummaryProps {
   result: SqlResultInfo
@@ -19,8 +20,7 @@ interface ColumnSummary {
 }
 
 function formatNum(n: number): string {
-  if (Number.isInteger(n)) return n.toLocaleString('zh-CN')
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+  return formatResultStatistic(n)
 }
 
 export function DataSummary({ result }: DataSummaryProps) {
@@ -44,8 +44,8 @@ export function DataSummary({ result }: DataSummaryProps) {
         const str = String(val)
         valueCounts.set(str, (valueCounts.get(str) ?? 0) + 1)
 
-        const n = Number(val)
-        if (!isNaN(n) && isFinite(n) && str.trim() !== '') {
+        const n = toResultNumber(val)
+        if (n !== null) {
           numericCount++
           sum += n
           min = Math.min(min, n)
@@ -86,7 +86,7 @@ export function DataSummary({ result }: DataSummaryProps) {
   return (
     <div className="space-y-3">
       <div className="text-xs text-gray-500 px-1">
-        共 <span className="font-semibold text-gray-700">{rows.length}</span> 行 ×{' '}
+        基于已返回的 <span className="font-semibold text-gray-700">{rows.length}</span> 行 ×{' '}
         <span className="font-semibold text-gray-700">{columns.length}</span> 列
       </div>
 

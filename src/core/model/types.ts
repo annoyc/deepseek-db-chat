@@ -53,8 +53,12 @@ export interface ModelOptions {
   temperature?: number
   topP?: number
   streamOptions?: StreamOptions
-  /** Request timeout in milliseconds. Defaults to 60000 (60s). */
+  /** Non-stream request / stream first-byte timeout, in milliseconds. Default 60000. */
   timeout?: number
+  /** Maximum silence between stream chunks. Default 120000. */
+  idleTimeout?: number
+  /** Total lifetime of one stream request. Default 180000. */
+  streamDeadline?: number
   /** Maximum number of retries on 429/500/503 errors. Defaults to 3. */
   maxRetries?: number
   /** Enable strict mode for all tool calls. Uses the Beta endpoint and passes strict: true for all tools. */

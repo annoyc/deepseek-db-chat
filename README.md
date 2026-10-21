@@ -29,7 +29,7 @@ Supports **DeepSeek**, **Kimi**, **Qwen**, **GLM** and more via multiple provide
 
 ### Rock-Solid Security
 
-Database passwords and model apiKey are encrypted with AES-256-GCM before storage. Every generated SQL query passes **triple-layer validation** — regex blacklist for known-dangerous patterns, AST-based deep analysis via `node-sql-parser` for precise function and table extraction, then presented to you for review before execution. Dangerous operations (INSERT / UPDATE / DELETE / DROP) are strictly blocked at all gates — only safe read queries are allowed. SELECT results are automatically capped at 500 rows to prevent runaway queries. PII data (phone numbers, ID cards, emails, bank card numbers) in query results is automatically masked before being sent to the AI model — your sensitive data never leaves your control. Your database is never at risk.
+Database passwords and user-owned API keys are encrypted with AES-256-GCM. Server API keys never leave the server. SQL is checked again at the execution boundary using server policy: read-only by default, no writes for production connections, and an explicit server allowlist for any non-production writes. Executable comments and unsupported SQL are rejected. SELECT results are capped at 500 returned rows with the executed SQL and truncation metadata. Production database accounts must also enforce read-only access. See [operations and regression testing](./OPERATIONS.md).
 
 ### ️ Full Transparency
 
@@ -37,7 +37,7 @@ The AI's entire thinking process and tool calls are fully visible — every reas
 
 ###  Complete Privacy
 
-All data and conversation history are stored entirely on your local machine. No cloud interactions, no server-side data collection — **your data always belongs to you**.
+Connections and complete conversation history are stored in browser IndexedDB. Questions, necessary schema information and masked result data are sent to the chosen model; knowledge requests are sent to the configured knowledge backend. Common PII and structured sensitive fields are masked at the model boundary. This does not replace data classification or field-level authorization. Optional Langfuse telemetry defaults to operational metadata; content capture requires an explicit opt-in and remains masked. Initial database questions containing sensitive identifiers are rejected with guidance to use a non-sensitive internal identifier, avoiding silently altered query predicates.
 
 ---
 
@@ -45,14 +45,14 @@ All data and conversation history are stored entirely on your local machine. No 
 
 - 🔀 **Multi-Provider Support** — DeepSeek / Kimi / Qwen / GLM via DeepSeek native API + Alibaba Cloud Bailian (DashScope), switch models freely in the UI
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
--  **Security** — AES-256 encrypted passwords, triple-layer SQL validation (regex blacklist + AST analysis + human confirmation), dangerous operations blocked at all gates, PII auto-masking before AI transmission
+-  **Security** — AES-256 credentials, server-enforced read-only defaults, AST validation, human confirmation and model-boundary masking
 -  **Smart Filter** — AI-driven interactive query parameter tuning (date ranges, enum selects, aggregation options) before SQL generation
 -  **Database Overview** — One-click full database structure scan with table row counts, comments, and foreign key relationship mapping for accurate JOIN queries
 -  **Foreign Key Awareness** — Schema inspection includes FK relationships extracted from `INFORMATION_SCHEMA`, enabling the AI to generate correct multi-table JOINs
 -  **EXPLAIN Pre-Analysis** — Optional query plan inspection with full table scan warnings before execution
 -  **SQL Self-Correction** — Structured error classification on failure (unknown column, missing table, syntax error) guides the AI to fix SQL intelligently instead of blind retries
 - ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
--  **Privacy** — 100% client-side IndexedDB storage, no cloud interaction, no server-side data collection
+-  **Privacy** — complete local history, documented model/backend data transfers, optional metadata-only telemetry by default
 -  **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
 -  **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
 -  **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
@@ -70,18 +70,18 @@ git clone https://github.com/annoyc/deepseek-db-chat.git
 cd deepseek-db-chat
 
 # Install dependencies
-npm install
+pnpm install --frozen-lockfile
 
 # Set environment variables
 cp .env.example .env
 # Edit .env and fill in your API key (DeepSeek or Bailian)
 
 # Start development server
-npm run dev
+pnpm dev
 
 # Build for production
-npm run build
-npm run start
+pnpm build
+pnpm start
 ```
 
 ---
@@ -137,3 +137,7 @@ src/
 
 ---
 
+
+## Regression checks
+
+Run `pnpm check` for source/test type checks, offline regression tests and a production build. Tests use synthetic fixtures and mock providers/databases. Live business accuracy and browser end-to-end acceptance remain separate checks; see [OPERATIONS.md](./OPERATIONS.md).

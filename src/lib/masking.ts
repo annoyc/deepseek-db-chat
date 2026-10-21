@@ -79,3 +79,50 @@ export function maskPII(text: string): string {
 
   return result
 }
+
+const SENSITIVE_FIELD = /^(?:password|passwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|phone|mobile|telephone|email|id[_-]?card|identity[_-]?(?:number|card)|bank[_-]?(?:card|account)|身份证(?:号)?|手机号|电话|邮箱|银行卡号)$/i
+
+/** Sanitize structured result data before statistics, classification or logging. */
+export function sanitizeModelData(value: unknown, depth = 0): unknown {
+  if (depth > 32) return '[已省略深层数据]'
+  if (typeof value === 'string') {
+    if (/^\s*[\[{]/.test(value)) {
+      try { return JSON.stringify(sanitizeModelData(JSON.parse(value), depth + 1)) } catch { /* ordinary text */ }
+    }
+    return maskPII(value)
+  }
+  if (typeof value === 'number') {
+    const masked = maskPII(String(value))
+    return masked === String(value) ? value : masked
+  }
+  if (Array.isArray(value)) return value.map((item) => sanitizeModelData(item, depth + 1))
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+      key,
+      SENSITIVE_FIELD.test(key) && item != null ? '[已脱敏]' : sanitizeModelData(item, depth + 1),
+    ]))
+  }
+  return value
+}
+
+/** Keep tool IDs, names and message roles intact: they are protocol, not data. */
+export function sanitizeModelMessages<T>(messages: T[]): T[] {
+  return messages.map((message) => {
+    if (!message || typeof message !== 'object') return message
+    const copy = { ...message } as Record<string, unknown>
+    for (const field of ['content', 'reasoning_content']) {
+      if (copy[field] != null) copy[field] = sanitizeModelData(copy[field])
+    }
+    if (Array.isArray(copy.tool_calls)) {
+      copy.tool_calls = copy.tool_calls.map((call: Record<string, unknown>) => {
+        const fn = call.function as Record<string, unknown> | undefined
+        if (!fn || typeof fn.arguments !== 'string') return call
+        let args: string
+        try { args = JSON.stringify(sanitizeModelData(JSON.parse(fn.arguments))) }
+        catch { args = maskPII(fn.arguments) }
+        return { ...call, function: { ...fn, arguments: args } }
+      })
+    }
+    return copy as T
+  })
+}

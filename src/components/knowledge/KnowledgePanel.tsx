@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowUp, Brain, Eye, Globe2, Loader2, Lock, PanelRightOpen, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, PanelRightOpen, Sparkles, Square } from 'lucide-react'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { cn } from '@/lib/utils'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
 import { APP_NAME } from '@/lib/constants'
 import { ToolChainTimeline } from './ToolChainTimeline'
+import { isSubmitKey } from '@/lib/keyboard'
+import { PersistenceNotice } from '@/components/layout/PersistenceNotice'
 
 interface KnowledgePanelProps {
   contextOpen: boolean
@@ -183,7 +185,7 @@ function AssistantMessage({
   )
 }
 
-function EmptyKnowledgeState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
+function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClick: (text: string) => void; disabled: boolean }) {
   return (
     <div className="subtle-scrollbar h-full overflow-y-auto">
       <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-4 px-3 py-5 md:px-6 lg:py-6 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
@@ -231,7 +233,8 @@ function EmptyKnowledgeState({ onSuggestionClick }: { onSuggestionClick: (text: 
               <button
                 key={item}
                 onClick={() => onSuggestionClick(item)}
-                className="rounded-xl border border-stone-200/70 bg-white/72 px-3.5 py-2.5 text-left text-sm leading-5 text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm 2xl:px-4 2xl:py-3"
+                disabled={disabled}
+                className="rounded-xl border border-stone-200/70 bg-white/72 px-3.5 py-2.5 text-left text-sm leading-5 text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 2xl:px-4 2xl:py-3"
               >
                 {item}
               </button>
@@ -257,11 +260,17 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
     answerMode,
     setAnswerMode,
     setSelectedEvidenceMessage,
+    persistenceState,
+    retrySave,
   } = useKnowledgeChatStore()
   const [input, setInput] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const shouldAutoScrollRef = useRef(true)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
+  const historyUnavailable = persistenceState === 'loading' || persistenceState === 'load-error'
+  const historyHint = persistenceState === 'load-error' ? '历史记录读取失败，请先点击“重试读取”' : '正在读取历史记录，请稍候'
 
   const messages = activeSession?.messages ?? []
   const activeSessionIsStreaming = Boolean(isStreaming && activeSession?.id === streamingSessionId)
@@ -273,16 +282,38 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
   }, [messages])
 
   useEffect(() => {
+    shouldAutoScrollRef.current = true
+    setShowScrollToBottom(false)
+  }, [activeSession?.id])
+
+  const scrollToBottom = useCallback(() => {
+    shouldAutoScrollRef.current = true
+    setShowScrollToBottom(false)
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [])
+
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80
+    shouldAutoScrollRef.current = nearBottom
+    setShowScrollToBottom(!nearBottom)
+  }, [])
+
+  useEffect(() => {
+    if (!shouldAutoScrollRef.current) return
     bottomRef.current?.scrollIntoView({ behavior: activeSessionIsStreaming ? 'auto' : 'smooth' })
-  }, [messages, activeSessionIsStreaming])
+  }, [messages, activeSessionIsStreaming, activeSession?.id])
 
   const submit = useCallback((value?: string) => {
     const text = (value ?? input).trim()
-    if (!text || isStreaming) return
+    if (!text || isStreaming || historyUnavailable) return
+    shouldAutoScrollRef.current = true
+    setShowScrollToBottom(false)
     sendMessage(text)
     setInput('')
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
-  }, [input, isStreaming, sendMessage])
+  }, [input, isStreaming, historyUnavailable, sendMessage])
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value)
@@ -317,12 +348,13 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         {messages.length === 0 ? (
-          <EmptyKnowledgeState onSuggestionClick={submit} />
+          <EmptyKnowledgeState onSuggestionClick={submit} disabled={isStreaming || historyUnavailable} />
         ) : (
           <div
             ref={containerRef}
+            onScroll={handleScroll}
             className="subtle-scrollbar h-full overflow-y-auto px-4 py-5 md:px-[8%] xl:px-[12%]"
           >
             <div className="mx-auto max-w-3xl space-y-8">
@@ -343,24 +375,31 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
             </div>
           </div>
         )}
+        {showScrollToBottom && (
+          <button onClick={scrollToBottom} className="absolute bottom-3 right-6 flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-600 shadow-sm hover:text-primary">
+            <ArrowDown className="h-3.5 w-3.5" />
+            回到最新内容
+          </button>
+        )}
       </div>
 
       <div className="px-4 pb-4 pt-2 md:px-6 lg:px-[6%] 2xl:px-[12%]">
         <div className="mx-auto max-w-4xl 2xl:max-w-5xl">
+          <PersistenceNotice state={persistenceState} onRetry={retrySave} />
           <div className="glass-panel rounded-[18px] transition-all focus-within:border-primary/35 focus-within:shadow-[0_20px_55px_rgba(15,118,110,0.14)]">
             <textarea
               ref={textareaRef}
               value={input}
               onChange={handleInput}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (isSubmitKey(e)) {
                   e.preventDefault()
                   submit()
                 }
               }}
-              disabled={isStreaming}
+              disabled={isStreaming || historyUnavailable}
               rows={2}
-              placeholder="输入关于电力市场、省电、售电、交易规则的问题..."
+              placeholder={historyUnavailable ? historyHint : '输入关于电力市场、省电、售电、交易规则的问题...'}
               className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
             />
 
@@ -415,10 +454,10 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
               ) : (
                 <button
                   onClick={() => submit()}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || historyUnavailable}
                   className={cn(
                     'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all',
-                    input.trim()
+                    input.trim() && !historyUnavailable
                       ? 'bg-primary text-white shadow-sm hover:bg-primary/90'
                       : 'bg-stone-200 text-stone-400',
                   )}
@@ -431,7 +470,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
           </div>
 
           <p className="mt-2 text-center text-xs text-stone-400">
-            {isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
+            {historyUnavailable ? historyHint : isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
           </p>
         </div>
       </div>

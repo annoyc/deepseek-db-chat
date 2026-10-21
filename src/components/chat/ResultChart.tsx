@@ -6,6 +6,7 @@ import {
 import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon } from 'lucide-react'
 import type { SqlResultInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { buildResultChartRows, canUseResultPie, recommendResultChartType, toResultNumber } from '@/lib/result-data'
 
 export type ChartType = 'bar' | 'line' | 'pie' | 'area'
 
@@ -42,13 +43,7 @@ function isDateValue(val: unknown): boolean {
 }
 
 function isStrictlyNumeric(val: unknown): boolean {
-  if (val === null || val === undefined) return false
-  if (typeof val === 'number') return true
-  const str = String(val).trim()
-  if (str === '') return false
-  if (isDateValue(val)) return false
-  const num = Number(str)
-  return !isNaN(num) && isFinite(num)
+  return !isDateValue(val) && toResultNumber(val) !== null
 }
 
 function isCategoricalColumn(col: string, rows: Record<string, unknown>[], hintValueCols?: Set<string>): boolean {
@@ -131,17 +126,6 @@ function scoreLabelColumn(
   return { col, score, isDate, distinctRatio }
 }
 
-function recommendChartType(
-  dataLen: number,
-  valueColCount: number,
-  hasDate: boolean,
-  labelDistinctRatio?: number,
-): ChartType {
-  if (dataLen <= 6 && valueColCount === 1 && (labelDistinctRatio ?? 1) >= 0.8) return 'pie'
-  if (hasDate || dataLen > 10) return 'line'
-  return 'bar'
-}
-
 function generateTitle(labelCol: string, valueCols: string[]): string {
   const valPart = valueCols.length <= 2
     ? valueCols.join(' / ')
@@ -162,6 +146,7 @@ export interface ChartAnalysis {
   valueCols: string[]
   recommended: ChartType
   title: string
+  isTemporal: boolean
 }
 
 export function analyzeChartData(
@@ -177,21 +162,9 @@ export function analyzeChartData(
     const aiValues = chartHint.valueCols.filter((c) => columns.includes(c))
     if (aiLabel && aiValues.length > 0) {
       const hasDate = rows.some((r) => isDateValue(r[aiLabel]))
-      const data = rows.slice(0, 30).map((row) => {
-        let name = String(row[aiLabel] ?? '')
-        if (isDateValue(row[aiLabel])) {
-          const d = new Date(String(row[aiLabel]))
-          if (!isNaN(d.getTime())) name = `${d.getMonth() + 1}/${d.getDate()}`
-        }
-        if (name.length > 20) name = name.slice(0, 18) + '…'
-        const entry: Record<string, unknown> = { name }
-        for (const col of aiValues) entry[col] = Number(row[col]) || 0
-        return entry
-      })
-      const distinct = new Set(data.map((d) => d.name as string))
-      const distinctRatio = data.length > 0 ? distinct.size / data.length : 0
-      const recommended = recommendChartType(data.length, aiValues.length, hasDate, distinctRatio)
-      return { data, labelCol: aiLabel, valueCols: aiValues, recommended, title: generateTitle(aiLabel, aiValues) }
+      const data = buildResultChartRows(rows, aiLabel, aiValues)
+      const recommended = recommendResultChartType(hasDate)
+      return { data, labelCol: aiLabel, valueCols: aiValues, recommended, title: generateTitle(aiLabel, aiValues), isTemporal: hasDate }
     }
   }
 
@@ -236,7 +209,6 @@ export function analyzeChartData(
   allScored.sort((a, b) => b.score - a.score)
 
   let labelCol: string
-  let bestScore: LabelScore | undefined
 
   if (hintLabelCol && !valueCols.includes(hintLabelCol)) {
     const ca = colAnalysis.find((c) => c.col === hintLabelCol)
@@ -244,44 +216,24 @@ export function analyzeChartData(
     const autoTop = allScored[0]
     if (hintScore.score >= 15 && (!autoTop || hintScore.score >= autoTop.score - 10)) {
       labelCol = hintLabelCol
-      bestScore = hintScore
     } else if (autoTop && autoTop.score >= 15) {
       labelCol = autoTop.col
-      bestScore = autoTop
     } else {
       labelCol = columns[0]
-      bestScore = scoreLabelColumn(columns[0], 0, rows, colAnalysis[0]?.isDate ?? false)
     }
   } else if (allScored.length > 0 && allScored[0].score >= 15) {
-    bestScore = allScored[0]
-    labelCol = bestScore.col
+    labelCol = allScored[0].col
   } else {
     labelCol = columns[0]
-    bestScore = scoreLabelColumn(columns[0], 0, rows, colAnalysis[0]?.isDate ?? false)
   }
 
   const hasDate = colAnalysis.some((c) => c.isDate && c.col === labelCol)
 
-  const data = rows.slice(0, 30).map((row) => {
-    let name = String(row[labelCol] ?? '')
-    if (isDateValue(row[labelCol])) {
-      const d = new Date(String(row[labelCol]))
-      if (!isNaN(d.getTime())) {
-        name = `${d.getMonth() + 1}/${d.getDate()}`
-      }
-    }
-    if (name.length > 20) name = name.slice(0, 18) + '…'
-    const entry: Record<string, unknown> = { name }
-    for (const col of valueCols) {
-      entry[col] = Number(row[col]) || 0
-    }
-    return entry
-  })
-
-  const recommended = recommendChartType(data.length, valueCols.length, hasDate, bestScore?.distinctRatio)
+  const data = buildResultChartRows(rows, labelCol, valueCols)
+  const recommended = recommendResultChartType(hasDate)
   const title = generateTitle(labelCol, valueCols)
 
-  return { data, labelCol, valueCols, recommended, title }
+  return { data, labelCol, valueCols, recommended, title, isTemporal: hasDate }
 }
 
 export function ResultChart({ result, defaultChartType, chartHint }: ResultChartProps) {
@@ -314,11 +266,12 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     })
   }, [])
 
-  if (!chartData) return null
+  if (!chartData) return <p className="py-4 text-center text-xs text-gray-400">当前结果没有可绘制的数值指标，请查看表格。</p>
 
   const { data, valueCols, recommended, title } = chartData
-  const activeType = chartType ?? defaultChartType ?? recommended
-  const pieDisabled = valueCols.length > 1 || data.length > 10
+  const requestedType = chartType ?? defaultChartType ?? recommended
+  const pieDisabled = !canUseResultPie(data, valueCols, chartData.isTemporal)
+  const activeType = requestedType === 'pie' && pieDisabled ? recommended : requestedType
 
   const tooltipStyle = {
     contentStyle: { fontSize: 11, padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb' },
@@ -348,7 +301,8 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
                 key={type}
                 onClick={() => !disabled && setChartType(type)}
                 disabled={disabled}
-                title={label}
+                title={disabled ? '饼图需要 2–10 个不重复类别和单个非负指标，且不能有缺失值或时间维度' : label}
+                aria-label={label}
                 className={cn(
                   'p-1.5 rounded transition-colors',
                   activeType === type
@@ -364,6 +318,11 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
           })}
         </div>
       </div>
+
+      <p className="mb-2 text-[11px] text-gray-400">
+        图表覆盖全部已返回的 {data.length} 行，缺失值留空。
+        {result.truncated && ' 查询结果已达到行数上限，不能代表完整数据。'}
+      </p>
 
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
@@ -398,7 +357,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
               {valueCols.map((col, idx) => (
-                <Line key={col} type="monotone" dataKey={col} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} hide={hiddenSeries.has(col)} />
+                <Line key={col} type="linear" dataKey={col} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={data.length <= 60 ? { r: 3 } : false} connectNulls={false} hide={hiddenSeries.has(col)} />
               ))}
             </LineChart>
           ) : activeType === 'area' ? (
@@ -411,13 +370,14 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
               {valueCols.map((col, idx) => (
                 <Area
                   key={col}
-                  type="monotone"
+                  type="linear"
                   dataKey={col}
                   stroke={COLORS[idx % COLORS.length]}
                   fill={COLORS[idx % COLORS.length]}
                   fillOpacity={hiddenSeries.has(col) ? 0 : 0.15}
                   strokeWidth={2}
                   hide={hiddenSeries.has(col)}
+                  connectNulls={false}
                 />
               ))}
             </AreaChart>

@@ -4,74 +4,28 @@ import type { GenerateTextHooks } from '@/core/generate/types'
 import { z } from 'zod'
 import { createCompactTool } from '@/core/context/compact'
 import { parseAndValidate } from '@/core/utils/json-parse'
-
-async function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  signal?: AbortSignal,
-): Promise<T> {
-  if (signal?.aborted) {
-    throw new DOMException('Aborted', 'AbortError')
-  }
-
-  let timeoutId: NodeJS.Timeout | undefined
-  const timeoutPromise = new Promise<T>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`Tool execution timed out after ${timeoutMs}ms`))
-    }, timeoutMs)
-  })
-
-  let rejectAbort!: (reason: unknown) => void
-  const abortPromise = new Promise<T>((_, reject) => {
-    rejectAbort = reject
-  })
-
-  const onAbort = () => {
-    clearTimeout(timeoutId)
-    rejectAbort(new DOMException('Aborted', 'AbortError'))
-  }
-
-  signal?.addEventListener('abort', onAbort, { once: true })
-
-  try {
-    return await Promise.race([promise, timeoutPromise, abortPromise])
-  }
-  finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId)
-    }
-    signal?.removeEventListener('abort', onAbort)
-  }
-}
+import { abortable, createAbortScope } from '@/core/client/lifecycle'
 
 async function withRetries<T>(
-  fn: () => Promise<T>,
+  fn: (signal: AbortSignal) => Promise<T>,
   maxRetries: number,
   timeoutMs?: number,
   signal?: AbortSignal,
 ): Promise<T> {
-  let lastError: Error | undefined
-  for (let i = 0; i <= maxRetries; i++) {
-    if (signal?.aborted) {
-      throw new DOMException('Aborted', 'AbortError')
-    }
+  for (let attempt = 0; ; attempt++) {
+    signal?.throwIfAborted()
+    const scope = createAbortScope(signal, timeoutMs)
     try {
-      if (timeoutMs) {
-        return await withTimeout(fn(), timeoutMs, signal)
-      }
-      return await fn()
-    }
-    catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        throw err
-      }
-      lastError = err instanceof Error ? err : new Error(String(err))
-      if (i === maxRetries) {
-        throw lastError
-      }
+      return await abortable(fn(scope.signal), scope.signal)
+    } catch (error) {
+      signal?.throwIfAborted()
+      // A timed-out operation may still be finishing: never replay it automatically.
+      if (scope.signal.aborted || attempt >= maxRetries) throw error
+    } finally {
+      scope.abort()
+      scope.dispose()
     }
   }
-  throw lastError
 }
 
 export function serializeResult(result: unknown): string {
@@ -109,7 +63,7 @@ export function tool(config: any) {
 
     try {
       const execResult = await withRetries(
-        async () => execute(result.data),
+        async (toolSignal) => execute(result.data, { signal: toolSignal }),
         retries,
         timeout,
         signal,
@@ -154,12 +108,14 @@ export function tool(config: any) {
           }
         }
         catch (err) {
+          signal?.throwIfAborted()
           console.warn('[tool] Compact failure (non-blocking):', err)
         }
       }
       return JSON.stringify({ success: true, data })
     }
     catch (err) {
+      signal?.throwIfAborted()
       return JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) })
     }
   }

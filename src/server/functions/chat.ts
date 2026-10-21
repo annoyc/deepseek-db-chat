@@ -1,4 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
+import { createManagedStream } from '@/core/client/lifecycle'
+import { traceContent, traceMetadata } from '@/core/telemetry'
+import { maskPII } from '@/lib/masking'
 import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
 import { createDbAgent } from '@/server/agent'
 import { classifyIntentWithLLM } from '@/server/intent-router'
@@ -30,7 +34,7 @@ function drainToolResults(
   pendingNames: string[],
   resultStore: ResultStore,
   encoder: TextEncoder,
-  controller: ReadableStreamDefaultController,
+  controller: Pick<ReadableStreamDefaultController<Uint8Array>, 'enqueue'>,
 ): string | undefined {
   let smartFilterResult: string | undefined
   for (const name of pendingNames) {
@@ -66,19 +70,21 @@ export const chatStream = createServerFn({ method: 'POST' })
   .inputValidator((data: ChatInput) => data)
   .handler(
     async ({ data }): Promise<Response> => {
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder()
-
-        const STREAM_TIMEOUT_MS = 120_000
+    const encoder = new TextEncoder()
+    const stream = createManagedStream(async ({ signal, enqueue }) => {
+        const controller = { enqueue }
 
         const runChat = async () => {
           try {
+            if (!data.isContinuation && maskPII(data.message) !== data.message) {
+              controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: '请使用非敏感内部编号查询，敏感标识不会发送给模型' })))
+              controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
+              return
+            }
             const decryptedConnection: DatabaseConnection = {
               ...data.connection,
               password: decrypt(data.connection.password),
             }
-            const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
             const effectiveSqlPermission = decryptedConnection.env === 'prod' ? 'readonly' : data.sqlPermission
 
             // Intent classification: skip for continuation scenarios (SQL result/error, revise, filter confirm)
@@ -87,11 +93,11 @@ export const chatStream = createServerFn({ method: 'POST' })
               controller.enqueue(encoder.encode(formatSSE({ type: 'status', message: '意图分析中...' })))
               const hasHistory = (data.executionLog?.length ?? 0) > 0 || (data.history?.length ?? 0) > 0
               intent = await classifyIntentWithLLM(data.message, hasHistory, {
-                provider: data.provider as any,
+                provider: (data.provider ?? 'deepseek') as any,
                 model: data.model || '',
-                apiKey: decryptedApiKey,
+                apiKey: data.apiKey,
                 baseURL: data.baseURL,
-              })
+              }, signal)
             }
 
             controller.enqueue(encoder.encode(formatSSE({
@@ -102,7 +108,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             const { agent, resultStore } = await createDbAgent(decryptedConnection, {
               provider: data.provider as any,
               model: data.model,
-              apiKey: decryptedApiKey,
+              apiKey: data.apiKey,
               baseURL: data.baseURL,
               thinkingMode: data.thinkingMode,
               reasoningEffort: data.reasoningEffort,
@@ -113,10 +119,12 @@ export const chatStream = createServerFn({ method: 'POST' })
               maxSqlExecutions: data.maxSqlExecutions,
               userQuery: data.message,
               intent,
+              signal,
             })
             const agentStream = agent.stream({
               prompt: data.message,
               messages: data.history as any,
+              signal,
             })
 
             let pendingToolNames: string[] = []
@@ -124,20 +132,7 @@ export const chatStream = createServerFn({ method: 'POST' })
             let smartFilterDetected = false
             let shouldBreak = false
 
-            // Timeout protection: abort if no events for too long
-            let lastEventTime = Date.now()
-            const timeoutCheck = setInterval(() => {
-              if (Date.now() - lastEventTime > STREAM_TIMEOUT_MS) {
-                clearInterval(timeoutCheck)
-                controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: 'AI 响应超时（120s 无数据），请重试' })))
-                controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
-                controller.close()
-              }
-            }, 10_000)
-
-            try {
             for await (const event of agentStream) {
-              lastEventTime = Date.now()
               let chunk: StreamChunk | null = null
 
               switch (event.type) {
@@ -239,19 +234,19 @@ export const chatStream = createServerFn({ method: 'POST' })
 
               if (shouldBreak) break
             }
-            } finally {
-              clearInterval(timeoutCheck)
-            }
 
             drainToolResults(pendingToolNames, resultStore, encoder, controller)
             controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
           } catch (err) {
-            console.error('[chat] Agent stream error:', err)
-            const msg = 'AI 服务异常，请检查 API Key 是否正确'
+            signal.throwIfAborted()
+            console.error('[chat] Agent stream error:', err instanceof Error ? err.name : 'UnknownError')
+            const msg = err instanceof Error && (err.name === 'TimeoutError' || (err as { type?: string }).type === 'timeout')
+              ? 'AI 响应超时，请重试'
+              : 'AI 服务异常，请稍后重试或检查服务配置'
             controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: msg })))
+            controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
           } finally {
-            controller.close()
-            await flushTraces()
+            void flushTraces().catch(() => console.warn('[chat] Trace flush failed'))
           }
         }
 
@@ -259,8 +254,8 @@ export const chatStream = createServerFn({ method: 'POST' })
           const userId = resolveUserId()
           await startActiveObservation('chat', async (span) => {
             span.update({
-              input: { message: data.message.slice(0, 500) },
-              metadata: { provider: data.provider, model: data.model, database: data.connection.database },
+              input: traceContent({ message: data.message.slice(0, 500) }),
+              metadata: traceMetadata({ provider: data.provider, model: data.model }),
             })
             await propagateAttributes({
               userId,
@@ -272,6 +267,15 @@ export const chatStream = createServerFn({ method: 'POST' })
         } else {
           await runChat()
         }
+    }, {
+      signal: getRequest().signal,
+      deadlineMs: 180000,
+      onError(error, enqueue) {
+        const message = error instanceof Error && error.name === 'TimeoutError'
+          ? '任务超过 180 秒，已停止生成，请缩小查询范围后重试'
+          : 'AI 服务异常，请稍后重试'
+        enqueue(encoder.encode(formatSSE({ type: 'error', message })))
+        enqueue(encoder.encode(formatSSE({ type: 'finish' })))
       },
     })
 
@@ -282,7 +286,7 @@ export const chatStream = createServerFn({ method: 'POST' })
 function sseHeaders(): HeadersInit {
   return {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-store',
     'Connection': 'keep-alive',
   }
 }

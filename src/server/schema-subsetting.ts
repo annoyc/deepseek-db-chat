@@ -107,34 +107,29 @@ export function subsetTables(
     }
   }
 
-  // Phase 1: Take tables with relevance > 0
+  // Reserve up to a quarter of the budget for one-hop join dependencies.
+  const relevanceBudget = fkEdges.length > 0 ? MAX_OVERVIEW_TABLES - 10 : MAX_OVERVIEW_TABLES
   for (const { table, score } of scored) {
+    if (selectedSet.has(table.name.toLowerCase())) continue
+    if (selected.length >= relevanceBudget) break
     if (score <= 0 && selected.length >= MAX_OVERVIEW_TABLES / 2) break
-    if (selected.length >= MAX_OVERVIEW_TABLES) break
     selected.push(table)
     selectedSet.add(table.name.toLowerCase())
   }
 
-  // Phase 2: Add FK-connected tables (breadth-1 expansion)
-  const toAdd: TableMeta[] = []
+  // Expand from the relevance snapshot only, avoiding order-dependent traversal.
+  const roots = new Set(selectedSet)
+  const tableByName = new Map(tables.map(t => [t.name.toLowerCase(), t]))
   for (const edge of fkEdges) {
-    const fromLower = edge.from.toLowerCase()
-    const toLower = edge.to.toLowerCase()
-    if (selectedSet.has(fromLower) && !selectedSet.has(toLower)) {
-      const linked = tables.find(t => t.name.toLowerCase() === toLower)
-      if (linked) toAdd.push(linked)
-    }
-    if (selectedSet.has(toLower) && !selectedSet.has(fromLower)) {
-      const linked = tables.find(t => t.name.toLowerCase() === fromLower)
-      if (linked) toAdd.push(linked)
-    }
-  }
-
-  for (const t of toAdd) {
-    if (selected.length >= MAX_OVERVIEW_TABLES) break
-    if (!selectedSet.has(t.name.toLowerCase())) {
-      selected.push(t)
-      selectedSet.add(t.name.toLowerCase())
+    for (const [from, to] of [[edge.from, edge.to], [edge.to, edge.from]]) {
+      const target = to.toLowerCase()
+      if (selected.length >= MAX_OVERVIEW_TABLES) break
+      if (!roots.has(from.toLowerCase()) || selectedSet.has(target)) continue
+      const linked = tableByName.get(target)
+      if (linked) {
+        selected.push(linked)
+        selectedSet.add(target)
+      }
     }
   }
 
@@ -145,6 +140,7 @@ export function subsetTables(
     for (const t of remaining) {
       if (selected.length >= MAX_OVERVIEW_TABLES) break
       selected.push(t)
+      selectedSet.add(t.name.toLowerCase())
     }
   }
 

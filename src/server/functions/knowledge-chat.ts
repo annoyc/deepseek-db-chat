@@ -1,4 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
+import { z } from 'zod'
+import { maskPII } from '@/lib/masking'
+import { abortable, createAbortScope, createManagedStream } from '@/core/client/lifecycle'
+import { readKnowledgeStream, requestKnowledgeBackend } from '@/core/client/knowledge-request'
+import { readResponseJson } from '@/core/client/response-body'
 import type { KnowledgeChatInput, KnowledgeHealth, KnowledgeStreamChunk } from '@/lib/knowledge-types'
 
 interface MemoChatResponse {
@@ -18,7 +24,7 @@ function getBackendBase(): string {
 function sseHeaders(): HeadersInit {
   return {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-store',
     'Connection': 'keep-alive',
   }
 }
@@ -28,7 +34,7 @@ function formatSSE(data: KnowledgeStreamChunk): string {
 }
 
 function emit(
-  controller: ReadableStreamDefaultController,
+  controller: Pick<ReadableStreamDefaultController<Uint8Array>, 'enqueue'>,
   encoder: TextEncoder,
   chunk: KnowledgeStreamChunk,
 ) {
@@ -37,39 +43,19 @@ function emit(
 
 function buildBackendPayload(data: KnowledgeChatInput) {
   return {
-    message: data.message,
+    message: maskPII(data.message),
     use_web_search: data.useWebSearch,
     use_base_model: data.useBaseModel,
     answer_mode: data.answerMode,
-    history: (data.history ?? []).map((turn) => ({ role: turn.role, content: turn.content })),
+    history: (data.history ?? []).map((turn) => ({ role: turn.role, content: maskPII(turn.content) })),
   }
-}
-
-async function pipeBackendStream(
-  controller: ReadableStreamDefaultController,
-  encoder: TextEncoder,
-  response: Response,
-) {
-  if (!response.body) throw new Error('知识库流式接口没有返回响应体')
-  const reader = response.body.getReader()
-  try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      controller.enqueue(value)
-    }
-  } finally {
-    reader.releaseLock()
-  }
-
-  emit(controller, encoder, { type: 'finish' })
 }
 
 async function emitFallbackChat(
-  controller: ReadableStreamDefaultController,
+  controller: Pick<ReadableStreamDefaultController<Uint8Array>, 'enqueue'>,
   encoder: TextEncoder,
-  data: KnowledgeChatInput,
-  backendBase: string,
+  response: Response,
+  signal: AbortSignal,
 ) {
   emit(controller, encoder, { type: 'status', message: '连接知识库服务...' })
   emit(controller, encoder, {
@@ -80,24 +66,7 @@ async function emitFallbackChat(
     status: 'running',
   })
 
-  const response = await fetch(`${backendBase}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(buildBackendPayload(data)),
-  })
-
-  const body = (await response.json().catch(() => ({}))) as MemoChatResponse
-  if (!response.ok) {
-    emit(controller, encoder, {
-      type: 'tool',
-      id: 'request',
-      name: 'request',
-      title: '调用知识库服务',
-      status: 'error',
-      output: `HTTP ${response.status}`,
-    })
-    throw new Error(body.detail || `知识库服务返回 ${response.status}`)
-  }
+  const body = await readResponseJson<MemoChatResponse>(response, signal)
   emit(controller, encoder, {
     type: 'tool',
     id: 'request',
@@ -162,12 +131,8 @@ async function emitFallbackChat(
     title: '答案合成',
     status: 'running',
   })
-  const answer = body.answer || '（知识库服务未返回答案）'
-  const chars = Array.from(answer)
-  for (let i = 0; i < chars.length; i += 8) {
-    emit(controller, encoder, { type: 'text', content: chars.slice(i, i + 8).join('') })
-    await new Promise((resolve) => setTimeout(resolve, 10))
-  }
+  if (!body.answer) throw new Error('知识库服务未返回答案')
+  emit(controller, encoder, { type: 'text', content: body.answer })
   emit(controller, encoder, {
     type: 'tool',
     id: 'synthesis',
@@ -178,63 +143,73 @@ async function emitFallbackChat(
   })
 }
 
+const KnowledgeInputSchema = z.object({
+  message: z.string().trim().min(1).max(16000),
+  useWebSearch: z.boolean(),
+  useBaseModel: z.boolean(),
+  answerMode: z.enum(['concise', 'standard', 'deep']),
+  history: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(32000) })).max(20).optional(),
+})
+
 export const knowledgeChatStream = createServerFn({ method: 'POST' })
-  .inputValidator((data: KnowledgeChatInput) => data)
+  .inputValidator((data: KnowledgeChatInput) => KnowledgeInputSchema.parse(data))
   .handler(async ({ data }): Promise<Response> => {
     const backendBase = getBackendBase()
-    const stream = new ReadableStream({
-      async start(controller) {
-        const encoder = new TextEncoder()
-        try {
-          emit(controller, encoder, { type: 'status', message: '准备知识问答任务...' })
-
-          const streamResponse = await fetch(`${backendBase}/chat/stream`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-            body: JSON.stringify(buildBackendPayload(data)),
-          }).catch(() => null)
-
-          if (
-            streamResponse?.ok &&
-            streamResponse.headers.get('content-type')?.includes('text/event-stream')
-          ) {
-            await pipeBackendStream(controller, encoder, streamResponse)
-            return
-          }
-
-          await emitFallbackChat(controller, encoder, data, backendBase)
-          emit(controller, encoder, { type: 'finish' })
-        } catch (err) {
-          const message = err instanceof Error ? err.message : '知识库问答服务异常'
-          emit(controller, encoder, { type: 'error', message })
-          emit(controller, encoder, { type: 'finish' })
-        } finally {
-          controller.close()
+    const encoder = new TextEncoder()
+    const stream = createManagedStream(async ({ signal, enqueue }) => {
+      const controller = { enqueue }
+      emit(controller, encoder, { type: 'status', message: '准备知识问答任务...' })
+      // Includes connection and response headers; the entire task also has a deadline.
+      const firstResponse = createAbortScope(signal, 30000)
+      try {
+        const result = await requestKnowledgeBackend(backendBase, buildBackendPayload(data), firstResponse.signal)
+        firstResponse.clearDeadline()
+        if (result.streaming) {
+          for await (const value of readKnowledgeStream(result.response, signal)) enqueue(value)
+        } else {
+          await emitFallbackChat(controller, encoder, result.response, signal)
         }
+      } finally {
+        firstResponse.abort()
+        firstResponse.dispose()
+      }
+      emit(controller, encoder, { type: 'finish' })
+    }, {
+      signal: getRequest().signal,
+      deadlineMs: 180000,
+      onError(error, enqueue) {
+        const message = error instanceof Error && error.name === 'TimeoutError'
+          ? '知识库响应超时，已停止请求，请稍后重试'
+          : '知识库服务不可用，请稍后重试'
+        enqueue(encoder.encode(formatSSE({ type: 'error', message })))
+        enqueue(encoder.encode(formatSSE({ type: 'finish' })))
       },
     })
-
     return new Response(stream, { headers: sseHeaders() })
   })
 
 export const knowledgeHealth = createServerFn({ method: 'GET' })
   .handler(async (): Promise<KnowledgeHealth> => {
     const backendBase = getBackendBase()
+    const requestSignal = getRequest().signal
+    const scope = createAbortScope(requestSignal, 5000)
     try {
-      const response = await fetch(`${backendBase}/health`, { method: 'GET' })
-      const body = await response.json().catch(() => ({}))
+      const response = await abortable(fetch(`${backendBase}/health`, { method: 'GET', signal: scope.signal, redirect: 'error' }), scope.signal)
+      const body = await readResponseJson<{ lm_model?: string; web_search_available?: boolean }>(response, scope.signal)
       if (!response.ok) throw new Error(`知识库服务返回 ${response.status}`)
       return {
         status: 'ok',
         lmModel: body.lm_model,
         webSearchAvailable: Boolean(body.web_search_available),
-        backendBase,
       }
     } catch (err) {
+      requestSignal.throwIfAborted()
       return {
         status: 'offline',
-        backendBase,
-        error: err instanceof Error ? err.message : '无法连接知识库服务',
+        error: '无法连接知识库服务',
       }
+    } finally {
+      scope.abort()
+      scope.dispose()
     }
   })

@@ -1,12 +1,11 @@
 import { useMemo, memo } from 'react'
 import { TrendingUp, TrendingDown, Minus, Lightbulb } from 'lucide-react'
 import type { AnalysisReport, AnalysisMetric, SqlResultInfo } from '@/lib/types'
-import { ResultChart, analyzeChartData, type ChartType, type ChartHint } from './ResultChart'
+import { ResultChart, type ChartType, type ChartHint } from './ResultChart'
 
 interface AnalysisReportCardProps {
   report: AnalysisReport
   result?: SqlResultInfo
-  sqlChartType?: ChartType
   onQueryClick?: (query: string) => void
 }
 
@@ -49,18 +48,7 @@ function MetricItem({ metric }: { metric: AnalysisMetric }) {
   )
 }
 
-const ALTERNATIVE_ORDER: ChartType[] = ['line', 'area', 'bar', 'pie']
-
-function pickDifferentType(avoid: ChartType, pieDisabled: boolean): ChartType {
-  for (const t of ALTERNATIVE_ORDER) {
-    if (t === avoid) continue
-    if (t === 'pie' && pieDisabled) continue
-    return t
-  }
-  return 'bar'
-}
-
-export const AnalysisReportCard = memo(function AnalysisReportCard({ report, result, sqlChartType, onQueryClick }: AnalysisReportCardProps) {
+export const AnalysisReportCard = memo(function AnalysisReportCard({ report, result, onQueryClick }: AnalysisReportCardProps) {
   const gridCols = report.metrics.length <= 2
     ? 'grid-cols-2'
     : report.metrics.length <= 3
@@ -82,18 +70,14 @@ export const AnalysisReportCard = memo(function AnalysisReportCard({ report, res
 
   const analysisChartType = useMemo<ChartType | undefined>(() => {
     if (!canRenderChart || !result || !suggestion) return undefined
-    const aiType = suggestion.type as ChartType
-    const autoType = sqlChartType
-    if (!autoType || aiType !== autoType) return aiType
-    const analysis = analyzeChartData(result.columns, result.rows, chartHint)
-    const pieDisabled = !analysis || analysis.valueCols.length > 1 || analysis.data.length > 10
-    return pickDifferentType(autoType, pieDisabled)
-  }, [canRenderChart, result, suggestion, sqlChartType, chartHint])
+    return suggestion.type as ChartType
+  }, [canRenderChart, result, suggestion])
 
   return (
     <div className="rounded-xl border border-gray-200 bg-gradient-to-b from-gray-50/80 to-white overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-400">
       {/* Summary */}
       <div className="px-3 pt-2.5 pb-1.5">
+        <p className="mb-1 text-[11px] text-amber-700">AI 分析 · 请结合查询结果核对</p>
         <p className="text-xs text-gray-700 font-medium leading-relaxed">{report.summary}</p>
       </div>
 

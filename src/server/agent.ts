@@ -1,4 +1,5 @@
-import { createAgent, createModel, getProvider } from '@/core'
+import { createAgent, createModel } from '@/core'
+import { resolveAiCredentials } from '@/server/ai-credentials'
 import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
@@ -22,6 +23,7 @@ interface AgentOptions {
   userQuery?: string
   /** Pre-computed intent classification. When provided, skips internal LLM call. */
   intent?: IntentClassification | null
+  signal?: AbortSignal
 }
 
 // ────────────────────────────────────────────────────────────
@@ -236,9 +238,8 @@ report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须�
 
 export async function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
   const provider = options?.provider ?? 'deepseek'
-  const providerDef = getProvider(provider)
   const modelName = options?.model || DEFAULT_MODEL
-  const apiKey = options?.apiKey || process.env[providerDef.envApiKeyName]
+  const credentials = resolveAiCredentials(provider, options?.apiKey, options?.baseURL)
 
   const modelConfig: Record<string, unknown> = {
     provider,
@@ -246,12 +247,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
     thinking: { type: options?.thinkingMode ?? 'enabled' },
     reasoningEffort: options?.thinkingMode !== 'disabled' ? (options?.reasoningEffort ?? 'high') : undefined,
   }
-  if (apiKey) {
-    modelConfig.apiKey = apiKey
-  }
-  if (options?.baseURL) {
-    modelConfig.baseURL = options.baseURL
-  }
+  Object.assign(modelConfig, credentials)
 
   const model = createModel(modelConfig as any)
   const userQuery = options?.userQuery ?? ''
@@ -264,9 +260,9 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
       ? await classifyIntentWithLLM(userQuery, hasHistory, {
           provider,
           model: modelName,
-          apiKey,
+          apiKey: options?.apiKey,
           baseURL: options?.baseURL,
-        })
+        }, options?.signal)
       : null
   const intentType = intent?.intent
 
@@ -373,6 +369,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
     tools,
     system: systemPrompt,
     maxSteps: 10,
+    signal: options?.signal,
   })
 
   return { agent, resultStore }

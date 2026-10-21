@@ -6,9 +6,11 @@
  */
 
 import { z } from 'zod'
-import { createModel, generateText, getProvider } from '@/core'
+import { createModel, getProvider } from '@/core'
+import { resolveAiCredentials } from '@/server/ai-credentials'
 import type { DeepSeekModel } from '@/core'
 import type { ModelProvider } from '@/core/model/types'
+import { parseAndValidate } from '@/core/utils/json-parse'
 
 export type QueryIntent =
   | 'explore_schema'
@@ -116,6 +118,7 @@ export async function classifyIntentWithLLM(
     apiKey?: string
     baseURL?: string
   },
+  signal?: AbortSignal,
 ): Promise<IntentClassification> {
   const q = userQuery.trim()
   if (!q) return fallbackClassification('empty query')
@@ -123,13 +126,15 @@ export async function classifyIntentWithLLM(
   let model: DeepSeekModel
   try {
     const providerDef = getProvider(modelConfig.provider)
+    const credentials = resolveAiCredentials(modelConfig.provider, modelConfig.apiKey, modelConfig.baseURL)
     model = createModel({
       provider: modelConfig.provider as any,
       model: modelConfig.model || providerDef.defaultModel,
       thinking: { type: 'disabled' },
       temperature: 0,
-      apiKey: modelConfig.apiKey || process.env[providerDef.envApiKeyName],
-      baseURL: modelConfig.baseURL || undefined,
+      timeout: 15000,
+      maxRetries: 0,
+      ...credentials,
     } as any)
   } catch (err) {
     console.error('[intent-router] createModel failed:', err)
@@ -139,18 +144,20 @@ export async function classifyIntentWithLLM(
   const userPrompt = `有查询历史：${hasHistory ? '是' : '否'}\n问题：${q}\n\n${FEW_SHOT_EXAMPLES}`
 
   try {
-    const result = await generateText({
-      model,
-      system: INTENT_CLASSIFIER_PROMPT,
-      prompt: userPrompt,
-      maxSteps: 1,
-      output: { schema: IntentSchema },
+    signal?.throwIfAborted()
+    const response = await model.invoke({
+      messages: [
+        { role: 'system', content: `${INTENT_CLASSIFIER_PROMPT}\nJSON Schema: ${JSON.stringify(z.toJSONSchema(IntentSchema))}` },
+        { role: 'user', content: userPrompt },
+      ],
+      response_format: { type: 'json_object' },
+      signal,
     })
-
-    const parsed = result.output
-    if (!parsed) {
+    const result = await parseAndValidate(response.choices[0]?.message.content ?? '', IntentSchema)
+    if (!result.success) {
       return fallbackClassification('classifier returned no structured output')
     }
+    const parsed = result.data
 
     return {
       intent: parsed.intent as QueryIntent,
@@ -163,7 +170,8 @@ export async function classifyIntentWithLLM(
       skipOverview: SKIP_OVERVIEW_INTENTS.has(parsed.intent as QueryIntent),
     }
   } catch (err) {
-    console.error('[intent-router] classifyIntentWithLLM failed:', err)
+    signal?.throwIfAborted()
+    console.error('[intent-router] classifyIntentWithLLM failed:', err instanceof Error ? err.name : 'UnknownError')
     return fallbackClassification('classification call failed')
   }
 }

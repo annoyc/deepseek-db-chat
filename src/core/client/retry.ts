@@ -1,11 +1,14 @@
 import { ApiRequestError } from './errors'
+import { abortableDelay } from './lifecycle'
 
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries: number,
+  signal?: AbortSignal,
 ): Promise<T> {
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    signal?.throwIfAborted()
     try {
       return await fn()
     }
@@ -18,7 +21,7 @@ export async function withRetry<T>(
         const delay = retryAfter
           ? retryAfter * 1000
           : baseDelay + jitter
-        await new Promise(resolve => setTimeout(resolve, delay))
+        await abortableDelay(delay, signal)
         continue
       }
       throw error

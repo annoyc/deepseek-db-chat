@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest } from '@tanstack/react-start/server'
 import { createModel, generateText, getProvider } from '@/core'
-import { decrypt } from '@/server/crypto'
+import { resolveAiCredentials } from '@/server/ai-credentials'
 import { withTrace } from '@/server/langfuse'
 
 interface GenerateTitleInput {
@@ -25,7 +26,8 @@ const TITLE_PROMPT = `你是一个标题生成器。根据以下对话内容，�
 export const generateAiTitle = createServerFn({ method: 'POST' })
   .inputValidator((data: GenerateTitleInput) => data)
   .handler(async ({ data }): Promise<string> => {
-    return withTrace({
+    const signal = getRequest().signal
+      return withTrace({
       name: 'generate-title',
       input: { userMessage: data.userMessage.slice(0, 200) },
       sessionId: data.sessionId,
@@ -33,15 +35,13 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
       tags: ['title'],
     }, async () => {
       try {
-        const decryptedApiKey = data.apiKey ? decrypt(data.apiKey) : undefined
         const provider = data.provider ?? 'deepseek'
         const providerDef = getProvider(provider)
         const model = createModel({
           provider: provider as any,
           model: data.model || providerDef.defaultModel,
           thinking: { type: 'disabled' },
-          apiKey: decryptedApiKey || process.env[providerDef.envApiKeyName],
-          baseURL: data.baseURL || undefined,
+          ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
         } as any)
 
         const result = await generateText({
@@ -49,6 +49,7 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
           system: TITLE_PROMPT,
           prompt: `用户提问：${data.userMessage.slice(0, 200)}\n\n助手回复摘要：${data.assistantContent.slice(0, 500)}`,
           maxSteps: 1,
+            signal,
         })
 
         const title = result.text.trim().replace(/^["'""「『【《]+|["'""」』】》。！？，、]+$/g, '')
@@ -59,6 +60,7 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
 
         return title
       } catch (err) {
+          signal.throwIfAborted()
         console.error('[generateTitle] Failed:', err)
         return data.userMessage.slice(0, 20)
       }

@@ -1,27 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpenText,
-  CheckCircle2,
-  CircleAlert,
-  Cpu,
-  Globe2,
   MessageSquarePlus,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
-  Settings,
+  RefreshCw,
   Trash2,
-  WifiOff,
   X,
 } from 'lucide-react'
 import { AppModeSwitch, type AppMode } from '@/components/layout/AppModeSwitch'
-import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
 import { SessionLoadingIndicator } from '@/components/layout/SessionLoadingIndicator'
 import { cn, getRelativeTime } from '@/lib/utils'
 import type { KnowledgeHealth } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
 import { knowledgeHealth } from '@/server/functions/knowledge-chat'
 import { APP_NAME } from '@/lib/constants'
+import { getKnowledgeServiceLabel, KnowledgeServiceStatus } from './KnowledgeServiceStatus'
 
 interface KnowledgeSidebarProps {
   activeApp: AppMode
@@ -38,18 +33,29 @@ export function KnowledgeSidebar({
 }: KnowledgeSidebarProps) {
   const { sessions, activeSessionId, streamingSessionId, setActiveSession, createNewSession, deleteSession, stopStreaming } = useKnowledgeChatStore()
   const [health, setHealth] = useState<KnowledgeHealth | null>(null)
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
+  const [checkingHealth, setCheckingHealth] = useState(false)
+  const healthRequestRef = useRef(0)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    knowledgeHealth().then((result) => {
-      if (!cancelled) setHealth(result)
-    })
-    return () => {
-      cancelled = true
+  const refreshHealth = useCallback(async () => {
+    const requestId = ++healthRequestRef.current
+    setCheckingHealth(true)
+    try {
+      const result = await knowledgeHealth()
+      if (requestId === healthRequestRef.current) setHealth(result)
+    } catch {
+      if (requestId === healthRequestRef.current) setHealth({ status: 'offline' })
+    } finally {
+      if (requestId === healthRequestRef.current) setCheckingHealth(false)
     }
   }, [])
+
+  useEffect(() => {
+    void refreshHealth()
+    return () => {
+      healthRequestRef.current++
+    }
+  }, [refreshHealth])
 
   const sortedSessions = useMemo(() => {
     return [...sessions].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -129,48 +135,14 @@ export function KnowledgeSidebar({
                     ? 'border-primary/20 bg-primary/10 text-primary'
                     : 'border-amber-200 bg-amber-50 text-amber-700',
                 )}
-                title={online ? '知识库服务在线' : '知识库服务待连接'}
+                title={`知识库服务：${getKnowledgeServiceLabel(health, checkingHealth)}`}
               >
                 <BookOpenText className="h-3.5 w-3.5" />
               </div>
             </div>
           ) : (
             <>
-              <div className="border-y border-stone-200/70 py-3">
-                <div className="mb-2 flex items-center justify-between px-2">
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-                    <Cpu className="h-4 w-4 text-stone-500" />
-                    知识库服务
-                  </span>
-                  {online ? (
-                    <span className="flex items-center gap-1 text-xs text-primary">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      在线
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs text-amber-700">
-                      <WifiOff className="h-3.5 w-3.5" />
-                      待连接
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-2 px-2 text-xs text-stone-500">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="h-3.5 w-3.5 text-stone-400" />
-                    <span className="truncate">{health?.lmModel || 'Executive model'}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Globe2 className="h-3.5 w-3.5 text-stone-400" />
-                    <span>{health?.webSearchAvailable ? '联网搜索可用' : '联网搜索未配置或未知'}</span>
-                  </div>
-                  {health?.error && (
-                    <div className="flex items-start gap-2 rounded-lg bg-amber-50/70 px-2 py-1.5 text-amber-700">
-                      <CircleAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{health.error}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <KnowledgeServiceStatus health={health} checking={checkingHealth} />
 
               <div className="py-3">
                 <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
@@ -223,11 +195,12 @@ export function KnowledgeSidebar({
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
               <button
-                onClick={() => setShowApiKeyDialog(true)}
-                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800"
-                title={health?.backendBase || '设置'}
+                onClick={() => void refreshHealth()}
+                disabled={checkingHealth}
+                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800 disabled:opacity-50"
+                title={checkingHealth ? '正在检测知识库服务' : '重新检测知识库服务'}
               >
-                <Settings className="h-3.5 w-3.5" />
+                <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
               </button>
               <button
                 onClick={onToggleCollapse}
@@ -240,12 +213,13 @@ export function KnowledgeSidebar({
           ) : (
             <div className="flex items-center justify-between px-3 py-2">
               <button
-                onClick={() => setShowApiKeyDialog(true)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
-                title={health?.backendBase || '设置'}
+                onClick={() => void refreshHealth()}
+                disabled={checkingHealth}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900 disabled:opacity-50"
+                title="只检测知识库服务连接，不生成模型回答"
               >
-                <Settings className="h-3.5 w-3.5" />
-                设置
+                <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
+                {checkingHealth ? '正在检测服务...' : '重新检测服务'}
               </button>
             </div>
           )}
@@ -304,8 +278,6 @@ export function KnowledgeSidebar({
           </div>
         </div>
       )}
-
-      <ApiKeyDialog open={showApiKeyDialog} onClose={() => setShowApiKeyDialog(false)} />
     </>
   )
 }

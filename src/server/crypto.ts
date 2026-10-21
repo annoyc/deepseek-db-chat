@@ -6,7 +6,7 @@ const KEY_LENGTH = 32
 
 function getEncryptionKey(): Buffer {
   const envKey = process.env.ENCRYPTION_KEY
-  if (!envKey || envKey.length !== KEY_LENGTH * 2) {
+  if (!envKey || !new RegExp(`^[0-9a-f]{${KEY_LENGTH * 2}}$`, 'i').test(envKey)) {
     throw new Error('[crypto] ENCRYPTION_KEY env var is missing or invalid (must be 64 hex chars)')
   }
   return Buffer.from(envKey, 'hex')

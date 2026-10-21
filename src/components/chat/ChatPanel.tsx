@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PersistenceNotice } from '../layout/PersistenceNotice'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { MessageList } from './MessageList'
@@ -14,7 +15,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: ChatPanelProps) {
-  const { activeSession, sendMessage, isStreaming } = useChatStore()
+  const { activeSession, sendMessage, isStreaming, persistenceState, retrySave } = useChatStore()
   const { activeConnectionId, getFullConnection, connectionStatus } = useDatabaseStore()
   const [showSettings, setShowSettings] = useState(false)
   const messages = activeSession?.messages ?? []
@@ -22,7 +23,8 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: Ch
 
   const displayConnectionId = activeConnectionId || activeSession?.connectionId || null
   const sessionConnection = displayConnectionId ? getFullConnection(displayConnectionId) : null
-  const canUseSuggestions = Boolean(activeConnectionId) && !isStreaming
+  const historyReady = persistenceState !== 'loading' && persistenceState !== 'load-error'
+  const canUseSuggestions = historyReady && Boolean(activeConnectionId) && !isStreaming
 
   const dotColor = connectionStatus === 'error'
     ? 'bg-red-500'
@@ -74,10 +76,11 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: Ch
         </div>
       </header>
 
+      <PersistenceNotice state={persistenceState} onRetry={retrySave} />
       <div className="min-h-0 flex-1 overflow-hidden">
         {isEmptySession ? (
           <WelcomeScreen
-            hasConnection={Boolean(activeConnectionId)}
+            hasConnection={canUseSuggestions}
             connectionName={sessionConnection?.name}
             onSuggestionClick={(text) => {
               if (!canUseSuggestions) return

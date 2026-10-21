@@ -1,32 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getProvider } from '@/core'
-import { encrypt } from '@/server/crypto'
+import { getProvider } from '@/core/provider'
+import { decrypt } from '@/server/crypto'
+import { z } from 'zod'
 
 export const getEnvApiKeyStatus = createServerFn({ method: 'POST' })
-  .inputValidator((data: { provider?: string }) => data)
+  .inputValidator((data: { provider?: string; apiKey?: string }) => z.object({
+    provider: z.enum(['deepseek', 'bailian']).optional(),
+    apiKey: z.string().max(40_000).optional(),
+  }).parse(data))
   .handler(
-    async ({ data }): Promise<{ hasEnvKey: boolean; maskedKey: string }> => {
+    async ({ data }): Promise<{ hasEnvKey: boolean; isServerKey: boolean }> => {
       const providerDef = getProvider(data.provider ?? 'deepseek')
       const key = process.env[providerDef.envApiKeyName] || ''
       if (!key) {
-        return { hasEnvKey: false, maskedKey: '' }
+        return { hasEnvKey: false, isServerKey: false }
       }
-      const masked = key.length > 8
-        ? key.slice(0, 5) + '...' + key.slice(-4)
-        : key.slice(0, 3) + '...'
-      return { hasEnvKey: true, maskedKey: masked }
-    }
-  )
-
-export const getEncryptedEnvApiKey = createServerFn({ method: 'POST' })
-  .inputValidator((data: { provider?: string }) => data)
-  .handler(
-    async ({ data }): Promise<{ encrypted: string | null }> => {
-      const providerDef = getProvider(data.provider ?? 'deepseek')
-      const key = process.env[providerDef.envApiKeyName]
-      if (!key) {
-        return { encrypted: null }
-      }
-      return { encrypted: encrypt(key) }
+      return { hasEnvKey: true, isServerKey: !!data.apiKey && decrypt(data.apiKey) === key }
     }
   )
