@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">DBPilot</h1>
+  <h1 align="center">DataQuery Workbench · 数问工作台</h1>
 </p>
 
 <p align="center">
@@ -19,9 +19,9 @@
 
 ---
 
-## Why DBPilot?
+## Why DataQuery Workbench?
 
-General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DBPilot supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
+General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DataQuery Workbench supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
 
 ### Multi-Model & Cost Efficiency
 
