@@ -331,8 +331,19 @@ export async function executeQuery(connection: DatabaseConnection, sql: string, 
   }
 }
 
-export async function listTables(connection: DatabaseConnection): Promise<string[]> {
+export type TableType = 'BASE TABLE' | 'VIEW'
+
+export async function listTables(connection: DatabaseConnection, tableType?: TableType): Promise<string[]> {
   const pool = getPool(connection)
+  if (tableType) {
+    const [rows] = await queryWithTimeout(pool,
+      `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = ?
+       ORDER BY TABLE_NAME`,
+      [connection.database, tableType],
+    )
+    return (rows as { TABLE_NAME: string }[]).map(row => row.TABLE_NAME)
+  }
   const [rows] = await queryWithTimeout(pool, 'SHOW TABLES')
   return (rows as Record<string, string>[]).map((row) => Object.values(row)[0])
 }
@@ -635,7 +646,7 @@ export async function getDatabaseOverview(connection: DatabaseConnection, userQu
   const allFks = fksResult[0]
 
   if ((tables as unknown[]).length === 0) {
-    return `数据库 "${connection.database}" 中没有表。`
+    return `数据库 "${connection.database}" 中没有基础表（BASE TABLE，不含视图）。`
   }
 
   const allTableMetas = (tables as Record<string, unknown>[]).map(t => ({
@@ -654,9 +665,9 @@ export async function getDatabaseOverview(connection: DatabaseConnection, userQu
 
   let overview = `数据库: ${connection.database}\n`
   if (hiddenCount > 0) {
-    overview += `共 ${totalCount} 张表（基于问题相关性展示 ${visibleTables.length} 张，另有 ${hiddenCount} 张可通过 list_tables 查看完整列表）\n\n`
+    overview += `共 ${totalCount} 张基础表（BASE TABLE，不含视图；基于问题相关性展示 ${visibleTables.length} 张，另有 ${hiddenCount} 张可通过 list_tables 查看完整列表）\n\n`
   } else {
-    overview += `共 ${totalCount} 张表\n\n`
+    overview += `共 ${totalCount} 张基础表（BASE TABLE，不含视图）\n\n`
   }
 
   // Table summary (only visible subset)

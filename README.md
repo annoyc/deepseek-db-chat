@@ -19,6 +19,28 @@
 
 ---
 
+## See It in Action
+
+[Open the hosted workspace](https://deepseek-db-chat.vercel.app/) · Watch the demos below without configuring a database.
+
+> Recorded in a local workspace with the **real DeepSeek V4 Flash API** and the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql). SQL is reviewed, confirmed, and executed against MySQL. The GIFs preserve key interactions and shorten waiting periods. See the [recording notes](./docs/demo/README.md).
+
+To run your own queries in the hosted workspace, add a MySQL connection reachable from the deployed server and select a configured model provider. No shared database credentials are included.
+
+### 1. Explore the Database
+
+Ask how many tables exist and inspect the table list. Metadata tools provide the answer directly, without generating a redundant SQL query.
+
+![Database exploration: ask for the table count and receive the complete table list](./docs/demo/schema-exploration.gif)
+
+### 2. From a Question to a Chart
+
+Ask a business question, review the generated SQL, confirm execution, and explore the returned data and chart.
+
+![Data analysis: natural-language question, SQL review and confirmation, query results and chart](./docs/demo/sql-analysis.gif)
+
+---
+
 ## Why DataQuery Workbench?
 
 General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DataQuery Workbench supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
@@ -83,12 +105,6 @@ pnpm dev
 pnpm build
 pnpm start
 ```
-
----
-
-## Screenshots
-
-> Add screenshots here to showcase the UI
 
 ---
 

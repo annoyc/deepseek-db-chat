@@ -1,4 +1,6 @@
-export const APP_NAME = '数问工作台'
+export const APP_NAME = '数问'
+export const APP_TAGLINE = '数据查询 · 知识问答'
+export const APP_TITLE = `${APP_NAME} · 数据与知识工作台`
 export const DEFAULT_MODEL = 'deepseek-v4-pro'
 export const DEFAULT_PROVIDER = 'deepseek'
 export const QUERY_TIMEOUT_MS = 30_000

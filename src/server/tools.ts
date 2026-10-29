@@ -1,6 +1,7 @@
 import { tool } from '@/core'
 import { z } from 'zod'
 import { listTables, getTableSchema, getDatabaseOverview, explainQuery, getColumnFilterData } from './database'
+import type { TableType } from './database'
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import type { DatabaseConnection, AnalysisReport } from '@/lib/types'
@@ -89,12 +90,12 @@ export function createDbTools(
     return missing
   }
 
-  let tablesCache: string | null = null
+  const tablesCache = new Map<TableType, string>()
   let overviewCache: string | null = null
 
   const getDatabaseOverviewTool = tool({
     name: 'get_database_overview',
-    description: '获取当前数据库的全局概览，包括所有表名、近似行数、表注释、以及表之间的外键关系。建议在对话开始时首先调用此工具，快速了解数据库整体结构，然后再针对具体表调用 get_table_schema 获取详细字段信息。',
+    description: '获取当前数据库的基础表总数、相关表名、近似行数、表注释和外键关系（不含视图）。总数覆盖全库，但大库的表名可能仅展示相关子集。可直接回答概览和关系问题，无需再生成 SQL；仅问表数量或完整表清单时优先用 list_tables。近似行数不能当作精确记录数。',
     schema: z.object({}),
     execute: async () => {
       try {
@@ -116,17 +117,20 @@ export function createDbTools(
 
   const listTablesTool = tool({
     name: 'list_tables',
-    description: '列出当前数据库中的所有表名。当用户询问数据库有哪些表、或需要了解数据库结构时使用。',
-    schema: z.object({}),
-    execute: async () => {
+    description: '获取当前数据库的完整表清单和准确的表数量。返回 database、table_type、table_count、tables、complete。默认 BASE TABLE（基础表，不含视图），视图请指定 VIEW。用户问有多少表、有哪些表时直接用此结果回答并结束，无需生成或提交 SQL。table_count 是表的数量，不是表内记录数。',
+    schema: z.object({
+      table_type: z.enum(['BASE TABLE', 'VIEW']).optional().default('BASE TABLE').describe('统计对象：基础表或视图，默认基础表'),
+    }),
+    execute: async ({ table_type }) => {
       try {
-        if (tablesCache !== null) {
-          pushResult('list_tables', tablesCache)
-          return tablesCache
+        const cached = tablesCache.get(table_type)
+        if (cached !== undefined) {
+          pushResult('list_tables', cached)
+          return cached
         }
-        const tables = await listTables(connection)
-        const result = tables.join('\n')
-        tablesCache = result
+        const tables = await listTables(connection, table_type)
+        const result = JSON.stringify({ database: connection.database, table_type, table_count: tables.length, tables, complete: true })
+        tablesCache.set(table_type, result)
         pushResult('list_tables', result)
         return result
       } catch (err) {

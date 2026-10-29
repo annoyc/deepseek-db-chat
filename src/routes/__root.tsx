@@ -4,7 +4,7 @@ import { DatabaseProvider } from '@/hooks/useDatabase'
 import { ChatProvider } from '@/hooks/useChat'
 import { KnowledgeChatProvider } from '@/hooks/useKnowledgeChat'
 import { SettingsProvider } from '@/hooks/useSettings'
-import { APP_NAME } from '@/lib/constants'
+import { APP_TAGLINE, APP_TITLE } from '@/lib/constants'
 import '@/styles/globals.css'
 
 export const Route = createRootRoute({
@@ -12,7 +12,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: APP_NAME },
+      { title: APP_TITLE },
+      { name: 'description', content: `${APP_TAGLINE}，用自然语言探索数据库与知识。` },
     ],
     links: [
       { rel: 'icon', href: `${import.meta.env.BASE_URL}logo.svg`, type: 'image/svg+xml' },

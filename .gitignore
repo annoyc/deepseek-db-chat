@@ -1,8 +1,14 @@
 node_modules/
 dist/
 .output/
-docs/
+docs/*
+!docs/demo/
+docs/demo/*
+!docs/demo/*.gif
+!docs/demo/README.md
 .pnpm-store/
 .env
 *.local
+__pycache__/
+*.py[cod]
 .DS_Store

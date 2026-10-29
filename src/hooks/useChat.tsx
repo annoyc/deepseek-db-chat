@@ -3,6 +3,7 @@ import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo
 import { generateId } from '@/lib/utils'
 import { sanitizeModelData } from '@/lib/masking'
 import { formatSqlResultForAI } from '@/lib/analysis-result'
+import { buildAnswerCheckEvidence, buildAnswerCorrection } from '@/lib/answer-check'
 import { useSessionPersistence } from './useSessionPersistence'
 import type { PersistenceState } from '@/lib/session-storage'
 import { chatStream } from '@/server/functions/chat'
@@ -553,6 +554,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // parameter which marks confirm/revise/error-retry continuations at the API level).
     const isSqlResultMessage = /^以下SQL(?:已执行完成|执行失败)/.test(message)
     const hasExecutionContext = isSqlResultMessage || (executionLog?.length ?? 0) > 0
+    const answerEvidence = buildAnswerCheckEvidence(
+      isSqlResultMessage ? message : currentSession?.messages.filter((m) => m.sqlResult).slice(-1).map((m) => formatSqlResultForAI(m.sqlConfirm?.sql ?? '', m.sqlResult!)).join('\n'),
+      [...(currentSession?.messages.flatMap((m) => m.toolCalls ?? []) ?? []), ...buffer.toolCalls],
+    )
     if (retryCount < 1 && !hasSqlConfirm && !hasSmartFilterConfirm && assistantContent.length > 30) {
       try {
         const classification = await classifyHallucination({
@@ -561,7 +566,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             assistantContent,
             hasToolCalls,
             isContinuation: hasExecutionContext,
-            evidence: isSqlResultMessage ? message : currentSession?.messages.filter((m) => m.sqlResult).slice(-1).map((m) => formatSqlResultForAI(m.sqlConfirm?.sql ?? '', m.sqlResult!)).join('\n'),
+            evidence: answerEvidence,
             provider,
             model,
             apiKey: apiKey || undefined,
@@ -582,7 +587,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             return { ...s, messages }
           })
 
-          const correctiveMessage = '你刚才的回复中包含了编造的执行结果。你没有直接执行SQL的能力，所有SQL必须通过 execute_sql 工具提交给用户确认后才能执行。请重新分析用户需求，正确使用 execute_sql 工具提交SQL，调用后立即停止回复。如果需要了解表结构，可以先调用 list_tables 和 get_table_schema。绝对禁止编造执行结果（如"删除成功"、"影响了N行"、具体返回数据等）。'
+          const correctiveMessage = buildAnswerCorrection(answerEvidence)
           const newHistory = [
             ...history,
             { role: 'assistant' as const, content: assistantContent },

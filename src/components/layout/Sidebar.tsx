@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Database, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Plus, Settings, ChevronDown, Server } from 'lucide-react'
+import { Database, MessageSquarePlus, PanelLeftOpen, Plus, Settings, ChevronDown, Server } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppModeSwitch, type AppMode } from './AppModeSwitch'
 import { DatabaseList } from './DatabaseList'
@@ -9,7 +9,7 @@ import { ApiKeyDialog } from './ApiKeyDialog'
 import { SessionLoadingIndicator } from './SessionLoadingIndicator'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
-import { APP_NAME } from '@/lib/constants'
+import { BrandHeader } from './BrandHeader'
 import { getChatSessionActivity, getSessionActivityLabel } from '@/lib/session-activity'
 
 interface SidebarProps {
@@ -55,26 +55,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
       >
         {/* Logo + Toggle */}
         <div className={cn('p-3.5', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
-          <div className={cn('flex items-center', collapsed ? 'justify-center' : 'justify-between')}>
-            <div className="flex min-w-0 items-center">
-              <div className="h-9 w-9 rounded-xl overflow-hidden cursor-pointer shadow-sm ring-1 ring-stone-200/70" onClick={onToggleCollapse}>
-                <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="w-full h-full" />
-              </div>
-              {!collapsed && (
-                <div className="ml-2.5 min-w-0">
-                  <div className="truncate text-[15px] font-semibold tracking-tight text-stone-950">{APP_NAME}</div>
-                  <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-stone-400">Local data copilot</div>
-                </div>
-              )}
-            </div>
-            {!collapsed && <button
-              onClick={onToggleCollapse}
-              className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-white/70 hover:text-stone-700"
-              title="收起侧边栏"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>}
-          </div>
+          <BrandHeader collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
 
           <AppModeSwitch activeApp={activeApp} onAppChange={onAppChange} collapsed={collapsed} />
 

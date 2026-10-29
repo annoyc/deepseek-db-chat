@@ -8,5 +8,8 @@ docs
 .env
 .env.local
 .env.*.local
+.mysql-test.local/
+.demo-recording.local/
+**/__pycache__/
 .cursor
 .vscode

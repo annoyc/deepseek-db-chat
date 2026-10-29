@@ -51,7 +51,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
       <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-4 px-3 py-5 md:px-6 lg:py-6 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
         <section className="glass-panel rounded-[20px] p-5 lg:p-6 2xl:p-8">
           <div className="flex items-start gap-3.5 2xl:gap-4">
-            <div className="anim-logo d-0 h-12 w-12 flex-shrink-0 overflow-hidden rounded-2xl shadow-lg shadow-primary/15 ring-1 ring-stone-200/80 2xl:h-14 2xl:w-14">
+            <div className="anim-logo d-0 h-12 w-12 flex-shrink-0 2xl:h-14 2xl:w-14">
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">

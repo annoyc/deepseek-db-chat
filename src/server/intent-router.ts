@@ -48,7 +48,7 @@ const IntentSchema = z.object({
 const INTENT_CLASSIFIER_PROMPT = `你是一个数据库查询意图分类器。输出多维度评估：
 
 intent（查询类型）:
-- explore_schema: 只想了解数据库/表结构
+- explore_schema: 只想了解元数据，如数据库有多少张表、表清单、字段、索引、外键或表结构
 - simple_query: 单表或简单查询
 - complex_query: 多表 JOIN、子查询、时间对比等
 - write_operation: INSERT/UPDATE/DELETE
@@ -63,6 +63,8 @@ needsFilter（0~1，需要用户确认参数的程度）:
 needsPlanning: 是否需要先规划再查询（复杂 JOIN、多步查询）
 
 判断 needsFilter 的关键规则：
+- 表数量/表清单属于元数据查询（explore_schema），needsFilter=0、needsPlanning=false；用 list_tables 的完整清单和 table_count 直接回答，无需生成 SQL。
+- 表数量与表内记录数不同："一共有多少张表"是元数据查询；"users 表有多少条记录"需要真实数据查询，不能拿元数据中的近似行数代替 COUNT(*)。
 - 涉及趋势/变化/统计 但没说时间范围 → 高 needsFilter
 - 涉及时间序列 但没说聚合粒度（按日/周/月）→ 中高 needsFilter
 - 筛选对象不明确（多张表可选、多个维度可选）→ 高 needsFilter
@@ -73,6 +75,8 @@ needsPlanning: 是否需要先规划再查询（复杂 JOIN、多步查询）
 
 const FEW_SHOT_EXAMPLES = `示例：
 问："有哪些表" → {"intent":"explore_schema","confidence":0.95,"needsFilter":0,"needsPlanning":false,"reasoning":"结构查询","suggestedTables":[]}
+问："查询总共有多少表" → {"intent":"explore_schema","confidence":1,"needsFilter":0,"needsPlanning":false,"reasoning":"统计表数量，直接读取元数据即可","suggestedTables":[]}
+问："列出当前数据库的所有表" → {"intent":"explore_schema","confidence":1,"needsFilter":0,"needsPlanning":false,"reasoning":"完整表清单，使用 list_tables 直接回答","suggestedTables":[]}
 问："users表有多少条记录" → {"intent":"simple_query","confidence":0.9,"needsFilter":0,"needsPlanning":false,"reasoning":"单表计数，参数完整","suggestedTables":["users"]}
 问："最近7天每天的订单量" → {"intent":"simple_query","confidence":0.9,"needsFilter":0,"needsPlanning":false,"reasoning":"时间和粒度都明确","suggestedTables":["orders"]}
 问："首页访问趋势" → {"intent":"simple_query","confidence":0.7,"needsFilter":0.8,"needsPlanning":false,"reasoning":"缺少时间范围和聚合粒度","suggestedTables":[]}
@@ -84,7 +88,7 @@ const FEW_SHOT_EXAMPLES = `示例：
 问："刚才那个数据为什么少了" → {"intent":"analysis","confidence":0.8,"needsFilter":0,"needsPlanning":false,"reasoning":"对已有结果追问","suggestedTables":[]}`
 
 const ROUTING_HINTS: Record<QueryIntent, string> = {
-  explore_schema: '调用 get_database_overview 或 get_table_schema 了解结构即可。',
+  explore_schema: '使用元数据工具后直接回答：表数量/完整表清单优先调用 list_tables，概览/外键用 get_database_overview，字段/索引用 get_table_schema。元数据足够时结束回复，无需生成或提交 SQL；近似行数不能作为精确记录数。',
   simple_query: '获取表结构后生成 SQL。',
   complex_query: '建议使用 plan_query 规划后再生成 SQL。',
   write_operation: '确认目标表结构后生成写操作语句。',
@@ -95,6 +99,33 @@ const SKIP_OVERVIEW_INTENTS: ReadonlySet<QueryIntent> = new Set<QueryIntent>(['a
 
 /** Threshold: needsFilter above this value triggers the hard gate. */
 export const FILTER_CONFIDENCE_THRESHOLD = 0.5
+
+// Only standalone inventory questions bypass the model classifier. Keep these
+// patterns anchored so row counts, SQL requests and compound data questions
+// still take the normal classification path.
+const CHINESE_INVENTORY_QUERY = new RegExp(
+  '^(?:请)?(?:帮我)?(?:查询|查看|看看|列出|列举|显示|统计|获取)?'
+  + '(?:(?:当前|这个|该|本)?(?:数据库|库)(?:中|里|内)?(?:的)?)?'
+  + '(?:'
+  + '(?:总共|一共|总计|共)?(?:有)?(?:多少|几)(?:张|个)?(?:基础表|数据表|表|视图)'
+  + '|(?:总共|一共|总计|共)?(?:有)?哪些(?:基础表|数据表|表|视图)'
+  + '|(?:所有|全部|完整)?(?:基础表|数据表|表|视图)(?:清单|列表)'
+  + '|(?:基础表|数据表|表|视图)(?:的)?(?:数量|总数|个数|数目)(?:是多少|有多少)?'
+  + '|(?:所有|全部)(?:基础表|数据表|表|视图)'
+  + ')(?:呢|吗)?$',
+)
+
+const ENGLISH_INVENTORY_QUERIES = [
+  /^(?:please\s+)?(?:show|list|count)\s+(?:me\s+)?(?:(?:all|the)\s+)?(?:database\s+)?(?:tables|views)(?:\s+in\s+(?:the\s+)?(?:(?:current|this)\s+)?database)?$/i,
+  /^how\s+many\s+(?:tables|views)(?:\s+are\s+there)?(?:\s+in\s+(?:the\s+)?(?:(?:current|this)\s+)?database)?$/i,
+  /^how\s+many\s+(?:tables|views)\s+are\s+in\s+(?:the\s+)?(?:(?:current|this)\s+)?database$/i,
+]
+
+function isTableInventoryQuery(query: string): boolean {
+  const normalized = query.replace(/[?？。.!！]+$/u, '').trim()
+  return CHINESE_INVENTORY_QUERY.test(normalized.replace(/\s+/g, ''))
+    || ENGLISH_INVENTORY_QUERIES.some(pattern => pattern.test(normalized))
+}
 
 function fallbackClassification(reason: string, needsFilter = 0): IntentClassification {
   return {
@@ -120,8 +151,21 @@ export async function classifyIntentWithLLM(
   },
   signal?: AbortSignal,
 ): Promise<IntentClassification> {
+  signal?.throwIfAborted()
   const q = userQuery.trim()
   if (!q) return fallbackClassification('empty query')
+  if (isTableInventoryQuery(q)) {
+    return {
+      intent: 'explore_schema',
+      confidence: 1,
+      needsFilter: 0,
+      needsPlanning: false,
+      reasoning: '表数量或完整清单可直接从数据库元数据获取',
+      routingHint: ROUTING_HINTS.explore_schema,
+      skipOverview: false,
+      suggestedTables: [],
+    }
+  }
 
   let model: DeepSeekModel
   try {
