@@ -106,6 +106,19 @@ pnpm build
 pnpm start
 ```
 
+### MySQL connections and TLS
+
+Add a connection from the sidebar using a host reachable from the application server, the database name, and a read-only account. Aiven hosts automatically enable TLS. TLS connections verify both the certificate and hostname. For Aiven, import the CA certificate from the service's **Overview → CA certificate**, or let the deployment supply it.
+
+To let visitors leave the CA field empty for a specific host, configure these server environment variables:
+
+```dotenv
+DB_SSL_CA_HOST=db.example.aivencloud.com
+DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA certificate body>\n-----END CERTIFICATE-----"
+```
+
+Replace the placeholders with the exact database hostname and its public CA certificate. `DB_SSL_CA` accepts multiline PEM or escaped `\n` line breaks. The preset supplies the certificate for that exact host; users still add their database connection and credentials in the UI. On Vercel, add both variables to the project environment settings and redeploy.
+
 ---
 
 ## Tech Stack

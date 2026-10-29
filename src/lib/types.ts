@@ -8,6 +8,8 @@ export interface DatabaseConnection {
   user: string
   password: string
   database: string
+  /** Presence enables TLS with certificate and hostname verification. */
+  ssl?: { ca?: string }
   env: DbEnv
   createdAt: string
 }

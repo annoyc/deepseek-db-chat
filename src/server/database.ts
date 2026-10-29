@@ -5,6 +5,8 @@ import { prepareSqlForExecution } from '@/lib/sql-guard'
 import type { SqlPermission } from '@/lib/sql-guard'
 import { resolveSqlPermission } from './sql-policy'
 import { subsetTables } from './schema-subsetting'
+import { databaseConnectionOptions, databaseConnectionFingerprint, databaseConnectionError } from './database-connection'
+import { probeDatabaseConnection } from './connection-probe'
 
 const pools = new Map<string, mysql.Pool>()
 const poolFingerprints = new Map<string, string>()
@@ -24,10 +26,6 @@ async function queryWithTimeout(pool: mysql.Pool, sql: string, values?: unknown[
   } finally {
     if (!destroyed) connection.release()
   }
-}
-
-function connectionFingerprint(conn: DatabaseConnection): string {
-  return `${conn.host}|${conn.port}|${conn.user}|${conn.password}|${conn.database}`
 }
 
 // ── Dictionary table detection & caching ──
@@ -173,7 +171,8 @@ function lookupDictEntries(cache: DictCache, tableName: string, columnName: stri
 }
 
 export function getPool(connection: DatabaseConnection): mysql.Pool {
-  const fp = connectionFingerprint(connection)
+  const options = databaseConnectionOptions(connection)
+  const fp = databaseConnectionFingerprint(connection, options)
   const existingPool = pools.get(connection.id)
   const existingFp = poolFingerprints.get(connection.id)
 
@@ -189,13 +188,8 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
   }
 
   const pool = mysql.createPool({
-    host: connection.host,
-    port: connection.port,
-    user: connection.user,
-    password: connection.password,
-    database: connection.database,
+    ...options,
     connectionLimit: MAX_POOL_SIZE,
-    connectTimeout: 10_000,
     waitForConnections: true,
     queueLimit: 0,
     supportBigNumbers: true,
@@ -209,29 +203,11 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
 
 export async function testConnection(connection: DatabaseConnection): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!connection.id) {
-      const tempConn = await mysql.createConnection({
-        host: connection.host,
-        port: connection.port,
-        user: connection.user,
-        password: connection.password,
-        database: connection.database,
-        connectTimeout: 10_000,
-      })
-      await tempConn.ping()
-      await tempConn.end()
-      return { success: true }
-    }
-
-    const pool = getPool(connection)
-    const conn = await pool.getConnection()
-    await conn.ping()
-    conn.release()
+    await probeDatabaseConnection(databaseConnectionOptions(connection))
     return { success: true }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[database] Test connection failed:', msg)
-    return { success: false, error: '当前所选数据库连接失败，请检查连接参数' }
+    console.error('[database] Test connection failed:', { code: (err as { code?: string })?.code ?? 'UNKNOWN' })
+    return { success: false, error: databaseConnectionError(err) }
   }
 }
 

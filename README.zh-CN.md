@@ -106,6 +106,19 @@ pnpm build
 pnpm start
 ```
 
+### MySQL 连接与 TLS
+
+从侧边栏添加数据库连接，填写应用服务端可访问的主机、数据库名和只读账号。Aiven 主机会自动启用 TLS，TLS 连接会校验证书及主机名。CA 证书可从 Aiven 服务的 **Overview → CA certificate** 下载后导入，也可由部署方统一配置。
+
+若希望访客连接指定主机时免填 CA，可设置以下服务端环境变量：
+
+```dotenv
+DB_SSL_CA_HOST=db.example.aivencloud.com
+DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA 证书正文>\n-----END CERTIFICATE-----"
+```
+
+将示例替换为完整、精确的数据库主机名及其公共 CA 证书。`DB_SSL_CA` 支持多行 PEM 或以 `\n` 表示换行。这些设置为匹配的主机提供证书，数据库连接信息和凭据仍通过界面添加。在 Vercel 项目环境变量中设置上述两项后，需要重新部署才能生效。
+
 ---
 
 ## 技术栈

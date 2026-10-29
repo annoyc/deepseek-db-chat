@@ -96,7 +96,6 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
     if (!testResult.success) throw new Error(`连接测试失败: ${testResult.error}`)
 
     const { encrypted } = await encryptPasswordFn({ data: { password: data.password } })
-    console.log('encrypted', encrypted)
 
     const newConn: StoredConnection = {
       id: generateId(),
@@ -106,6 +105,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       user: data.user,
       password: encrypted,
       database: data.database,
+      ssl: data.ssl,
       env: data.env ?? 'unknown',
       createdAt: new Date().toISOString(),
     }
@@ -135,6 +135,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
       user: data.user,
       password: testPassword,
       database: data.database,
+      ssl: data.ssl,
       env: data.env ?? existing.env ?? 'unknown',
       createdAt: existing.createdAt,
     }
@@ -143,7 +144,7 @@ export function DatabaseProvider({ children }: { children: React.ReactNode }) {
 
     const updatedConns = storedRef.current.map((c) =>
       c.id === id
-        ? { ...c, name: data.name, host: data.host, port: data.port, user: data.user, password: passwordToSave, database: data.database, env: data.env ?? existing.env ?? 'unknown' }
+        ? { ...c, name: data.name, host: data.host, port: data.port, user: data.user, password: passwordToSave, database: data.database, ssl: data.ssl, env: data.env ?? existing.env ?? 'unknown' }
         : c
     )
     await syncToDb(updatedConns)
