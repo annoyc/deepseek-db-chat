@@ -1,9 +1,9 @@
 <p align="center">
-  <h1 align="center">DataQuery Workbench · 数问工作台</h1>
+  <h1 align="center">数问工作台 · DataQuery Workbench</h1>
 </p>
 
 <p align="center">
-  AI database pilot with multi-model support — natural language to SQL, real-time thinking visualization, human-in-the-loop safety, and automatic data visualization.
+  多模型 AI 数据库领航助手 — 自然语言转 SQL，实时思考过程可视化，人工确认安全机制，以及自动数据可视化。
 </p>
 
 <p align="center">
@@ -14,180 +14,181 @@
 </p>
 
 <p align="center">
-  <b><a href="./README.zh-CN.md">中文文档</a></b> · <b><a href="./docs/getting-started.md">Documentation</a></b>
+  <b><a href="./README.en.md">English</a></b> · <b><a href="./docs/getting-started.md">文档</a></b>
 </p>
 
 ---
 
-## See It in Action
+## 演示效果
 
-[Open the hosted workspace](https://deepseek-db-chat.vercel.app/) · Watch the demos below without configuring a database.
+[打开在线工作台](https://deepseek-db-chat.vercel.app/) · 无需配置数据库，即可先观看下方演示。
 
-> Recorded in a local workspace with the **real DeepSeek V4 Flash API** and the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql). SQL is reviewed, confirmed, and executed against MySQL. The GIFs preserve key interactions and shorten waiting periods. See the [recording notes](./docs/demo/README.md).
+> 两段 GIF 录制于本地工作台，使用**真实 DeepSeek V4 Flash API**和[合成电商数据集](./scripts/mysql-demo-seed.sql)。SQL 经人工确认后在 MySQL 中实际执行；动画保留关键操作，压缩了等待时间。详见[录制说明](./docs/demo/README.md)。
 
-Deployments can provide a built-in read-only demo connection that appears automatically. AI queries require a configured model provider. You can also add your own MySQL connection reachable from the application server.
+部署方可以提供自动加载的内置只读演示连接。AI 查询还需要已配置的模型服务，也可以自行添加应用服务端可访问的 MySQL 连接。
 
-### 1. Explore the Database
+### 1. 自然语言探索数据库
 
-Ask how many tables exist and inspect the table list. Metadata tools provide the answer directly, without generating a redundant SQL query.
+询问数据库有多少张表、查看表清单。元数据工具直接提供答案，避免重复生成 SQL。
 
-![Database exploration: ask for the table count and receive the complete table list](./docs/demo/schema-exploration.gif)
+![数据库探索：询问表数量，直接获得完整表清单](./docs/demo/schema-exploration.gif)
 
-### 2. From a Question to a Chart
+### 2. 从业务问题到可视化结果
 
-Ask a business question, review the generated SQL, confirm execution, and explore the returned data and chart.
+用自然语言提出业务问题，检查生成的 SQL，确认执行后查看查询结果和图表。
 
-![Data analysis: natural-language question, SQL review and confirmation, query results and chart](./docs/demo/sql-analysis.gif)
-
----
-
-## Why DataQuery Workbench?
-
-General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DataQuery Workbench supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
-
-### Multi-Model & Cost Efficiency
-
-Supports **DeepSeek**, **Kimi**, **Qwen**, **GLM** and more via multiple providers (DeepSeek native + Alibaba Cloud Bailian). Built-in DeepSeek prefix caching optimization and context reuse minimize API call overhead. Deterministic message construction ensures maximum cache hit rates — switch models freely while maintaining the lowest possible cost.
-
-### Rock-Solid Security
-
-Database passwords and user-owned API keys are encrypted with AES-256-GCM. Server API keys never leave the server. SQL is checked again at the execution boundary using server policy: read-only by default, no writes for production connections, and an explicit server allowlist for any non-production writes. Executable comments and unsupported SQL are rejected. SELECT results are capped at 500 returned rows with the executed SQL and truncation metadata. Production database accounts must also enforce read-only access. See [operations and regression testing](./OPERATIONS.md).
-
-### ️ Full Transparency
-
-The AI's entire thinking process and tool calls are fully visible — every reasoning step and SQL generation is traceable and auditable. No black box operations: **what you see is exactly what the AI thinks**.
-
-###  Complete Privacy
-
-Personal connections and complete conversation history are stored in browser IndexedDB; built-in demo credentials stay on the server. Questions, necessary schema information and masked result data are sent to the chosen model; knowledge requests are sent to the configured knowledge backend. Common PII and structured sensitive fields are masked at the model boundary. This does not replace data classification or field-level authorization. Optional Langfuse telemetry defaults to operational metadata; content capture requires an explicit opt-in and remains masked. Initial database questions containing sensitive identifiers are rejected with guidance to use a non-sensitive internal identifier, avoiding silently altered query predicates.
+![数据分析：自然语言提问、审核并确认 SQL、查看结果与图表](./docs/demo/sql-analysis.gif)
 
 ---
 
-## Features
+## 为什么选择数问工作台？
 
-- 🔀 **Multi-Provider Support** — DeepSeek / Kimi / Qwen / GLM via DeepSeek native API + Alibaba Cloud Bailian (DashScope), switch models freely in the UI
-- ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
--  **Security** — AES-256 credentials, server-enforced read-only defaults, AST validation, human confirmation and model-boundary masking
--  **Smart Filter** — AI-driven interactive query parameter tuning (date ranges, enum selects, aggregation options) before SQL generation
--  **Database Overview** — One-click full database structure scan with table row counts, comments, and foreign key relationship mapping for accurate JOIN queries
--  **Foreign Key Awareness** — Schema inspection includes FK relationships extracted from `INFORMATION_SCHEMA`, enabling the AI to generate correct multi-table JOINs
--  **EXPLAIN Pre-Analysis** — Optional query plan inspection with full table scan warnings before execution
--  **SQL Self-Correction** — Structured error classification on failure (unknown column, missing table, syntax error) guides the AI to fix SQL intelligently instead of blind retries
-- ️ **Transparency** — Real-time visualization of AI thinking and tool execution, fully auditable
--  **Privacy** — complete local history, documented model/backend data transfers, optional metadata-only telemetry by default
--  **Beautiful Data Visualization** — Query results automatically rendered as interactive tables and charts (bar / line / pie)
--  **Resilient Execution** — Auto-retry with exponential backoff, configurable timeouts, and smart error recovery
--  **Multi-Database Management** — Add, switch, and manage multiple MySQL connections from the sidebar
--  **Intelligent Agent Loop** — Multi-step reasoning with few-shot JOIN examples: overview DB → inspect schema → generate SQL → confirm → execute → self-correct on error
--  **Thinking Mode by Default** — `reasoning_content` properly managed across multi-turn tool calls — zero configuration
--  **SSE Streaming** — Real-time response delivery via Server-Sent Events for instant feedback
+通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理各厂商独有的思考模式和缓存机制。数问工作台支持多家大模型厂商（DeepSeek、阿里云百炼），深度集成各厂商特性，解决了其他工具无法解决的问题。
+
+### 多模型 & 极致成本
+
+支持 **DeepSeek**、**Kimi**、**Qwen**、**GLM** 等多款大模型，通过 DeepSeek 原生 API + 阿里云百炼（DashScope）双通道接入。内置 DeepSeek 前缀缓存优化与上下文复用，确定性消息构建确保缓存命中率最大化 — 自由切换模型的同时保持极致性价比。
+
+### 安全可靠
+
+数据库密码和用户自有 API Key 使用 AES-256-GCM 加密保存；服务器 API Key 始终留在服务器。SQL 在最终执行入口按服务器策略再次检查，默认只读；生产连接禁止写入，非生产写入必须由管理员显式启用并配置目标白名单。可执行注释及无法可靠解析的语句会被拒绝。SELECT 返回最多 500 行，并标明实际执行 SQL、限制与截断状态。生产数据库还应使用数据库自身的只读账号。详情见 [运行与回归说明](./OPERATIONS.md)。
+
+### ️过程透明
+
+AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都有迹可循、可审计。**AI 想什么，你就看到什么** — 拒绝黑箱操作。
+
+### 隐私无忧
+
+个人连接和完整对话历史保存在当前浏览器的 IndexedDB，内置演示库的凭据始终留在服务器。提问、必要表结构和经规则脱敏的结果会发送给所选模型；知识问答会发送给配置的知识服务。统一模型出口对常见 PII 与结构化敏感字段脱敏，不能代替组织的数据分类与字段授权。Langfuse 为可选服务，默认仅采集运行元信息；内容采集需显式开启，开启后仍脱敏。包含敏感标识的初始数据库问题会提示改用非敏感内部编号，以免脱敏后生成错误筛选条件。
 
 ---
 
-## Quick Start
+## 核心特性
+
+- 🔀 **多模型支持** — DeepSeek / Kimi / Qwen / GLM 多款模型，通过 DeepSeek 原生 + 阿里云百炼双通道接入，界面内一键切换
+-  **极致成本** — DeepSeek 前缀缓存优化，上下文复用，确定性消息构建，最大化缓存命中率
+-  **安全可靠** — AES-256 密码加密、服务器默认只读、AST 校验、人工确认与统一模型出口脱敏
+-  **智能筛选** — AI 驱动的交互式查询参数微调（时间范围、枚举筛选、聚合方式），SQL 生成前精准确认用户意图
+-  **数据库全景** — 一键扫描全部表结构，含行数统计、表注释和外键关系映射，为 JOIN 查询提供精准依据
+-  **外键感知** — Schema 检查自动提取 `INFORMATION_SCHEMA` 中的外键关系，AI 据此生成正确的多表 JOIN
+-  **EXPLAIN 预分析** — 执行前可选的查询计划检查，自动预警全表扫描
+-  **SQL 自纠正** — 失败时结构化错误分类（未知字段、表不存在、语法错误），引导 AI 智能修正而非盲目重试
+- ️ **过程透明** — AI 思考过程与工具调用实时可视化，全程可审计
+-  **隐私无忧** — 完整历史本地保存，模型与知识服务的数据传输范围明确，可选遥测默认不记录正文
+-  **极致美观的数据可视化** — 查询结果自动渲染为交互式表格和图表（柱状图 / 折线图 / 饼图）
+-  **弹性执行机制** — 自动重试 + 指数退避 + 可配置超时 + 智能错误恢复
+- ️ **多数据库管理** — 从侧边栏添加、切换和管理多个 MySQL 连接
+-  **智能 Agent 循环** — 内嵌 few-shot JOIN 示例的多步推理：全景扫描 → 检查表结构 → 生成 SQL → 确认 → 执行 → 出错自纠正
+- ️ **默认思考模式** — `reasoning_content` 在多轮工具调用中正确管理，零配置
+-  **SSE 流式传输** — 通过 Server-Sent Events 实时推送响应，即时反馈
+
+---
+
+## 快速开始
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/annoyc/deepseek-db-chat.git
 cd deepseek-db-chat
 
-# Install dependencies
+# 安装依赖
 pnpm install --frozen-lockfile
 
-# Set environment variables
+# 设置环境变量
 cp .env.example .env
-# Edit .env and fill in your API key (DeepSeek or Bailian)
+# 编辑 .env 并填入你的 API Key（DeepSeek 或百炼）
 
-# Start development server
+# 启动开发服务器
 pnpm dev
 
-# Build for production
+# 构建生产版本
 pnpm build
 pnpm start
 ```
 
-### MySQL connections and TLS
+### MySQL 连接与 TLS
 
-Add a connection from the sidebar using a host reachable from the application server, the database name, and a read-only account. Aiven hosts automatically enable TLS. TLS connections verify both the certificate and hostname. For Aiven, import the CA certificate from the service's **Overview → CA certificate**, or let the deployment supply it.
+从侧边栏添加数据库连接，填写应用服务端可访问的主机、数据库名和只读账号。Aiven 主机会自动启用 TLS，TLS 连接会校验证书及主机名。CA 证书可从 Aiven 服务的 **Overview → CA certificate** 下载后导入，也可由部署方统一配置。
 
-To let visitors leave the CA field empty for a specific host, configure these server environment variables:
+若希望访客连接指定主机时免填 CA，可设置以下服务端环境变量：
 
 ```dotenv
 DB_SSL_CA_HOST=db.example.aivencloud.com
-DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA certificate body>\n-----END CERTIFICATE-----"
+DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA 证书正文>\n-----END CERTIFICATE-----"
 ```
 
-Replace the placeholders with the exact database hostname and its public CA certificate. `DB_SSL_CA` accepts multiline PEM or escaped `\n` line breaks. This supplies only the certificate; personal connections are still added in the UI. On Vercel, add both variables to the project environment settings and redeploy.
+将示例替换为完整、精确的数据库主机名及其公共 CA 证书。`DB_SSL_CA` 支持多行 PEM 或以 `\n` 表示换行。这些设置仅提供证书，个人连接仍通过界面添加。在 Vercel 项目环境变量中设置上述两项后，需要重新部署才能生效。
 
-### Built-in read-only demo connection
+### 内置只读演示连接
 
-Use a dedicated demo database with synthetic data and an account granted only `SELECT, SHOW VIEW` on that database, without `DROP` or global privileges. Configure its connection on the server:
+使用独立的合成演示数据库，为演示账号仅授予该库的 `SELECT, SHOW VIEW` 权限，不授予 `DROP` 或全局权限。在服务端配置连接：
 
 ```dotenv
 DEMO_DB_ENABLED=true
-DEMO_DB_NAME="E-commerce demo"
+DEMO_DB_NAME="电商演示库"
 DEMO_DB_HOST=db.example.aivencloud.com
-# Use the port shown by your database service.
+# 使用数据库服务提供的实际端口。
 DEMO_DB_PORT=3306
 DEMO_DB_USER=demo_readonly
-DEMO_DB_PASSWORD=<read-only-account-password>
+DEMO_DB_PASSWORD=<只读账号密码>
 DEMO_DB_DATABASE=deepseek_demo
 ```
 
-Set `DB_SSL_CA_HOST` to the same hostname and supply `DB_SSL_CA` as described above. On Vercel, add these variables to the Production environment, keep `DEMO_DB_PASSWORD` secret, and redeploy. New visitors automatically load and select the demo connection. The browser receives only its ID and display metadata; the account and password remain on the server.
+将 `DB_SSL_CA_HOST` 设置为相同主机名，并按上节配置 `DB_SSL_CA`。在 Vercel 的 Production 环境中添加这些变量，将 `DEMO_DB_PASSWORD` 保存为 Secret，再重新部署。新访客会自动加载并选中演示连接；浏览器仅接收连接标识和展示信息，账号、密码留在服务器。
 
-The built-in connection has no edit or delete action. Server policy keeps both its reserved ID and database target read-only, including when writes are allowed for other connections. The restricted database account also prevents visitors from deleting tables or the database; the Aiven owner or database administrator can still manage it. Personal connections remain editable and removable.
+内置连接没有编辑、删除入口。服务端按保留标识及数据库目标强制只读，即使其他连接允许写入也不会放开演示库。数据库只读账号同时阻止访客删表、删库；Aiven 所有者或数据库管理员仍可管理该库。个人连接仍可编辑、删除。
 
-To offer AI queries without visitors supplying their own model key, also configure `DEEPSEEK_API_KEY` on the server. The database preset alone does not configure a model provider.
+若希望访客无需自备模型密钥即可使用 AI 查询，还需在服务端配置 `DEEPSEEK_API_KEY`；数据库预设本身不会配置模型服务。
 
 ---
 
-## Tech Stack
+## 技术栈
 
-| Layer | Technology |
-|-------|------------|
-| **Framework** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI Core** | Multi-provider Agent Engine (DeepSeek + Bailian/DashScope, based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
-| **Database** | [mysql2](https://github.com/sidorares/node-mysql2) |
+| 层级 | 技术 |
+|------|------|
+| **框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
+| **AI 核心** | 多模型 Agent Engine（DeepSeek + 百炼/DashScope，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
+| **数据库** | [mysql2](https://github.com/sidorares/node-mysql2) |
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
-| **Charts** | [Recharts](https://recharts.org/) |
+| **图表** | [Recharts](https://recharts.org/) |
 | **Markdown** | [react-markdown](https://github.com/remarkjs/react-markdown) + [remark-gfm](https://github.com/remarkjs/remark-gfm) |
-| **Validation** | [Zod](https://zod.dev/) + [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser) (AST-based SQL analysis) |
-| **Streaming** | Server-Sent Events (SSE) |
-| **Build** | [Vite](https://vite.dev/) |
+| **校验** | [Zod](https://zod.dev/) + [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser)（AST SQL 分析） |
+| **流式传输** | Server-Sent Events (SSE) |
+| **构建** | [Vite](https://vite.dev/) |
 
 ---
 
-## Project Structure
+## 项目结构
 
 ```
 src/
-├── core/               # Multi-provider Agent engine
-│   ├── agent/          # Agent creation and execution
-│   ├── client/         # HTTP client, SSE streaming, retry
-│   ├── model/          # Model wrapper (DeepSeek, Bailian)
-│   ├── provider.ts     # Provider registry and endpoint resolution
-│   ├── tool/           # Tool definition and validation
-│   ├── generate/       # Agent loop, streaming, structured output
-│   ├── context/        # Context compaction
-│   └── index.ts        # Public API exports
-├── server/             # Server-side logic
-│   ├── agent.ts        # DB Agent configuration & layered system prompt (core + workflow + few-shot)
-│   ├── tools.ts        # Database tools (overview, list_tables, get_schema, explain_sql, execute_sql)
-│   ├── database.ts     # MySQL connection pool, FK extraction, EXPLAIN, auto-LIMIT
-│   └── functions/      # TanStack server functions (chat, connections)
-├── components/         # React components
-│   ├── chat/           # Chat UI (messages, SQL confirm, charts, thinking)
-│   └── layout/         # Sidebar, dialogs, database list
-├── hooks/              # React hooks (useChat, useDatabase, useSettings)
-├── lib/                # Types, constants, utilities, PII masking, AST-based SQL guard
-├── routes/             # TanStack Router pages
-└── styles/             # Global CSS (Tailwind)
+├── core/               # 多模型 Agent 引擎
+│   ├── agent/          # Agent 创建与执行
+│   ├── client/         # HTTP 客户端、SSE 流式请求、重试
+│   ├── model/          # 模型封装（DeepSeek、百炼）
+│   ├── provider.ts     # Provider 注册与端点解析
+│   ├── tool/           # 工具定义与校验
+│   ├── generate/       # Agent 循环、流式生成、结构化输出
+│   ├── context/        # 上下文压缩
+│   └── index.ts        # 公共 API 导出
+├── server/             # 服务端逻辑
+│   ├── agent.ts        # 数据库 Agent 配置 & 分层系统提示词（核心 + 工作流 + few-shot）
+│   ├── tools.ts        # 数据库工具（overview, list_tables, get_schema, explain_sql, execute_sql）
+│   ├── database.ts     # MySQL 连接池、外键提取、EXPLAIN、自动 LIMIT
+│   └── functions/      # TanStack Server Functions（聊天、连接管理）
+├── components/         # React 组件
+│   ├── chat/           # 聊天 UI（消息、SQL 确认、图表、思考过程）
+│   └── layout/         # 侧边栏、对话框、数据库列表
+├── hooks/              # React Hooks（useChat, useDatabase, useSettings）
+├── lib/                # 类型、常量、工具函数、PII 脱敏、AST SQL 校验器
+├── routes/             # TanStack Router 页面
+└── styles/             # 全局 CSS（Tailwind）
 ```
 
 ---
 
 
-## Regression checks
 
-Run `pnpm check` for source/test type checks, offline regression tests and a production build. Tests use synthetic fixtures and mock providers/databases. Live business accuracy and browser end-to-end acceptance remain separate checks; see [OPERATIONS.md](./OPERATIONS.md).
+## 回归检查
+
+执行 `pnpm check` 依次运行源代码与测试类型检查、离线回归及生产构建。测试使用合成数据和模拟模型/数据库，不需要真实 API Key。真实业务准确率与浏览器端到端验收应另行验证，详见 [OPERATIONS.md](./OPERATIONS.md)。
