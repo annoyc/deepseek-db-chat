@@ -25,7 +25,7 @@
 
 > Recorded in a local workspace with the **real DeepSeek V4 Flash API** and the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql). SQL is reviewed, confirmed, and executed against MySQL. The GIFs preserve key interactions and shorten waiting periods. See the [recording notes](./docs/demo/README.md).
 
-To run your own queries in the hosted workspace, add a MySQL connection reachable from the deployed server and select a configured model provider. No shared database credentials are included.
+Deployments can provide a built-in read-only demo connection that appears automatically. AI queries require a configured model provider. You can also add your own MySQL connection reachable from the application server.
 
 ### 1. Explore the Database
 
@@ -59,7 +59,7 @@ The AI's entire thinking process and tool calls are fully visible — every reas
 
 ###  Complete Privacy
 
-Connections and complete conversation history are stored in browser IndexedDB. Questions, necessary schema information and masked result data are sent to the chosen model; knowledge requests are sent to the configured knowledge backend. Common PII and structured sensitive fields are masked at the model boundary. This does not replace data classification or field-level authorization. Optional Langfuse telemetry defaults to operational metadata; content capture requires an explicit opt-in and remains masked. Initial database questions containing sensitive identifiers are rejected with guidance to use a non-sensitive internal identifier, avoiding silently altered query predicates.
+Personal connections and complete conversation history are stored in browser IndexedDB; built-in demo credentials stay on the server. Questions, necessary schema information and masked result data are sent to the chosen model; knowledge requests are sent to the configured knowledge backend. Common PII and structured sensitive fields are masked at the model boundary. This does not replace data classification or field-level authorization. Optional Langfuse telemetry defaults to operational metadata; content capture requires an explicit opt-in and remains masked. Initial database questions containing sensitive identifiers are rejected with guidance to use a non-sensitive internal identifier, avoiding silently altered query predicates.
 
 ---
 
@@ -117,7 +117,28 @@ DB_SSL_CA_HOST=db.example.aivencloud.com
 DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA certificate body>\n-----END CERTIFICATE-----"
 ```
 
-Replace the placeholders with the exact database hostname and its public CA certificate. `DB_SSL_CA` accepts multiline PEM or escaped `\n` line breaks. The preset supplies the certificate for that exact host; users still add their database connection and credentials in the UI. On Vercel, add both variables to the project environment settings and redeploy.
+Replace the placeholders with the exact database hostname and its public CA certificate. `DB_SSL_CA` accepts multiline PEM or escaped `\n` line breaks. This supplies only the certificate; personal connections are still added in the UI. On Vercel, add both variables to the project environment settings and redeploy.
+
+### Built-in read-only demo connection
+
+Use a dedicated demo database with synthetic data and an account granted only `SELECT, SHOW VIEW` on that database, without `DROP` or global privileges. Configure its connection on the server:
+
+```dotenv
+DEMO_DB_ENABLED=true
+DEMO_DB_NAME="E-commerce demo"
+DEMO_DB_HOST=db.example.aivencloud.com
+# Use the port shown by your database service.
+DEMO_DB_PORT=3306
+DEMO_DB_USER=demo_readonly
+DEMO_DB_PASSWORD=<read-only-account-password>
+DEMO_DB_DATABASE=deepseek_demo
+```
+
+Set `DB_SSL_CA_HOST` to the same hostname and supply `DB_SSL_CA` as described above. On Vercel, add these variables to the Production environment, keep `DEMO_DB_PASSWORD` secret, and redeploy. New visitors automatically load and select the demo connection. The browser receives only its ID and display metadata; the account and password remain on the server.
+
+The built-in connection has no edit or delete action. Server policy keeps both its reserved ID and database target read-only, including when writes are allowed for other connections. The restricted database account also prevents visitors from deleting tables or the database; the Aiven owner or database administrator can still manage it. Personal connections remain editable and removable.
+
+To offer AI queries without visitors supplying their own model key, also configure `DEEPSEEK_API_KEY` on the server. The database preset alone does not configure a model provider.
 
 ---
 

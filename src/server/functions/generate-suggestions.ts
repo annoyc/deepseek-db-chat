@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { createModel, generateText, getProvider } from '@/core'
 import { resolveAiCredentials } from '@/server/ai-credentials'
-import { decrypt } from '@/server/crypto'
+import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { withTrace } from '@/server/langfuse'
 import { listTables, getPool } from '@/server/database'
 import type { DatabaseConnection } from '@/lib/types'
@@ -47,10 +47,7 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
       tags: ['suggestions'],
     }, async () => {
       try {
-        const decryptedConnection: DatabaseConnection = {
-          ...data.connection,
-          password: decrypt(data.connection.password),
-        }
+        const decryptedConnection = resolveDatabaseConnection(data.connection)
 
         const tables = await listTables(decryptedConnection)
         if (tables.length === 0) {

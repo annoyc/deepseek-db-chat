@@ -290,10 +290,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const connId = pendingConnectionIdRef.current
     if (connId) {
       pendingConnectionIdRef.current = null
+      if (!getFullConnection(connId)) return
       loadingSessionConnIdRef.current = connId
       setActiveConnection(connId)
     }
-  }, [connectionsLoaded, storageLoaded, setActiveConnection])
+  }, [connectionsLoaded, storageLoaded, setActiveConnection, getFullConnection])
 
   const activeSession = sessions.find((s) => s.id === activeSessionId) ?? null
 
@@ -323,7 +324,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const prevConnectionIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!storageLoaded) return
+    if (!storageLoaded || !connectionsLoaded) return
+    // Connection restoration is asynchronous; do not rebind an existing chat to
+    // the default demo while its original connection is being selected.
+    if (loadingSessionConnIdRef.current !== undefined && loadingSessionConnIdRef.current !== activeConnectionId) return
     const shouldSkip = loadingSessionConnIdRef.current !== undefined && loadingSessionConnIdRef.current === activeConnectionId
     loadingSessionConnIdRef.current = undefined
 
@@ -355,7 +359,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     }
     prevConnectionIdRef.current = activeConnectionId
-  }, [activeConnectionId, activeSessionId, storageLoaded])
+  }, [activeConnectionId, activeSessionId, storageLoaded, connectionsLoaded])
 
   const deleteSession = useCallback((id: string) => {
     setSessions((prev) => {

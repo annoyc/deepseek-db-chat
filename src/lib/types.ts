@@ -10,6 +10,9 @@ export interface DatabaseConnection {
   database: string
   /** Presence enables TLS with certificate and hostname verification. */
   ssl?: { ca?: string }
+  /** Display metadata only. The server identifies managed connections by reserved ID. */
+  managed?: 'demo'
+  readOnly?: boolean
   env: DbEnv
   createdAt: string
 }

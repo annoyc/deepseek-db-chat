@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getPool } from '@/server/database'
-import { decrypt } from '@/server/crypto'
+import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import type { DatabaseConnection } from '@/lib/types'
 
 /**
@@ -73,10 +73,7 @@ interface GetSchemaMetadataInput {
 export const getSchemaMetadata = createServerFn({ method: 'POST' })
   .inputValidator((data: GetSchemaMetadataInput) => data)
   .handler(async ({ data }): Promise<SchemaFilterData> => {
-    const decryptedConnection: DatabaseConnection = {
-      ...data.connection,
-      password: decrypt(data.connection.password),
-    }
+    const decryptedConnection = resolveDatabaseConnection(data.connection)
 
     const pool = getPool(decryptedConnection)
 

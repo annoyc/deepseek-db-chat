@@ -20,11 +20,15 @@ services:
       - SQL_WRITE_ENABLED=${SQL_WRITE_ENABLED:-false}
       - SQL_WRITE_ALLOWLIST=${SQL_WRITE_ALLOWLIST:-}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
-      - DB_HOST=${DB_HOST:-}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_USER=${DB_USER:-}
-      - DB_PASSWORD=${DB_PASSWORD:-}
-      - DB_DATABASE=${DB_DATABASE:-}
+      - DEMO_DB_ENABLED=${DEMO_DB_ENABLED:-false}
+      - DEMO_DB_NAME=${DEMO_DB_NAME:-电商演示库}
+      - DEMO_DB_HOST=${DEMO_DB_HOST:-}
+      - DEMO_DB_PORT=${DEMO_DB_PORT:-3306}
+      - DEMO_DB_USER=${DEMO_DB_USER:-}
+      - DEMO_DB_PASSWORD=${DEMO_DB_PASSWORD:-}
+      - DEMO_DB_DATABASE=${DEMO_DB_DATABASE:-}
+      - DB_SSL_CA_HOST=${DB_SSL_CA_HOST:-}
+      - DB_SSL_CA=${DB_SSL_CA:-}
       - MEMO_CHAT_API_BASE=${MEMO_CHAT_API_BASE:-http://127.0.0.1:7860}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/workbench/dbpilot"]

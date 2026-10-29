@@ -7,6 +7,7 @@ import { resolveSqlPermission } from './sql-policy'
 import { subsetTables } from './schema-subsetting'
 import { databaseConnectionOptions, databaseConnectionFingerprint, databaseConnectionError } from './database-connection'
 import { probeDatabaseConnection } from './connection-probe'
+import { resolveManagedDatabaseConnection } from './demo-database'
 
 const pools = new Map<string, mysql.Pool>()
 const poolFingerprints = new Map<string, string>()
@@ -171,6 +172,7 @@ function lookupDictEntries(cache: DictCache, tableName: string, columnName: stri
 }
 
 export function getPool(connection: DatabaseConnection): mysql.Pool {
+  connection = resolveManagedDatabaseConnection(connection)
   const options = databaseConnectionOptions(connection)
   const fp = databaseConnectionFingerprint(connection, options)
   const existingPool = pools.get(connection.id)
@@ -203,6 +205,7 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
 
 export async function testConnection(connection: DatabaseConnection): Promise<{ success: boolean; error?: string }> {
   try {
+    connection = resolveManagedDatabaseConnection(connection)
     await probeDatabaseConnection(databaseConnectionOptions(connection))
     return { success: true }
   } catch (err) {
@@ -225,6 +228,7 @@ async function tableExists(connection: DatabaseConnection, tableName: string): P
 }
 
 export async function executeQuery(connection: DatabaseConnection, sql: string, requestedPermission: SqlPermission = 'readonly', signal?: AbortSignal): Promise<SqlResultInfo> {
+  connection = resolveManagedDatabaseConnection(connection)
   signal?.throwIfAborted()
   // The final database boundary re-checks trusted server policy even when called outside the RPC.
   const prepared = prepareSqlForExecution(sql, resolveSqlPermission(connection, requestedPermission), MAX_RESULT_ROWS)

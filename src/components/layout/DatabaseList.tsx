@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Pencil, Trash2, X, Server } from 'lucide-react'
+import { Pencil, Trash2, X, LockKeyhole } from 'lucide-react'
 import { cn, envConfig, getDbTypeFromConnection } from '@/lib/utils'
 import { useDatabaseStore } from '@/hooks/useDatabase'
+import { isDemoConnectionId } from '@/lib/demo-connection'
 import type { DbEnv } from '@/lib/types'
 
 export function DatabaseList() {
-  const { connections, activeConnectionId, setActiveConnection, removeConnection, setEditingConnection, connectionStatus } = useDatabaseStore()
+  const { connections, connectionsLoaded, connectionsLoadError, activeConnectionId, setActiveConnection, removeConnection, setEditingConnection, connectionStatus, connectionError } = useDatabaseStore()
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
@@ -22,12 +23,14 @@ export function DatabaseList() {
   if (connections.length === 0) {
     return (
       <div className="px-3 py-2 text-xs text-stone-400 italic">
-        暂无连接
+        {connectionsLoaded ? '暂无连接' : '正在加载连接...'}
+        {connectionsLoadError && <p role="alert" className="mt-2 not-italic leading-relaxed text-amber-700">{connectionsLoadError}</p>}
       </div>
     )
   }
 
   const handleDelete = (id: string) => {
+    if (isDemoConnectionId(id)) return
     removeConnection(id)
     setConfirmDeleteId(null)
   }
@@ -36,8 +39,9 @@ export function DatabaseList() {
     <div className="space-y-0.5 mb-2">
       {connections.map((conn) => {
         const isActive = activeConnectionId === conn.id
+        const isDemo = isDemoConnectionId(conn.id)
         const env: DbEnv = conn.env || 'dev'
-        const envInfo = envConfig[env]
+        const envInfo = envConfig[env] ?? envConfig.dev
         const dbType = getDbTypeFromConnection(conn)
         const subInfo = `${dbType} · ${conn.database}`
 
@@ -60,7 +64,8 @@ export function DatabaseList() {
                   isActive ? dotColor : 'bg-gray-300'
                 )} />
                   <span className="truncate font-semibold">{conn.name}</span>
-                {envInfo.label && (
+                {isDemo && <LockKeyhole className="h-3 w-3 shrink-0 text-primary/70" aria-label="内置演示连接，不可编辑或删除" />}
+                {!isDemo && envInfo.label && (
                   <span className={cn(
                     'inline-flex px-1 py-0 text-[10px] leading-[13px] rounded border font-medium flex-shrink-0',
                     envInfo.color, envInfo.bg
@@ -72,10 +77,11 @@ export function DatabaseList() {
               <div className="text-[10px] text-stone-400 truncate ml-[14px]">
                 {subInfo}
               </div>
+              {isDemo && <div className="ml-[14px] mt-1 text-[10px] font-medium text-primary/75">内置演示 · 只读</div>}
             </div>
 
             {/* Actions on hover — positioned absolutely to not occupy layout space */}
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {!isDemo && <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingConnection(conn) }}
                 className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-primary transition-colors"
@@ -90,13 +96,16 @@ export function DatabaseList() {
               >
                 <Trash2 className="w-3 h-3" />
               </button>
-            </div>
+            </div>}
           </div>
         )
       })}
 
+      {connectionsLoadError && <p role="alert" className="px-3 py-2 text-[10px] leading-relaxed text-amber-700">{connectionsLoadError}</p>}
+      {connectionStatus === 'error' && connectionError && <p role="alert" className="px-3 py-2 text-[10px] leading-relaxed text-red-600">{connectionError}</p>}
+
       {/* Delete confirmation dialog */}
-      {confirmDeleteId && (
+      {confirmDeleteId && !isDemoConnectionId(confirmDeleteId) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-5 pb-2">

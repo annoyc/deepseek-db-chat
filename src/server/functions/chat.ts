@@ -7,7 +7,8 @@ import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
 import { createDbAgent } from '@/server/agent'
 import { classifyIntentWithLLM } from '@/server/intent-router'
 import { TOOL_ERROR_PREFIX, type ResultStore } from '@/server/tools'
-import { decrypt } from '@/server/crypto'
+import { resolveDatabaseConnection } from '@/server/resolve-connection'
+import { resolveSqlPermission } from '@/server/sql-policy'
 import { langfuseSpanProcessor, flushTraces, resolveUserId } from '@/server/langfuse'
 import type { DatabaseConnection, StreamChunk, ExecutionLogEntry } from '@/lib/types'
 
@@ -81,11 +82,8 @@ export const chatStream = createServerFn({ method: 'POST' })
               controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
               return
             }
-            const decryptedConnection: DatabaseConnection = {
-              ...data.connection,
-              password: decrypt(data.connection.password),
-            }
-            const effectiveSqlPermission = decryptedConnection.env === 'prod' ? 'readonly' : data.sqlPermission
+            const decryptedConnection = resolveDatabaseConnection(data.connection)
+            const effectiveSqlPermission = resolveSqlPermission(decryptedConnection, data.sqlPermission)
 
             // Intent classification: skip for continuation scenarios (SQL result/error, revise, filter confirm)
             let intent = null

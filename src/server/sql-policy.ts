@@ -1,11 +1,14 @@
 import type { DatabaseConnection } from '@/lib/types'
 import type { SqlPermission } from '@/lib/sql-guard'
+import { isDemoConnectionId } from '@/lib/demo-connection'
+import { isDemoDatabaseTarget } from './demo-database'
 
 /** A browser setting or environment label never grants write access on its own. */
 export function resolveSqlPermission(
-  connection: Pick<DatabaseConnection, 'host' | 'port' | 'database' | 'env'>,
+  connection: Pick<DatabaseConnection, 'host' | 'port' | 'database' | 'env'> & { id?: string },
   requested: SqlPermission = 'readonly',
 ): SqlPermission {
+  if (isDemoConnectionId(connection.id) || isDemoDatabaseTarget(connection)) return 'readonly'
   if (requested !== 'write' || connection.env === 'prod' || process.env.SQL_WRITE_ENABLED !== 'true') return 'readonly'
   const allowedTargets = (process.env.SQL_WRITE_ALLOWLIST ?? '').split(',').map(value => {
     const trimmed = value.trim()
