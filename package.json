@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
     "test": "node scripts/run-tests.mjs",
+    "eval": "node scripts/run-evals.mjs runner",
+    "eval:report": "node scripts/run-evals.mjs report",
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {

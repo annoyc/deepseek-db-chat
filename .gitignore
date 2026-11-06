@@ -12,3 +12,6 @@ docs/demo/*
 __pycache__/
 *.py[cod]
 .DS_Store
+
+evals/results/*
+!evals/results/baseline-*.json

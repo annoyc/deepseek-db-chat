@@ -23,6 +23,8 @@ interface AgentOptions {
   userQuery?: string
   /** Pre-computed intent classification. When provided, skips internal LLM call. */
   intent?: IntentClassification | null
+  /** Fixed clock for the prompt's current time; evaluations pin it so relative dates stay reproducible. */
+  now?: Date
   signal?: AbortSignal
 }
 
@@ -313,7 +315,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
   let systemPrompt = promptSections.join('\n')
 
   // ── Dynamic context ──
-  const now = new Date()
+  const now = options?.now ?? new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
   const currentDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
   const weekdays = ['日', '一', '二', '三', '四', '五', '六']
