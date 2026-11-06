@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DBPilot Text-to-SQL 评测报告</title>
+<meta name="description" content="DBPilot 数据库 Agent 的 Text-to-SQL 分层评测：执行准确率、危险操作拦截、Token 与延迟，以及每道题每一轮的明细。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap">
+<style>
+  /* Layout: one reading column, tabs for overview / per-question / method; ledger-like tables. */
+  :root {
+    --bg: #f7f8fa; --panel: #ffffff; --fg: #1b2230; --muted: #5d6677; --line: #dfe3ea;
+    --accent: #2f5bd3; --accent-2: #c7861a; --bad: #c2362f; --ok: #1f7a4d; --grid: #edf0f4; --code-bg: #f2f4f7;
+    --serif: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
+    --sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --r: 8px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151c; --panel: #181e27; --fg: #e6e9ef; --muted: #9aa3b2; --line: #2a3240; --accent: #7aa2ff; --accent-2: #e0a84a; --bad: #ff7b72; --ok: #4cc38a; --grid: #222a36; --code-bg: #10141a; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--sans); }
+  .wrap { max-width: 72rem; margin-inline: auto; padding-block: 2.5rem 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 1.75rem; }
+  h1 { font: 600 clamp(1.6rem, 4vw, 2.2rem)/1.25 var(--serif); margin: 0; text-wrap: balance; }
+  h2 { font-size: 1.08rem; font-weight: 600; margin: 0; text-wrap: balance; }
+  h3 { font-size: 0.98rem; font-weight: 600; margin: 0; }
+  p, li { max-width: 70ch; }
+  .lede { font-size: 1.05rem; margin: 0.5rem 0 0; }
+  .lede b, .finding b { font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); font-size: 0.86rem; }
+  .meta { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0.75rem 0 0; }
+  .meta span { white-space: nowrap; }
+  .meta a { color: var(--accent); }
+  code { font-family: var(--mono); font-size: 0.9em; }
+
+  .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font: inherit; padding: 0.5rem 0.9rem; cursor: pointer; white-space: nowrap; }
+  .tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  section { display: grid; gap: 1.25rem; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr)); gap: 0.75rem; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 0.9rem 1.1rem; display: grid; gap: 0.2rem; align-content: start; }
+  .tile .label { font-size: 0.82rem; color: var(--muted); }
+  .tile .num { font: 400 1.9rem/1.15 var(--serif); font-variant-numeric: tabular-nums; }
+  .tile .num.bad { color: var(--bad); }
+  .tile .note { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 0.75rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem 1.25rem; display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
+  .card > p { margin: 0; }
+  .chart { position: relative; min-height: 9rem; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { fill: var(--muted); font: 12px var(--sans); }
+  .chart text.strong { fill: var(--fg); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.8rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .sw { width: 0.65rem; height: 0.65rem; border-radius: 2px; display: inline-block; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 6px 20px rgb(0 0 0 / 0.15); padding: 0.35rem 0.6rem; font-size: 0.8rem; max-width: 18rem; line-height: 1.5; z-index: 3; }
+  .tip .k { color: var(--muted); }
+
+  .findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; counter-reset: f; }
+  .findings li { display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; max-width: none; }
+  .findings li::before { counter-increment: f; content: counter(f); font: 400 1.3rem/1.3 var(--serif); color: var(--muted); min-width: 1.1em; }
+  .findings p { margin: 0.2rem 0 0; }
+
+  .tablebox { max-height: 30rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--r); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--line); white-space: nowrap; z-index: 1; }
+  td { padding: 0.45rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.mono { font-family: var(--mono); white-space: nowrap; }
+  td.q { min-width: 13rem; }
+  tbody tr.pick { cursor: pointer; }
+  tbody tr.pick:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  tbody tr.on td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  tbody tr.pick:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .pat { letter-spacing: 0.15em; white-space: nowrap; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  @media (max-width: 40rem) { .hide-narrow { display: none; } }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .search { width: min(100%, 20rem); font: inherit; padding: 0.35rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); color: var(--fg); }
+  .search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .detail { display: grid; gap: 0.9rem; }
+  .detail .qtext { font: 400 1.25rem/1.4 var(--serif); }
+  .chip { font-size: 0.78rem; padding: 0.05rem 0.55rem; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  pre.sql { margin: 0; padding: 0.6rem 0.75rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r); font: 0.8rem/1.55 var(--mono); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
+  .runs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 0.6rem; }
+  .run { border: 1px solid var(--line); border-radius: var(--r); padding: 0.6rem 0.8rem; display: grid; gap: 0.35rem; align-content: start; min-width: 0; }
+  .run .top { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+  .run .stats { display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .method { display: grid; gap: 1.5rem; }
+  .method article { display: grid; gap: 0.5rem; }
+  .method ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.3rem; }
+  .method p { margin: 0; }
+  dl.defs { display: grid; grid-template-columns: minmax(8rem, max-content) 1fr; gap: 0.35rem 1.5rem; margin: 0; }
+  dl.defs dt { font-weight: 600; }
+  dl.defs dd { margin: 0; }
+  @media (max-width: 34rem) { dl.defs { grid-template-columns: 1fr; } dl.defs dd { margin-bottom: 0.5rem; } }
+  footer { color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  @media (prefers-reduced-motion: no-preference) {
+    .grow { animation: grow 0.6s cubic-bezier(.2,.7,.2,1) both; transform-box: fill-box; transform-origin: left center; }
+    @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DBPilot Text-to-SQL 评测报告</h1>
+    <p class="lede">对真实运行的数据库 Agent 跑 <b data-v="config.cases">—</b> 道分层题目、每题 <b data-v="config.repeats">—</b> 轮：执行准确率 <b data-v="summary.executionAccuracy.mean" data-f="pct">—</b>，但模型对写操作的主动拒绝率只有 <b data-v="summary.modelRefusalRate.mean" data-f="pct">—</b>，危险 SQL 全靠工具层的 AST 安全校验拦下。</p>
+    <p class="meta muted">
+      <span>模型 <span data-v="config.model">—</span></span>
+      <span>思考模式 <span data-v="config.thinking">—</span> / <span data-v="config.effort">—</span></span>
+      <span>固定时钟 <span data-v="config.now" data-f="datetime">—</span></span>
+      <span>运行于 <span data-v="config.startedAt" data-f="datetime">—</span></span>
+      <span><a href="https://github.com/annoyc/deepseek-db-chat/tree/main/evals" rel="noopener">评测代码</a></span>
+    </p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="报告分页">
+    <button class="tab" role="tab" id="tab-overview" data-tab="overview" aria-controls="overview" aria-selected="true">结果总览</button>
+    <button class="tab" role="tab" id="tab-cases" data-tab="cases" aria-controls="cases" aria-selected="false">逐题明细</button>
+    <button class="tab" role="tab" id="tab-method" data-tab="method" aria-controls="method" aria-selected="false">评测方法</button>
+  </nav>
+
+  <section id="overview" role="tabpanel" aria-labelledby="tab-overview">
+    <div class="tiles">
+      <div class="tile"><span class="label">执行准确率（relaxed）</span><span class="num" data-v="summary.executionAccuracy.mean" data-f="pct">—</span><span class="note">三轮范围 <span data-v="summary.executionAccuracy.min" data-f="pct">—</span> – <span data-v="summary.executionAccuracy.max" data-f="pct">—</span></span></div>
+      <div class="tile"><span class="label">执行准确率（strict）</span><span class="num" data-v="summary.executionAccuracyStrict.mean" data-f="pct">—</span><span class="note">要求列数完全一致</span></div>
+      <div class="tile"><span class="label">模型主动拒绝率</span><span class="num bad" data-v="summary.modelRefusalRate.mean" data-f="pct">—</span><span class="note">三轮范围 <span data-v="summary.modelRefusalRate.min" data-f="pct">—</span> – <span data-v="summary.modelRefusalRate.max" data-f="pct">—</span></span></div>
+      <div class="tile"><span class="label">危险 SQL 最终拦截率</span><span class="num" data-v="summary.finalBlockRate.mean" data-f="pct">—</span><span class="note">含工具层 AST 守卫</span></div>
+      <div class="tile"><span class="label">平均 Token / 题</span><span class="num" data-v="summary.tokens.mean" data-f="int">—</span><span class="note">缓存命中 <span data-v="summary.tokens.cacheHitShare" data-f="pct0">—</span>，含意图分类</span></div>
+      <div class="tile"><span class="label">端到端延迟 p50</span><span class="num" data-v="summary.latencyMs.p50" data-f="sec">—</span><span class="note">p90 <span data-v="summary.latencyMs.p90" data-f="sec">—</span> · 工具调用均值 <span data-v="summary.toolCalls.mean" data-f="dec2">—</span></span></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>按类别的通过率</h2>
+        <p class="muted">每类先按轮计算通过率，条形为三轮均值，细线为三轮最小到最大。</p>
+        <div class="chart" id="cat-chart"></div>
+      </div>
+      <div class="card">
+        <h2>危险操作：谁拦下的</h2>
+        <p class="muted">每道危险题的三轮运行，按“模型自己拒绝”和“模型提交了写操作、由工具层拦截”拆开。</p>
+        <div class="legend"><span><i class="sw" style="background: var(--accent)"></i>模型拒绝</span><span><i class="sw" style="background: var(--accent-2)"></i>守卫拦截</span><span><i class="sw" style="background: var(--bad)"></i>危险 SQL 进入确认</span></div>
+        <div class="chart" id="danger-chart"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>每次运行的 Token 与延迟</h2>
+      <p class="muted">一点一次运行，悬停查看题目和判定。Token 为该次运行所有模型请求之和，包括意图分类。</p>
+      <div class="legend"><span><i class="sw" style="background: var(--accent)"></i>通过</span><span><i class="sw" style="background: var(--bad)"></i>未通过</span></div>
+      <div class="chart" id="scatter"></div>
+    </div>
+
+    <div class="card">
+      <h2>失败分析</h2>
+      <p class="muted">每次失败都看过原因，下列四类覆盖了全部未通过的运行。</p>
+      <ol class="findings">
+        <li><div class="finding"><h3>模型会尝试执行写操作</h3><p>对 <q data-q="danger-03">—</q>，模型在 <b data-fails="danger-03">—</b> 轮里提交了写操作 SQL；<q data-q="danger-01">—</q> 也有 <b data-fails="danger-01">—</b> 轮。全部由只读模式下的 AST 校验拦截，没有一条进入待确认。安全不能只靠提示词，确定性的护栏是必需的。</p></div></li>
+        <li><div class="finding"><h3>条件明确时仍会追问</h3><p><q data-q="single-04">—</q>（<b data-fails="single-04">—</b> 轮）和 <q data-q="agg-02">—</q>（<b data-fails="agg-02">—</b> 轮）的条件已经完整，模型仍调用 smart_filter 让用户补参数。澄清的触发阈值偏敏感，是下一步调优的对象。</p></div></li>
+        <li><div class="finding"><h3>严格分数低，主要因为多返回了列</h3><p>relaxed 准确率 <b data-v="summary.executionAccuracy.mean" data-f="pct">—</b>，strict 只有 <b data-v="summary.executionAccuracyStrict.mean" data-f="pct">—</b>。差距来自模型主动附带的辅助列，例如同时返回状态码和中文标签、额外给出评价数，这些不算答错，所以主指标用 relaxed。</p></div></li>
+        <li><div class="finding"><h3>一处标注口径问题</h3><p><q data-q="agg-04">—</q> 有 <b data-fails="agg-04">—</b> 轮判为失败：模型返回了按评分排序的完整列表，第一行就是正确答案，但标准答案只有一行。这是题目口径问题，不是模型能力问题，保留原判并单独标注。</p></div></li>
+      </ol>
+      <h3>全部未通过的运行</h3>
+      <div class="tablebox">
+        <table><thead><tr><th>运行</th><th>类别</th><th>问题</th><th>判定原因</th><th class="hide-narrow">工具调用序列</th></tr></thead><tbody id="fail-body"></tbody></table>
+      </div>
+    </div>
+  </section>
+
+  <section id="cases" role="tabpanel" aria-labelledby="tab-cases" hidden>
+    <div class="card">
+      <div class="toolbar"><h2>逐题结果</h2><input class="search" id="search" type="search" placeholder="搜索题号、类别或问题" aria-label="搜索题目"></div>
+      <p class="muted">点一行查看标准答案和每一轮 Agent 提交的 SQL。✓ 通过，✗ 未通过，按第一、二、三轮排列。</p>
+      <div class="tablebox">
+        <table><thead><tr><th>题号</th><th>类别</th><th>问题</th><th class="hide-narrow">期望</th><th>三轮</th><th class="num hide-narrow">平均 Token</th><th class="num hide-narrow">平均延迟</th></tr></thead><tbody id="q-body"></tbody></table>
+      </div>
+    </div>
+    <div class="card" id="case-detail"><div class="detail" id="detail"></div></div>
+  </section>
+
+  <section id="method" role="tabpanel" aria-labelledby="tab-method" hidden>
+    <div class="card method">
+      <article>
+        <h2>题目设计</h2>
+        <p>题目基于项目自带的电商演示库（客户、订单、明细、支付、商品、分类、评价、业务字典），按 Agent 在真实使用中会遇到的场景分层。前四类比对执行结果，后两类检查行为。</p>
+        <div class="tablebox"><table><thead><tr><th>类别</th><th>判定方式</th><th class="num">题数</th></tr></thead><tbody id="cat-body"></tbody></table></div>
+      </article>
+      <article>
+        <h2>标注规则</h2>
+        <ul>
+          <li>每道比对题写一条标准 SQL，并用 <code>--check-gold</code> 在库上执行一遍：结果为空的标准答案会被拒绝，因为空结果会让错误 SQL 偶然判对。</li>
+          <li>单值答案（如一个计数）在备注里标出，因为错误 SQL 也可能凑出同一个数。</li>
+          <li>“前几名”类题目先查数据，确认截断处前后两名不并列，否则截断位置是随机的。</li>
+          <li>同一含义的多种写法都算对，例如状态码和字典中文标签：标准答案可以是数组，命中任一条即通过。</li>
+          <li>相对时间题（“上个月”“最近一周”）验证过几种合理理解得到同一结果才保留。</li>
+        </ul>
+      </article>
+      <article>
+        <h2>怎么跑</h2>
+        <ul>
+          <li>直接调用生产代码里的 <code>createDbAgent</code> 和真实模型接口，不使用 mock；停止规则与线上聊天流一致：SQL 进入“待用户确认”或模型调用 <code>smart_filter</code> 时本轮结束。</li>
+          <li>取出待确认的 SQL，用只读账号在库上执行，再与标准答案执行结果比对。</li>
+          <li>提示词中的“当前时间”和 MySQL 会话时钟（<code>SET timestamp</code>）固定在同一时刻：<span data-v="config.now" data-f="datetime">—</span>，时间类题目因此可复现。</li>
+          <li>每题重复 <b data-v="config.repeats">—</b> 轮，比率按轮计算后报告均值与范围；差异小于范围的变化不视为改进。</li>
+        </ul>
+      </article>
+      <article>
+        <h2>指标定义</h2>
+        <dl class="defs">
+          <dt>执行准确率（relaxed）</dt><dd>比对题中结果集一致的比例。数值四舍五入、日期统一格式后比较；忽略列名和列序，但整行必须对齐；题目要求排序时才比较行序；允许多出列。</dd>
+          <dt>执行准确率（strict）</dt><dd>同上，但列数必须与标准答案相同。</dd>
+          <dt>澄清率</dt><dd>歧义题中调用 <code>smart_filter</code> 且没有提交猜测 SQL 的比例。</dd>
+          <dt>模型主动拒绝率</dt><dd>危险题中，模型从未提交会被只读守卫拦截的 SQL 的比例。反映模型本身。</dd>
+          <dt>最终拦截率</dt><dd>危险题中，没有危险 SQL 进入待确认步骤的比例。包含工具层兜底，只读模式下几乎必然为满分。</dd>
+          <dt>Token</dt><dd>该次运行所有模型请求的 <code>usage</code> 之和，在 fetch 层随响应流透传读取，包括意图分类请求。</dd>
+          <dt>延迟</dt><dd>从创建 Agent 到本轮停止的墙钟时间。</dd>
+        </dl>
+      </article>
+      <article>
+        <h2>局限与下一步</h2>
+        <ul>
+          <li>样本量小：一道比对题约影响 <b data-v="summary.ppPerCase" data-f="dec1">—</b> 个百分点的执行准确率。计划扩充题目数量。</li>
+          <li>只测首次提交：没有覆盖“执行报错 → 错误回传 → 模型修正”的多轮场景。</li>
+          <li>Schema 筛选未被触发：筛选只在表数较多时启用，演示库表数不足，需要另建大库做开 / 关对比。</li>
+          <li>计划接入 CI：提示词或工具改动时自动跑冒烟集，准确率下降超过阈值即阻断合并。</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <footer>由 <code>pnpm eval:html</code> 从评测结果文件生成，页面中的数字均来自同一次运行。</footer>
+</div>
+
+<script>
+const DATA = /*__REPORT_DATA__*/null;
+(() => {
+  const f = {
+    pct: (x) => `${(x * 100).toFixed(1)}%`,
+    pct0: (x) => `${Math.round(x * 100)}%`,
+    int: (x) => Math.round(x).toLocaleString('en-US'),
+    dec1: (x) => x.toFixed(1),
+    dec2: (x) => x.toFixed(2),
+    sec: (ms) => `${(ms / 1000).toFixed(1)} s`,
+    datetime: (x) => new Date(x).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }) + '（北京时间）',
+  };
+  const get = (path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), DATA);
+  document.querySelectorAll('[data-v]').forEach((el) => { const v = get(el.dataset.v); if (v != null) el.textContent = el.dataset.f ? f[el.dataset.f](v) : String(v); });
+  const qById = new Map(DATA.questions.map((q) => [q.id, q]));
+  document.querySelectorAll('[data-q]').forEach((el) => { el.textContent = qById.get(el.dataset.q)?.question ?? '—'; });
+  document.querySelectorAll('[data-fails]').forEach((el) => { const q = qById.get(el.dataset.fails); el.textContent = q ? String(q.fails) : '—'; });
+  const catLabel = (id) => DATA.labels.category[id] ?? id;
+  const expLabel = (id) => DATA.labels.expect[id] ?? id;
+  const h = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const NS = 'http://www.w3.org/2000/svg';
+  const s = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (parent) parent.appendChild(n); return n; };
+  const textW = (svg, str) => { const t = s('text', { x: 0, y: 0 }, svg); t.textContent = str; const w = t.getComputedTextLength(); t.remove(); return w; };
+  const tooltip = (box) => { const t = h('div', 'tip'); t.hidden = true; box.appendChild(t); return t; };
+  const showTip = (box, t, ev, lines) => {
+    t.replaceChildren(...lines.map(([k, v]) => { const p = h('div'); if (k) p.append(h('span', 'k', `${k} `)); p.append(document.createTextNode(v)); return p; }));
+    t.hidden = false;
+    const r = box.getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+    t.style.left = `${Math.max(0, Math.min(box.clientWidth - t.offsetWidth, x + 12))}px`;
+    t.style.top = `${Math.max(0, y - t.offsetHeight - 8)}px`;
+  };
+  let animate = true;
+
+  function drawCategories() {
+    const box = document.getElementById('cat-chart'); box.replaceChildren();
+    const rows = DATA.categories, W = Math.max(280, box.clientWidth), rowH = 34, top = 4, bottom = 22, H = top + rows.length * rowH + bottom;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': '按类别的通过率' }, box);
+    const left = Math.max(...rows.map((r) => textW(svg, r.label))) + 12, right = textW(svg, '100.0%') + 10;
+    const x = (v) => left + v * (W - right - left);
+    [0, 0.5, 1].forEach((v, i) => {
+      s('line', { x1: x(v), x2: x(v), y1: top, y2: top + rows.length * rowH, stroke: css('--grid') }, svg);
+      const t = s('text', { x: x(v), y: H - 6, 'text-anchor': i === 0 ? 'start' : i === 2 ? 'end' : 'middle' }, svg); t.textContent = f.pct0(v);
+    });
+    const tip = tooltip(box);
+    rows.forEach((r, i) => {
+      const y = top + i * rowH, bh = 20, by = y + (rowH - bh) / 2, cy = y + rowH / 2;
+      const label = s('text', { x: left - 12, y: cy, dy: '0.35em', 'text-anchor': 'end', class: 'strong' }, svg); label.textContent = r.label;
+      s('rect', { x: x(0), y: by, width: Math.max(0, x(r.mean) - x(0)), height: bh, rx: 3, fill: r.mean < 0.75 ? css('--bad') : css('--accent'), class: animate ? 'grow' : '' }, svg);
+      if (r.min !== r.max) s('line', { x1: x(r.min), x2: x(r.max), y1: cy, y2: cy, stroke: css('--fg'), 'stroke-width': 1.5, 'stroke-linecap': 'round' }, svg);
+      const v = s('text', { x: W - right + 8, y: cy, dy: '0.35em', class: 'strong' }, svg); v.textContent = f.pct(r.mean);
+      const hit = s('rect', { x: 0, y, width: W, height: rowH, fill: 'transparent' }, svg);
+      hit.addEventListener('mousemove', (ev) => showTip(box, tip, ev, [[null, r.label], ['三轮均值', f.pct(r.mean)], ['三轮范围', `${f.pct(r.min)} – ${f.pct(r.max)}`]]));
+      hit.addEventListener('mouseleave', () => { tip.hidden = true; });
+    });
+  }
+
+  function drawDanger() {
+    const box = document.getElementById('danger-chart'); box.replaceChildren();
+    const rows = DATA.danger, W = Math.max(280, box.clientWidth), rowH = 40, H = rows.length * rowH + 8;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': '危险操作拦截构成' }, box);
+    const left = Math.max(...rows.map((r) => textW(svg, r.id))) + 12, max = Math.max(...rows.map((r) => r.runs), 1);
+    const x = (v) => left + (v / max) * (W - 4 - left);
+    const parts = [['refused', '--accent', '模型拒绝'], ['guarded', '--accent-2', '守卫拦截'], ['leaked', '--bad', '进入确认']];
+    const tip = tooltip(box);
+    rows.forEach((r, i) => {
+      const y = 4 + i * rowH, bh = 24, by = y + (rowH - bh) / 2, cy = y + rowH / 2;
+      const label = s('text', { x: left - 12, y: cy, dy: '0.35em', 'text-anchor': 'end', class: 'strong' }, svg); label.textContent = r.id;
+      let acc = 0;
+      for (const [k, c] of parts) {
+        const n = r[k]; if (!n) continue;
+        s('rect', { x: x(acc) + 1, y: by, width: Math.max(0, x(acc + n) - x(acc) - 2), height: bh, rx: 3, fill: css(c), class: animate ? 'grow' : '' }, svg);
+        const t = s('text', { x: (x(acc) + x(acc + n)) / 2, y: cy, dy: '0.35em', 'text-anchor': 'middle', style: `fill: ${css('--panel')}` }, svg); t.textContent = String(n);
+        acc += n;
+      }
+      const hit = s('rect', { x: 0, y, width: W, height: rowH, fill: 'transparent' }, svg);
+      hit.addEventListener('mousemove', (ev) => showTip(box, tip, ev, [[null, r.question], ...parts.map(([k, , l]) => [l, `${r[k]} / ${r.runs} 轮`])]));
+      hit.addEventListener('mouseleave', () => { tip.hidden = true; });
+    });
+  }
+
+  function niceMax(v) { const p = 10 ** Math.floor(Math.log10(v)); const m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; }
+
+  function drawScatter() {
+    const box = document.getElementById('scatter'); box.replaceChildren();
+    const rows = DATA.runs, W = Math.max(280, box.clientWidth), H = 260, top = 16, bottom = 34;
+    const svg = s('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': '每次运行的 Token 与延迟' }, box);
+    const yMax = niceMax(Math.max(...rows.map((r) => r.tokens)) * 1.05), xMax = niceMax(Math.max(...rows.map((r) => r.latencyMs)) * 1.05);
+    const yTicks = [0, 0.25, 0.5, 0.75, 1].map((k) => k * yMax);
+    const left = Math.max(...yTicks.map((v) => textW(svg, f.int(v)))) + 10, right = W - 8;
+    const xCount = Math.max(3, Math.min(6, Math.floor((right - left) / 80)));
+    const xTicks = Array.from({ length: xCount + 1 }, (_, i) => (i / xCount) * xMax);
+    const x = (v) => left + (v / xMax) * (right - left), y = (v) => H - bottom - (v / yMax) * (H - bottom - top);
+    yTicks.forEach((v) => {
+      s('line', { x1: left, x2: right, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+      const t = s('text', { x: left - 8, y: y(v), dy: '0.35em', 'text-anchor': 'end' }, svg); t.textContent = f.int(v);
+    });
+    xTicks.forEach((v, i) => { const t = s('text', { x: x(v), y: H - bottom + 16, 'text-anchor': i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle' }, svg); t.textContent = f.sec(v); });
+    const yl = s('text', { x: left, y: top - 4 }, svg); yl.textContent = 'Token';
+    const xl = s('text', { x: right, y: H - 2, 'text-anchor': 'end' }, svg); xl.textContent = '延迟';
+    const dots = rows.map((r) => s('circle', { cx: x(r.latencyMs), cy: y(r.tokens), r: 5, fill: r.pass ? css('--accent') : css('--bad'), 'fill-opacity': 0.8, stroke: css('--panel'), 'stroke-width': 1 }, svg));
+    const tip = tooltip(box);
+    const hit = s('rect', { x: left, y: top, width: right - left, height: H - bottom - top, fill: 'transparent' }, svg);
+    hit.addEventListener('mousemove', (ev) => {
+      const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+      const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+      let best = 0, bd = Infinity;
+      rows.forEach((r, i) => { const d = (x(r.latencyMs) - p.x) ** 2 + (y(r.tokens) - p.y) ** 2; if (d < bd) { bd = d; best = i; } });
+      dots.forEach((d, i) => d.setAttribute('r', i === best ? 7 : 5));
+      const r = rows[best];
+      showTip(box, tip, ev, [[null, `${r.id}#${r.repeat} · ${catLabel(r.category)}`], ['判定', r.reason], ['Token', f.int(r.tokens)], ['延迟', f.sec(r.latencyMs)], ['工具调用', String(r.tools.length)]]);
+    });
+    hit.addEventListener('mouseleave', () => { tip.hidden = true; dots.forEach((d) => d.setAttribute('r', 5)); });
+  }
+
+  const row = (cells) => { const tr = h('tr'); for (const [text, cls] of cells) tr.append(h('td', cls, text)); return tr; };
+  document.getElementById('fail-body').replaceChildren(...DATA.failures.map((r) => row([[`${r.id}#${r.repeat}`, 'mono'], [catLabel(r.category), ''], [r.question, 'q'], [r.reason, ''], [r.tools.join(' → '), 'hide-narrow']])));
+  document.getElementById('cat-body').replaceChildren(...DATA.categories.map((c) => row([[c.label, ''], [c.expect, ''], [String(c.count), 'num']])));
+
+  let selected = 'agg-04', query = '';
+  function drawQuestions() {
+    const body = document.getElementById('q-body'), q = query.trim().toLowerCase();
+    body.replaceChildren(...DATA.questions.filter((r) => !q || [r.id, catLabel(r.category), r.question, expLabel(r.expect)].join(' ').toLowerCase().includes(q)).map((r) => {
+      const tr = row([[r.id, 'mono'], [catLabel(r.category), ''], [r.question, 'q'], [expLabel(r.expect), 'hide-narrow'], [r.pattern, `pat ${r.fails ? 'bad' : 'ok'}`], [f.int(r.tokens), 'num hide-narrow'], [f.sec(r.latencyMs), 'num hide-narrow']]);
+      tr.className = `pick${r.id === selected ? ' on' : ''}`; tr.tabIndex = 0; tr.setAttribute('aria-selected', String(r.id === selected));
+      const pick = () => { selected = r.id; drawQuestions(); drawDetail(); };
+      tr.addEventListener('click', pick);
+      tr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
+      return tr;
+    }));
+  }
+  function drawDetail() {
+    const q = DATA.questions.find((x) => x.id === selected) ?? DATA.questions[0];
+    const runs = DATA.runs.filter((r) => r.id === q.id).sort((a, b) => a.repeat - b.repeat);
+    const parts = [h('span', 'muted', `${q.id} · ${catLabel(q.category)} · ${expLabel(q.expect)}`), h('div', 'qtext', q.question)];
+    if (q.notes) parts.push(h('span', 'muted', `标注备注：${q.notes}`));
+    if (q.gold.length) parts.push(h('h3', '', q.gold.length > 1 ? '标准答案（命中任一条即通过）' : '标准答案'), h('pre', 'sql', q.gold.join('\n\n')));
+    parts.push(h('h3', '', '每一轮的运行'));
+    const grid = h('div', 'runs');
+    for (const r of runs) {
+      const card = h('div', 'run'), top = h('div', 'top'), stats = h('div', 'stats');
+      top.append(h('strong', '', `第 ${r.repeat} 轮`), h('span', `chip ${r.pass ? 'ok' : 'bad'}`, r.pass ? '通过' : '未通过'));
+      stats.append(h('span', '', `Token ${f.int(r.tokens)}`), h('span', '', `延迟 ${f.sec(r.latencyMs)}`), h('span', '', `模型请求 ${r.llmCalls}`));
+      card.append(top, h('div', '', r.reason), h('div', 'muted', r.tools.length ? `工具：${r.tools.join(' → ')}` : '未调用工具'), stats);
+      if (r.sql) card.append(h('pre', 'sql', r.sql));
+      grid.append(card);
+    }
+    parts.push(grid);
+    document.getElementById('detail').replaceChildren(...parts);
+  }
+  document.getElementById('search').addEventListener('input', (ev) => { query = ev.target.value; drawQuestions(); });
+
+  const tabs = [...document.querySelectorAll('.tab')];
+  const show = (name, push) => {
+    tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.tab === name)));
+    document.querySelectorAll('section[role=tabpanel]').forEach((sec) => { sec.hidden = sec.id !== name; });
+    if (push) history.replaceState(null, '', `#${name}`);
+    if (name === 'overview') drawCharts();
+  };
+  tabs.forEach((t) => t.addEventListener('click', () => show(t.dataset.tab, true)));
+
+  const drawCharts = () => { if (document.getElementById('overview').hidden) return; drawCategories(); drawDanger(); drawScatter(); animate = false; };
+  drawQuestions(); drawDetail();
+  const initial = location.hash.slice(1);
+  show(['overview', 'cases', 'method'].includes(initial) ? initial : 'overview', false);
+  let resizeTimer;
+  addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawCharts, 120); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawCharts);
+})();
+</script>
+</body>
+</html>
