@@ -6,7 +6,7 @@ export const Route = createFileRoute('/evals')({
   server: {
     handlers: {
       GET: () => new Response(reportHtml, {
-        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' },
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
       }),
     },
   },
