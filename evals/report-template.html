@@ -23,6 +23,8 @@
     :root { --bg: #11151c; --panel: #181e27; --fg: #e6e9ef; --muted: #9aa3b2; --line: #2a3240; --accent: #7aa2ff; --accent-2: #e0a84a; --bad: #ff7b72; --ok: #4cc38a; --grid: #222a36; --code-bg: #10141a; color-scheme: dark; }
   }
   * { box-sizing: border-box; }
+  /* Author display rules (section { display: grid }) would otherwise override the hidden attribute. */
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 var(--sans); }
   .wrap { max-width: 72rem; margin-inline: auto; padding-block: 2.5rem 4rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 1.75rem; }
   h1 { font: 600 clamp(1.6rem, 4vw, 2.2rem)/1.25 var(--serif); margin: 0; text-wrap: balance; }
