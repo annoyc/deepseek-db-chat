@@ -16,6 +16,14 @@ pnpm eval:report evals/results/a.json evals/results/b.json   # 汇总并列出�
 
 `--filter` 接受类别名或题号前缀，逗号分隔。结果写入 `evals/results/`，默认不提交；需要保留的基线命名为 `baseline-*.json`。
 
+## 评测报告页
+
+```bash
+pnpm eval:html --result evals/results/baseline-deepseek-flash.json   # 生成 evals/site/index.html
+```
+
+生成的页面不依赖外部脚本，随应用一起发布在 `/workbench/evals`（路由 `src/routes/evals.ts` 直接返回该文件），也可单独部署 `evals/site` 目录。更新基线后重新生成并提交 `evals/site/index.html`。
+
 ## 题目格式（`dataset/questions.jsonl`）
 
 ```json

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DbpilotRouteImport } from './routes/dbpilot'
+import { Route as EvalsRouteImport } from './routes/evals'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const DbpilotRoute = DbpilotRouteImport.update({
   path: '/dbpilot',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EvalsRoute = EvalsRouteImport.update({
+  id: '/evals',
+  path: '/evals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const KnowledgeRoute = KnowledgeRouteImport.update({
   id: '/knowledge',
   path: '/knowledge',
@@ -32,30 +38,34 @@ const KnowledgeRoute = KnowledgeRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dbpilot': typeof DbpilotRoute
+  '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dbpilot': typeof DbpilotRoute
+  '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dbpilot': typeof DbpilotRoute
+  '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dbpilot' | '/knowledge'
+  fullPaths: '/' | '/dbpilot' | '/evals' | '/knowledge'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dbpilot' | '/knowledge'
-  id: '__root__' | '/' | '/dbpilot' | '/knowledge'
+  to: '/' | '/dbpilot' | '/evals' | '/knowledge'
+  id: '__root__' | '/' | '/dbpilot' | '/evals' | '/knowledge'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DbpilotRoute: typeof DbpilotRoute
+  EvalsRoute: typeof EvalsRoute
   KnowledgeRoute: typeof KnowledgeRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DbpilotRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/evals': {
+      id: '/evals'
+      path: '/evals'
+      fullPath: '/evals'
+      preLoaderRoute: typeof EvalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/knowledge': {
       id: '/knowledge'
       path: '/knowledge'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DbpilotRoute: DbpilotRoute,
+  EvalsRoute: EvalsRoute,
   KnowledgeRoute: KnowledgeRoute,
 }
 export const routeTree = rootRouteImport
