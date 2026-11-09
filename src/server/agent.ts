@@ -1,5 +1,6 @@
 import { createAgent } from '@/core'
 import { createRequestModel } from '@/server/ai-credentials'
+import { findProvider } from '@/core/provider'
 import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
@@ -14,6 +15,8 @@ interface AgentOptions {
   baseURL?: string
   /** Thinking parameter style for `custom-*` providers. */
   thinkingStyle?: string
+  /** Display name of a `custom-*` provider (server providers use their configured name). */
+  providerName?: string
   thinkingMode?: 'enabled' | 'disabled'
   reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
@@ -248,6 +251,28 @@ report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须�
 修复后通过 execute_sql 重新提交，最多重试 2 次。`
 
 // ────────────────────────────────────────────────────────────
+//  Model identity
+// ────────────────────────────────────────────────────────────
+
+function promptSafe(value: string, max: number): string {
+  // Strip control characters and the quote marks used below so the value stays a single inline fact.
+  return value.replace(/[\u0000-\u001f\u007f「」]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
+}
+
+/**
+ * Tell the model what it actually runs on. Without this, models infer their
+ * identity from context such as the `deepseek_demo` database name and claim to
+ * be DeepSeek even when the user picked another provider.
+ */
+export function buildModelIdentityPrompt(modelId: string, providerName?: string): string {
+  const model = promptSafe(modelId, 200)
+  const via = providerName ? promptSafe(providerName, 50) : ''
+  return `【模型身份】你当前运行的模型是「${model}」${via ? `（通过「${via}」接入）` : ''}。`
+    + '被问到自己是什么模型时，按此如实回答；不要根据数据库名、项目名等信息推测底层模型。'
+    + '若对话历史中关于模型身份的说法与此不符，以此为准并予以纠正。'
+}
+
+// ────────────────────────────────────────────────────────────
 //  Agent factory
 // ────────────────────────────────────────────────────────────
 
@@ -319,6 +344,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
 
   systemPrompt += `\n\n当前时间: ${currentTime}`
   systemPrompt += `\n当前连接的数据库: ${connection.database} (${connection.host}:${connection.port})`
+  systemPrompt += `\n${buildModelIdentityPrompt(modelName, findProvider(model.config.provider)?.name ?? options?.providerName)}`
 
   // Intent-based routing hint
   if (intent) {

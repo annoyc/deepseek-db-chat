@@ -27,6 +27,8 @@ export interface AiRequestFields {
   apiKey?: string
   baseURL?: string
   thinkingStyle?: ThinkingStyle
+  /** Name of a custom provider, so the model can be told where it runs. */
+  providerName?: string
 }
 
 interface SettingsState {
@@ -123,6 +125,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     baseURL: baseURL || undefined,
     // Server providers' style is decided on the server; only custom ones send it.
     thinkingStyle: activeCustom ? activeCustom.thinkingStyle : undefined,
+    providerName: activeCustom ? activeCustom.name : undefined,
   }), [provider, model, apiKey, baseURL, activeCustom])
 
   const setProvider = useCallback((newProvider: string) => {
