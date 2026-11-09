@@ -50,6 +50,8 @@ interface SettingsState {
   thinkingCollapseMode: 'expanded' | 'collapsed'
   toolCallCollapseMode: 'expanded' | 'collapsed'
   setProvider: (provider: string) => void
+  /** Switch to a specific provider and model at once (the model need not be the provider's default). */
+  selectModel: (providerId: string, modelId: string) => void
   setProviderConfig: (providerId: string, config: Partial<ProviderConfig>) => void
   clearProviderApiKey: (providerId: string) => void
   saveCustomProvider: (provider: CustomProvider) => void
@@ -128,6 +130,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const option = providers.find((p) => p.id === newProvider)
     setModel(option?.defaultModel ?? '')
   }, [providers, setProviderRaw, setModel])
+
+  const selectModel = useCallback((providerId: string, modelId: string) => {
+    setProviderRaw(providerId)
+    setModel(modelId)
+  }, [setProviderRaw, setModel])
 
   const setProviderConfig = useCallback((providerId: string, partial: Partial<ProviderConfig>) => {
     setProviderConfigs((prev) => {
@@ -242,6 +249,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     thinkingCollapseMode,
     toolCallCollapseMode,
     setProvider,
+    selectModel,
     setProviderConfig,
     clearProviderApiKey,
     saveCustomProvider,

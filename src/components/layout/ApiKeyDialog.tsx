@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Server, Lock, Loader2, Globe, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Eye, EyeOff, Server, Lock, Loader2, Globe, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import type { ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
@@ -123,13 +123,20 @@ async function encryptIfTyped(typed: string, saved: string | undefined): Promise
 }
 
 /** Probes the request shapes the app depends on, using the values currently in the form. */
-function ConnectionTester({ models, buildRequest }: {
+/** Saves the dialog, switches the chat to this provider + model and closes; resolves to an error message on failure. */
+type UseModelHandler = (modelId: string) => Promise<string | null>
+
+function ConnectionTester({ models, buildRequest, currentModel, onUseModel }: {
   models: ProviderModel[]
   /** Throws an Error whose message explains what is missing. */
   buildRequest: () => Promise<ConnectionRequest>
+  /** The chat's current model when this provider is the active one. */
+  currentModel?: string
+  onUseModel?: UseModelHandler
 }) {
   const [selected, setSelected] = useState('')
   const [running, setRunning] = useState(false)
+  const [switching, setSwitching] = useState(false)
   const [result, setResult] = useState<ConnectionTestResult | null>(null)
   const [error, setError] = useState('')
   const model = models.some((m) => m.id === selected) ? selected : (models[0]?.id ?? '')
@@ -146,6 +153,18 @@ function ConnectionTester({ models, buildRequest }: {
       setError(err instanceof Error ? err.message : '测试失败，请重试')
     } finally {
       setRunning(false)
+    }
+  }
+
+  const handleUseModel = async (modelId: string) => {
+    if (!onUseModel) return
+    setError('')
+    setSwitching(true)
+    try {
+      const failure = await onUseModel(modelId)
+      if (failure) setError(failure)
+    } finally {
+      setSwitching(false)
     }
   }
 
@@ -189,8 +208,27 @@ function ConnectionTester({ models, buildRequest }: {
               </div>
             </li>
           ))}
-          <li className={`pt-0.5 text-xs font-medium ${result.ok ? 'text-green-700' : 'text-amber-700'}`}>
-            {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
+          <li className="flex items-center justify-between gap-2 pt-0.5">
+            <span className={`min-w-0 break-words text-xs font-medium ${result.ok ? 'text-green-700' : 'text-amber-700'}`}>
+              {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
+            </span>
+            {result.ok && onUseModel && (currentModel === result.model ? (
+              <span className="flex shrink-0 items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700">
+                <CircleCheck className="h-3.5 w-3.5" />
+                当前模型
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleUseModel(result.model)}
+                disabled={switching}
+                title="保存设置，并在对话中切换到此模型"
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                {switching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
+                设为当前模型
+              </button>
+            ))}
           </li>
         </ul>
       )}
@@ -198,10 +236,12 @@ function ConnectionTester({ models, buildRequest }: {
   )
 }
 
-function ServerProviderForm({ provider, draft, savedApiKey, onChange, onClearKey }: {
+function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseModel, onChange, onClearKey }: {
   provider: ServerProvider
   draft: ServerDraft
   savedApiKey?: string
+  currentModel?: string
+  onUseModel: UseModelHandler
   onChange: (partial: Partial<ServerDraft>) => void
   onClearKey: () => void
 }) {
@@ -255,6 +295,8 @@ function ServerProviderForm({ provider, draft, savedApiKey, onChange, onClearKey
 
       <ConnectionTester
         models={provider.models}
+        currentModel={currentModel}
+        onUseModel={onUseModel}
         buildRequest={async () => {
           const baseURL = draft.baseURLInput.trim()
           if (baseURL) {
@@ -272,8 +314,10 @@ function ServerProviderForm({ provider, draft, savedApiKey, onChange, onClearKey
   )
 }
 
-function CustomProviderForm({ draft, onChange, onRemove }: {
+function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemove }: {
   draft: CustomDraft
+  currentModel?: string
+  onUseModel: UseModelHandler
   onChange: (partial: Partial<CustomDraft>) => void
   onRemove: () => void
 }) {
@@ -376,6 +420,8 @@ function CustomProviderForm({ draft, onChange, onRemove }: {
 
       <ConnectionTester
         models={parseModelList(draft.modelsText)}
+        currentModel={currentModel}
+        onUseModel={onUseModel}
         buildRequest={async () => {
           const urlError = validateBaseURL(draft.baseURL)
           if (urlError) throw new Error(urlError)
@@ -402,6 +448,8 @@ function CustomProviderForm({ draft, onChange, onRemove }: {
 export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   const {
     provider,
+    model: currentModel,
+    selectModel,
     serverProviders,
     customProviders,
     providerConfigs,
@@ -417,6 +465,10 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   const [activeTab, setActiveTab] = useState(provider)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const saveErrorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (saveError) saveErrorRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [saveError])
   const [serverDrafts, setServerDrafts] = useState<Record<string, ServerDraft>>({})
   const [customDrafts, setCustomDrafts] = useState<CustomDraft[]>([])
 
@@ -476,7 +528,8 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     setActiveTab(serverProviders[0]?.id ?? ADD_TAB)
   }
 
-  const handleSave = async () => {
+  /** Persist every tab of the dialog. Resolves to an error message, or null on success. */
+  const persistAll = async (): Promise<string | null> => {
     setSaving(true)
     setSaveError('')
     try {
@@ -484,8 +537,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
         const error = validateCustomDraft(draft)
         if (error) {
           setActiveTab(draft.id)
-          setSaveError(`${draft.name.trim() || '新服务'}：${error}`)
-          return
+          return `${draft.name.trim() || '新服务'}：${error}`
         }
       }
 
@@ -522,14 +574,32 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       setThinkingCollapseMode(localThinkingCollapse)
       setToolCallCollapseMode(localToolCallCollapse)
       setMaxSqlExecutions(localMaxSqlExecutions)
-
-      onClose()
+      return null
     } catch (err) {
       console.error('[ApiKeyDialog] Save failed:', err)
-      setSaveError(err instanceof Error ? err.message : '保存失败，请重试')
+      return err instanceof Error ? err.message : '保存失败，请重试'
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSave = async () => {
+    const error = await persistAll()
+    if (error) setSaveError(error)
+    else onClose()
+  }
+
+  /** Save, then make this provider + model the chat's current selection and close. */
+  const handleUseModel = async (providerId: string, modelId: string): Promise<string | null> => {
+    const error = await persistAll()
+    if (error) {
+      // Validation may have switched to another tab, unmounting the tester; report it dialog-wide too.
+      setSaveError(error)
+      return error
+    }
+    selectModel(providerId, modelId)
+    onClose()
+    return null
   }
 
   const handleClearServerKey = (providerId: string) => {
@@ -587,6 +657,8 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               key={activeServer.id}
               draft={serverDrafts[activeServer.id] ?? EMPTY_SERVER_DRAFT}
               savedApiKey={providerConfigs[activeServer.id]?.apiKey}
+              currentModel={provider === activeServer.id ? currentModel : undefined}
+              onUseModel={(modelId) => handleUseModel(activeServer.id, modelId)}
               onChange={(partial) => updateServerDraft(activeServer.id, partial)}
               onClearKey={() => handleClearServerKey(activeServer.id)}
             />
@@ -596,6 +668,8 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             <CustomProviderForm
               key={activeCustom.id}
               draft={activeCustom}
+              currentModel={provider === activeCustom.id ? currentModel : undefined}
+              onUseModel={(modelId) => handleUseModel(activeCustom.id, modelId)}
               onChange={(partial) => updateCustomDraft(activeCustom.id, partial)}
               onRemove={() => removeDraft(activeCustom.id)}
             />
@@ -707,7 +781,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             </div>
           </div>
 
-          {saveError && <p role="alert" className="text-xs text-red-600">{saveError}</p>}
+          {saveError && <p ref={saveErrorRef} role="alert" className="text-xs text-red-600">{saveError}</p>}
           <div className="flex justify-end gap-3 pt-2">
             <button
               onClick={onClose}
