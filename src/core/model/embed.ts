@@ -11,6 +11,8 @@ export interface EmbeddingConfig {
   dimensions?: number
   /** Inputs per request; DashScope's OpenAI-compatible endpoint accepts at most 10. */
   batchSize?: number
+  /** Batches in flight at once. */
+  concurrency?: number
   timeout?: number
   maxRetries?: number
 }
@@ -33,9 +35,10 @@ export function normalizeVector(values: ArrayLike<number>): Float32Array {
 export async function embedTexts(config: EmbeddingConfig, texts: string[], signal?: AbortSignal): Promise<Float32Array[]> {
   const url = getEmbeddingsEndpoint(config.baseURL)
   const batchSize = Math.max(1, config.batchSize ?? 10)
-  const vectors: Float32Array[] = []
-  for (let start = 0; start < texts.length; start += batchSize) {
-    const batch = texts.slice(start, start + batchSize)
+  const batches: string[][] = []
+  for (let start = 0; start < texts.length; start += batchSize) batches.push(texts.slice(start, start + batchSize))
+  const results: Float32Array[][] = new Array(batches.length)
+  const embedBatch = async (batch: string[]): Promise<Float32Array[]> => {
     const body = omitBy({
       model: config.model,
       input: batch,
@@ -51,12 +54,21 @@ export async function embedTexts(config: EmbeddingConfig, texts: string[], signa
     if (items.length !== batch.length) {
       throw new Error(`Embedding API returned ${items.length} vectors for ${batch.length} inputs`)
     }
-    for (const item of items) {
+    return items.map((item) => {
       if (config.dimensions && item.embedding.length !== config.dimensions) {
         throw new Error(`Embedding size ${item.embedding.length} does not match configured ${config.dimensions}`)
       }
-      vectors.push(normalizeVector(item.embedding))
+      return normalizeVector(item.embedding)
+    })
+  }
+  let next = 0
+  const worker = async () => {
+    while (next < batches.length) {
+      const index = next++
+      results[index] = await embedBatch(batches[index])
     }
   }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, config.concurrency ?? 4), batches.length) }, worker))
+  const vectors = results.flat()
   return vectors
 }

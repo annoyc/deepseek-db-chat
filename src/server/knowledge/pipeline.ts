@@ -4,12 +4,13 @@ import type {
   KnowledgeHistoryTurn,
   KnowledgeStreamChunk,
   KnowledgeToolStatus,
+  KnowledgeUserChunkCandidate,
   KnowledgeWebResult,
 } from '@/lib/knowledge-types'
 import { maskPII } from '@/lib/masking'
 import { checkCitations } from './citations'
 import type { Embedder } from './embedding'
-import type { KnowledgeBase } from './knowledge-base'
+import { createUploadKnowledgeBase, type KnowledgeBase } from './knowledge-base'
 import { buildAnswerMessages } from './prompt'
 import { analyzeQuery, retrievalQueries, type KnowledgeChatModel, type QueryAnalysis } from './query-analysis'
 import { retrieve, type RetrievalHit } from './retriever'
@@ -23,6 +24,8 @@ export interface KnowledgePipelineInput {
   /** false: answer strictly from retrieved provisions; true: general knowledge may supplement them. */
   useBaseModel: boolean
   answerMode: KnowledgeAnswerMode
+  /** Uploaded-document chunks the browser pre-selected, best first. */
+  userChunks?: KnowledgeUserChunkCandidate[]
 }
 
 export interface KnowledgePipelineDeps {
@@ -49,8 +52,12 @@ function elapsed(start: number): number {
   return Math.round(performance.now() - start)
 }
 
+export const UPLOAD_STATUS_LABEL = '我上传的文档（未核验时效）'
+
 function toCitation(hit: RetrievalHit, ref: number, today: string): KnowledgeCitation {
-  const { status, label } = documentStatus(hit.doc, today)
+  const { status, label } = hit.source === 'upload'
+    ? { status: 'unverified' as const, label: UPLOAD_STATUS_LABEL }
+    : documentStatus(hit.doc, today)
   return {
     ref: String(ref),
     chunkId: hit.chunk.id,
@@ -63,6 +70,7 @@ function toCitation(hit: RetrievalHit, ref: number, today: string): KnowledgeCit
     statusLabel: label,
     sourceUrl: hit.doc.sourceUrl,
     retrievers: [...(hit.bm25Rank ? ['keyword' as const] : []), ...(hit.denseRank ? ['vector' as const] : [])],
+    source: hit.source,
   }
 }
 
@@ -131,16 +139,21 @@ export async function* runKnowledgePipeline(
       vectorNote = '；向量检索失败，已降级为关键词检索'
     }
   }
-  const hits = retrieve(kb, queries, {
+  const userChunks = input.userChunks ?? []
+  const uploads = userChunks.length ? createUploadKnowledgeBase(userChunks, kb.embedding) : undefined
+  const hits = retrieve(uploads ? [kb, uploads] : kb, queries, {
     topK: TOP_K[input.answerMode],
     queryVectors,
     minSimilarity: deps.minSimilarity,
+    // The browser ranked these over all uploaded chunks, with corpus-wide term statistics.
+    extraRankings: uploads ? [userChunks.map(c => c.id)] : [],
   })
   const citations = hits.map((hit, i) => toCitation(hit, i + 1, today))
   const documents = new Set(hits.map(hit => hit.doc.id)).size
+  const uploadHits = hits.filter(hit => hit.source === 'upload').length
   yield tool('kb_retrieve', '知识库检索', 'done', {
     output: hits.length
-      ? `${queryVectors ? '关键词 + 向量' : '关键词'}检索，RRF 融合后取 ${hits.length} 条，来自 ${documents} 份文件${vectorNote}`
+      ? `${queryVectors ? '关键词 + 向量' : '关键词'}检索，RRF 融合后取 ${hits.length} 条，来自 ${documents} 份文件${uploadHits ? `（含我的文档 ${uploadHits} 条）` : ''}${vectorNote}`
       : `未检索到相关条款${vectorNote}`,
     detail: queries.join('\n'),
     durationMs: elapsed(start),
@@ -200,11 +213,12 @@ export async function* runKnowledgePipeline(
   const check = checkCitations(answer, available)
   const cited = new Set(check.cited)
   const checked = citations.map(c => ({ ...c, cited: cited.has(c.ref) }))
-  const citedExpired = checked.some(c => c.cited && c.status !== 'active')
+  const citedExpired = checked.some(c => c.cited && (c.status === 'expired' || c.status === 'pending'))
+  const citedUploads = checked.some(c => c.cited && c.source === 'upload')
   let output: string
   if (check.invalid.length) output = `${check.invalid.map(ref => `[${ref}]`).join('')} 没有对应的来源`
   else if (!check.cited.length) output = available.length ? '回答没有标注来源' : '无可引用的来源'
-  else output = `引用 ${check.cited.length} 处来源，均可对应${citedExpired ? '；含不在有效期内的文件' : ''}`
+  else output = `引用 ${check.cited.length} 处来源，均可对应${citedExpired ? '；含不在有效期内的文件' : ''}${citedUploads ? '；含我上传的文档' : ''}`
   yield tool('citation_check', '引用校验', check.invalid.length ? 'error' : 'done', { output, durationMs: elapsed(start) })
   yield { type: 'evidence', citations: checked }
 }

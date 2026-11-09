@@ -13,6 +13,8 @@ import { createServerEmbedder } from '@/server/knowledge/embedding'
 import { loadKnowledgeBase } from '@/server/knowledge/knowledge-base'
 import { runKnowledgePipeline, type KnowledgePipelineDeps } from '@/server/knowledge/pipeline'
 import { createBochaWebSearch } from '@/server/knowledge/web-search'
+import { uploadLimits } from '@/server/knowledge/upload'
+import { MAX_UPLOAD_CANDIDATES } from '@/lib/knowledge-documents'
 
 interface MemoChatResponse {
   answer?: string
@@ -156,6 +158,17 @@ const KnowledgeInputSchema = z.object({
   useBaseModel: z.boolean(),
   answerMode: z.enum(['concise', 'standard', 'deep']),
   history: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(32000) })).max(20).optional(),
+  userChunks: z.array(z.object({
+    id: z.string().max(80),
+    docId: z.string().regex(/^upload-[0-9a-f-]{36}$/),
+    docTitle: z.string().trim().min(1).max(120),
+    headings: z.array(z.string().max(120)).max(6),
+    label: z.string().max(120),
+    text: z.string().min(1).max(1500),
+    vector: z.string().max(24000).optional(),
+    embeddingKey: z.string().max(200).optional(),
+  }).refine(chunk => chunk.id.startsWith(`${chunk.docId}#`), 'chunk id must belong to its document'))
+    .max(MAX_UPLOAD_CANDIDATES).optional(),
   provider: z.string().max(40).optional(),
   model: z.string().max(120).optional(),
   apiKey: z.string().max(4096).optional(),
@@ -242,6 +255,7 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
             useWebSearch: data.useWebSearch,
             useBaseModel: data.useBaseModel,
             answerMode: data.answerMode,
+            userChunks: data.userChunks,
           }, deps, signal)
           for await (const chunk of pipeline) emit({ enqueue }, encoder, chunk)
         })
@@ -278,6 +292,7 @@ async function localHealth(): Promise<KnowledgeHealth> {
       status: 'ok',
       mode: 'local',
       index: { documents: kb.documents.size, chunks: kb.chunks.length, retrieval: hybrid ? 'hybrid' : 'keyword' },
+      uploadLimits: uploadLimits(),
       webSearchAvailable: Boolean(process.env.BOCHA_API_KEY?.trim()),
     }
   } catch (error) {

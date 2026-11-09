@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto'
-import type { KbChunk, KbDocument, KbDocumentMeta } from './types'
+import { chunkSearchText } from '@/lib/retrieval/search-text'
+import type { KbChunk, KbDocument } from './types'
+
+export { chunkSearchText }
 
 export interface ChunkOptions {
   /** Units longer than this are split at paragraph, then sentence, boundaries. */
@@ -57,7 +60,7 @@ function parseUnits(doc: KbDocument): Unit[] {
     } else if (current) {
       current.paragraphs.push(text)
     } else {
-      current = { kind: 'text', headings, labels: [headings.at(-1) ?? doc.meta.title], paragraphs: [text] }
+      current = { kind: 'text', headings, labels: [headings.at(-1) ?? '正文'], paragraphs: [text] }
       units.push(current)
     }
   }
@@ -85,11 +88,13 @@ function mergeShortArticles(units: Unit[], options: ChunkOptions): Unit[] {
   return merged
 }
 
-/** Greedy packing at paragraph boundaries; a single oversized paragraph is cut after 。or ；. */
+/** Greedy packing at paragraph boundaries; a single oversized paragraph is cut after 。or ；, and hard-cut if still too long. */
 function splitParagraphs(paragraphs: string[], maxChars: number): string[][] {
   const pieces = paragraphs.flatMap((paragraph) => {
     if (paragraph.length <= maxChars) return [paragraph]
-    const sentences = paragraph.match(/[^。；]+[。；]?/g) ?? [paragraph]
+    // Text without sentence punctuation (e.g. a table) is cut at maxChars as a last resort.
+    const sentences = (paragraph.match(/[^。；]+[。；]?/g) ?? [paragraph])
+      .flatMap(sentence => sentence.match(new RegExp(`[\\s\\S]{1,${maxChars}}`, 'g')) ?? [])
     const out: string[] = []
     let buffer = ''
     for (const sentence of sentences) {
@@ -109,12 +114,6 @@ function splitParagraphs(paragraphs: string[], maxChars: number): string[][] {
   }
   if (current.length) parts.push(current)
   return parts
-}
-
-export function chunkSearchText(meta: Pick<KbDocumentMeta, 'title'>, chunk: Pick<KbChunk, 'headings' | 'label' | 'text'>): string {
-  // The heading path is indexed with the text so an article about "注册" is still found by
-  // its section ("经营主体注册") and document title even when the article omits them.
-  return [`《${meta.title}》`, ...chunk.headings, chunk.label].join(' ') + '\n' + chunk.text
 }
 
 export function contentHash(text: string): string {

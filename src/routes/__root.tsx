@@ -3,6 +3,7 @@ import { Outlet, HeadContent, Scripts, createRootRoute } from '@tanstack/react-r
 import { DatabaseProvider } from '@/hooks/useDatabase'
 import { ChatProvider } from '@/hooks/useChat'
 import { KnowledgeChatProvider } from '@/hooks/useKnowledgeChat'
+import { KnowledgeDocumentsProvider } from '@/hooks/useKnowledgeDocuments'
 import { SettingsProvider } from '@/hooks/useSettings'
 import { APP_TAGLINE, APP_TITLE } from '@/lib/constants'
 import '@/styles/globals.css'
@@ -28,9 +29,11 @@ function RootComponent() {
       <SettingsProvider>
         <DatabaseProvider>
           <ChatProvider>
-            <KnowledgeChatProvider>
-              <Outlet />
-            </KnowledgeChatProvider>
+            <KnowledgeDocumentsProvider>
+              <KnowledgeChatProvider>
+                <Outlet />
+              </KnowledgeChatProvider>
+            </KnowledgeDocumentsProvider>
           </ChatProvider>
         </DatabaseProvider>
       </SettingsProvider>

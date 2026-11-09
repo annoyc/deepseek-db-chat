@@ -1,6 +1,6 @@
 import Dexie from 'dexie'
 import type { ChatSession, DatabaseConnection } from './types'
-import type { KnowledgeSession } from './knowledge-types'
+import type { KnowledgeSession, KnowledgeUploadedDocument } from './knowledge-types'
 
 type StoredConnection = Omit<DatabaseConnection, 'password'> & { password: string }
 
@@ -13,6 +13,7 @@ class AppDatabase extends Dexie {
   settings!: Dexie.Table<SettingRecord, string>
   chatSessions!: Dexie.Table<ChatSession, string>
   knowledgeSessions!: Dexie.Table<KnowledgeSession, string>
+  knowledgeDocuments!: Dexie.Table<KnowledgeUploadedDocument, string>
   dbConnections!: Dexie.Table<StoredConnection, string>
 
   constructor() {
@@ -26,6 +27,13 @@ class AppDatabase extends Dexie {
       settings: 'key',
       chatSessions: 'id',
       knowledgeSessions: 'id',
+      dbConnections: 'id',
+    })
+    this.version(3).stores({
+      settings: 'key',
+      chatSessions: 'id',
+      knowledgeSessions: 'id',
+      knowledgeDocuments: 'id',
       dbConnections: 'id',
     })
   }

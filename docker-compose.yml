@@ -34,6 +34,9 @@ services:
       - KB_INDEX_PATH=${KB_INDEX_PATH:-}
       - KB_MIN_SIMILARITY=${KB_MIN_SIMILARITY:-}
       - BOCHA_API_KEY=${BOCHA_API_KEY:-}
+      - KB_UPLOAD_MAX_DOCUMENTS=${KB_UPLOAD_MAX_DOCUMENTS:-}
+      - KB_UPLOAD_MAX_BYTES=${KB_UPLOAD_MAX_BYTES:-}
+      - KB_UPLOAD_MAX_CHARS=${KB_UPLOAD_MAX_CHARS:-}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/workbench/dbpilot"]
       interval: 30s
