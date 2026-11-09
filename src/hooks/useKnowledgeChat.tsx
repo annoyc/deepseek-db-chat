@@ -170,7 +170,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const [storageLoaded, setStorageLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const { persistenceState: saveState, retrySave: retryPersistedSessions } = useSessionPersistence('knowledgeSessions', sessions, storageLoaded)
-  const { provider, model, apiKey, baseURL } = useSettings()
+  const { aiRequest } = useSettings()
   const { selectCandidates, removedDefaultIds } = useKnowledgeDocuments()
   const persistenceState: PersistenceState = loadError ? 'load-error' : saveState
   const sessionsRef = useRef(sessions)
@@ -314,10 +314,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       history,
       userChunks: selectCandidates(trimmed, history),
       excludedDefaultIds: removedDefaultIds.length ? removedDefaultIds : undefined,
-      provider,
-      model,
-      apiKey: apiKey || undefined,
-      baseURL: baseURL || undefined,
+      ...aiRequest,
     }
 
     try {
@@ -407,7 +404,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
       }
     }
-  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, provider, model, apiKey, baseURL, selectCandidates, removedDefaultIds])
+  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, aiRequest, selectCandidates, removedDefaultIds])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()

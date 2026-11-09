@@ -5,9 +5,8 @@ import { maskPII } from '@/lib/masking'
 import { abortable, createAbortScope, createManagedStream } from '@/core/client/lifecycle'
 import { readKnowledgeStream, requestKnowledgeBackend } from '@/core/client/knowledge-request'
 import { readResponseJson } from '@/core/client/response-body'
-import { createModel, getProvider, type ModelProvider } from '@/core'
 import type { KnowledgeChatInput, KnowledgeHealth, KnowledgeStreamChunk } from '@/lib/knowledge-types'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { createRequestModel, resolveAiTarget } from '@/server/ai-credentials'
 import { withTrace } from '@/server/langfuse'
 import { createServerEmbedder } from '@/server/knowledge/embedding'
 import { loadKnowledgeBase } from '@/server/knowledge/knowledge-base'
@@ -175,6 +174,7 @@ const KnowledgeInputSchema = z.object({
   model: z.string().max(120).optional(),
   apiKey: z.string().max(4096).optional(),
   baseURL: z.string().max(2048).optional(),
+  thinkingStyle: z.string().max(40).optional(),
 })
 
 /** local (default): in-process RAG over the bundled index. remote: the MEMO_CHAT_API_BASE service. */
@@ -209,24 +209,20 @@ async function streamFromRemote(
 }
 
 async function localPipelineDeps(data: KnowledgeChatInput): Promise<KnowledgePipelineDeps> {
-  const providerId = (data.provider || 'deepseek') as ModelProvider
-  let credentials: { apiKey: string; baseURL: string }
-  let defaultModel: string
+  const aiRequest = { provider: data.provider, model: data.model, apiKey: data.apiKey, baseURL: data.baseURL, thinkingStyle: data.thinkingStyle }
   try {
-    defaultModel = getProvider(providerId).defaultModel
-    credentials = resolveAiCredentials(providerId, data.apiKey, data.baseURL)
+    // Validate once up front so configuration errors reach the user verbatim.
+    const target = resolveAiTarget(aiRequest)
+    if (!aiRequest.model?.trim() && !target.defaultModel) throw new Error('请先为该模型服务选择模型')
   } catch (error) {
     throw new KnowledgeUserError(error instanceof Error ? error.message : '模型配置无效')
   }
   const knowledgeBase = await loadKnowledgeBase()
   return {
     knowledgeBase: async () => knowledgeBase,
-    chatModel: ({ purpose, thinking }) => createModel({
-      provider: providerId,
-      model: data.model || defaultModel,
+    chatModel: ({ purpose, thinking }) => createRequestModel(aiRequest, {
       thinking: { type: thinking ? 'enabled' : 'disabled' },
       ...(purpose === 'analysis' ? { temperature: 0, timeout: 15000, maxRetries: 0 } : { timeout: 60000 }),
-      ...credentials,
     }),
     embedder: knowledgeBase.embedding ? createServerEmbedder(knowledgeBase.embedding) : null,
     webSearch: createBochaWebSearch(),

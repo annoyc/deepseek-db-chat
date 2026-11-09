@@ -1,5 +1,4 @@
 import { embedTexts } from '@/core/model/embed'
-import { getProviderList } from '@/core/provider'
 import { resolveAiCredentials } from '@/server/ai-credentials'
 import type { KbEmbeddingInfo } from './types'
 
@@ -8,7 +7,6 @@ export type Embedder = (texts: string[], signal?: AbortSignal) => Promise<Float3
 /** Model used by `pnpm kb:ingest --embed`; at query time the index's own record wins. */
 export function ingestEmbeddingInfo(env: NodeJS.ProcessEnv = process.env): KbEmbeddingInfo {
   const provider = env.KB_EMBEDDING_PROVIDER?.trim() || 'bailian'
-  if (!getProviderList().some(item => item.id === provider)) throw new Error(`Unknown KB_EMBEDDING_PROVIDER: ${provider}`)
   const dimensions = Number(env.KB_EMBEDDING_DIMENSIONS || 512)
   if (!Number.isInteger(dimensions) || dimensions <= 0) throw new Error('KB_EMBEDDING_DIMENSIONS must be a positive integer')
   return { provider, model: env.KB_EMBEDDING_MODEL?.trim() || 'text-embedding-v4', dimensions }
@@ -22,6 +20,8 @@ export function ingestEmbeddingInfo(env: NodeJS.ProcessEnv = process.env): KbEmb
 export function createServerEmbedder(info: KbEmbeddingInfo, env: NodeJS.ProcessEnv = process.env): Embedder | null {
   let credentials: { apiKey: string; baseURL: string }
   try {
+    // Server providers only (DeepSeek, BAILIAN_API_KEY, AI_PROVIDERS); never a browser-defined one.
+    if (info.provider.startsWith('custom-')) return null
     credentials = resolveAiCredentials(info.provider)
   } catch {
     return null

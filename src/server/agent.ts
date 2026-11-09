@@ -1,11 +1,10 @@
-import { createAgent, createModel } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { createAgent } from '@/core'
+import { createRequestModel } from '@/server/ai-credentials'
 import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
-import { DEFAULT_MODEL } from '@/lib/constants'
 import { type IntentClassification, classifyIntentWithLLM, buildRoutingPrompt, FILTER_CONFIDENCE_THRESHOLD } from './intent-router'
 
 interface AgentOptions {
@@ -13,6 +12,8 @@ interface AgentOptions {
   model?: string
   apiKey?: string
   baseURL?: string
+  /** Thinking parameter style for `custom-*` providers. */
+  thinkingStyle?: string
   thinkingMode?: 'enabled' | 'disabled'
   reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
@@ -252,18 +253,18 @@ report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须�
 
 export async function createDbAgent(connection: DatabaseConnection, options?: AgentOptions) {
   const provider = options?.provider ?? 'deepseek'
-  const modelName = options?.model || DEFAULT_MODEL
-  const credentials = resolveAiCredentials(provider, options?.apiKey, options?.baseURL)
-
-  const modelConfig: Record<string, unknown> = {
+  const aiRequest = {
     provider,
-    model: modelName,
+    model: options?.model,
+    apiKey: options?.apiKey,
+    baseURL: options?.baseURL,
+    thinkingStyle: options?.thinkingStyle,
+  }
+  const model = createRequestModel(aiRequest, {
     thinking: { type: options?.thinkingMode ?? 'enabled' },
     reasoningEffort: options?.thinkingMode !== 'disabled' ? (options?.reasoningEffort ?? 'high') : undefined,
-  }
-  Object.assign(modelConfig, credentials)
-
-  const model = createModel(modelConfig as any)
+  })
+  const modelName = model.config.model
   const userQuery = options?.userQuery ?? ''
 
   // ── Build system prompt: selectively include sections based on intent ──
@@ -271,12 +272,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
   const intent: IntentClassification | null = options?.intent !== undefined
     ? options.intent
     : userQuery
-      ? await classifyIntentWithLLM(userQuery, hasHistory, {
-          provider,
-          model: modelName,
-          apiKey: options?.apiKey,
-          baseURL: options?.baseURL,
-        }, options?.signal)
+      ? await classifyIntentWithLLM(userQuery, hasHistory, { ...aiRequest, model: modelName }, options?.signal)
       : null
   const intentType = intent?.intent
 

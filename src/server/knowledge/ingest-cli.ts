@@ -34,7 +34,7 @@ async function main() {
   if (args.includes('--embed')) {
     const info = ingestEmbeddingInfo()
     const embed = createServerEmbedder(info)
-    if (!embed) throw new Error(`--embed needs the server API key for provider "${info.provider}"`)
+    if (!embed) throw new Error(`--embed 需要服务器上已配置的模型服务 "${info.provider}"（例如设置 BAILIAN_API_KEY，或在 AI_PROVIDERS 中配置）`)
     embedding = { info, embed }
     console.log(`向量模型：${info.provider} / ${info.model}（${info.dimensions} 维）`)
   } else if (previous?.embedding) {

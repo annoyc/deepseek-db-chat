@@ -1,19 +1,15 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { createModel, generateText, getProvider } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { generateText } from '@/core'
+import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import { parseAnswerCheck, type AnswerCheck } from '@/lib/answer-check'
 import { withTrace } from '@/server/langfuse'
 
-interface ClassifyInput {
+interface ClassifyInput extends AiRequestConfig {
   assistantContent: string
   hasToolCalls: boolean
   isContinuation: boolean
   evidence?: string
-  provider?: string
-  model?: string
-  apiKey?: string
-  baseURL?: string
   sessionId?: string
 }
 
@@ -40,14 +36,7 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
         tags: ['hallucination'],
       }, async () => {
         try {
-            const provider = data.provider ?? 'deepseek'
-          const providerDef = getProvider(provider)
-          const model = createModel({
-            provider: provider as any,
-            model: data.model || providerDef.defaultModel,
-            thinking: { type: 'disabled' },
-            ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
-          } as any)
+            const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
           const promptParts = [
             `hasToolCalls：${data.hasToolCalls ? '是' : '否'}`,

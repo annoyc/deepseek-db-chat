@@ -30,7 +30,7 @@ try {
   const exitCode = await new Promise((accept, reject) => {
     const child = spawn(process.execPath, ['--test', ...files.map((name) => resolve(dir, name.replace(/\.ts$/, '.mjs')))], {
       cwd: root, stdio: 'inherit',
-      env: { ...process.env, NODE_ENV: 'test', LANGFUSE_PUBLIC_KEY: '', LANGFUSE_SECRET_KEY: '', DEEPSEEK_API_KEY: '', BAILIAN_API_KEY: '' },
+      env: { ...process.env, NODE_ENV: 'test', LANGFUSE_PUBLIC_KEY: '', LANGFUSE_SECRET_KEY: '', DEEPSEEK_API_KEY: '', BAILIAN_API_KEY: '', AI_PROVIDERS: '' },
     })
     child.on('error', reject)
     child.on('exit', (code) => accept(code ?? 1))

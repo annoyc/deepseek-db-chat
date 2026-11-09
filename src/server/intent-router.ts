@@ -6,10 +6,8 @@
  */
 
 import { z } from 'zod'
-import { createModel, getProvider } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import type { DeepSeekModel } from '@/core'
-import type { ModelProvider } from '@/core/model/types'
 import { parseAndValidate } from '@/core/utils/json-parse'
 
 export type QueryIntent =
@@ -143,12 +141,7 @@ function fallbackClassification(reason: string, needsFilter = 0): IntentClassifi
 export async function classifyIntentWithLLM(
   userQuery: string,
   hasHistory: boolean,
-  modelConfig: {
-    provider: ModelProvider
-    model: string
-    apiKey?: string
-    baseURL?: string
-  },
+  modelConfig: AiRequestConfig,
   signal?: AbortSignal,
 ): Promise<IntentClassification> {
   signal?.throwIfAborted()
@@ -169,17 +162,12 @@ export async function classifyIntentWithLLM(
 
   let model: DeepSeekModel
   try {
-    const providerDef = getProvider(modelConfig.provider)
-    const credentials = resolveAiCredentials(modelConfig.provider, modelConfig.apiKey, modelConfig.baseURL)
-    model = createModel({
-      provider: modelConfig.provider as any,
-      model: modelConfig.model || providerDef.defaultModel,
+    model = createRequestModel(modelConfig, {
       thinking: { type: 'disabled' },
       temperature: 0,
       timeout: 15000,
       maxRetries: 0,
-      ...credentials,
-    } as any)
+    })
   } catch (err) {
     console.error('[intent-router] createModel failed:', err)
     return fallbackClassification('model creation failed')

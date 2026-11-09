@@ -134,6 +134,7 @@ export interface KnowledgeChatInput {
   model?: string
   apiKey?: string
   baseURL?: string
+  thinkingStyle?: string
 }
 
 export type KnowledgeUploadKind = 'pdf' | 'docx' | 'md' | 'txt'

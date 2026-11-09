@@ -66,8 +66,9 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
       yield { type: 'text-delta', textDelta: delta.content }
     }
 
-    if (delta.reasoning_content) {
-      yield { type: 'reasoning-delta', reasoningDelta: delta.reasoning_content }
+    const reasoningDelta = delta.reasoning_content || delta.reasoning
+    if (reasoningDelta) {
+      yield { type: 'reasoning-delta', reasoningDelta }
     }
 
     if (delta.tool_calls) {

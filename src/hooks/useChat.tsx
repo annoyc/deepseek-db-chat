@@ -12,7 +12,7 @@ import { classifyHallucination } from '@/server/functions/classify-hallucination
 import { classifyChartColumns } from '@/server/functions/classify-chart-columns'
 import { generateAiTitle } from '@/server/functions/generate-title'
 import { db } from '@/lib/db'
-import { PROVIDERS, AVAILABLE_MODELS } from '@/lib/constants'
+import { modelLabel } from '@/lib/providers'
 import { useDatabaseStore } from './useDatabase'
 import { useSettings } from './useSettings'
 
@@ -248,7 +248,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const abortControllerRef = useRef<AbortController | null>(null)
   
   const { activeConnectionId, getFullConnection, setActiveConnection, connectionsLoaded } = useDatabaseStore()
-  const { provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions } = useSettings()
+  const { provider, model, aiRequest, activeProvider, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions } = useSettings()
   const sessionsRef = useRef(sessions)
   sessionsRef.current = sessions
   const processStreamRef = useRef<((...args: any[]) => Promise<boolean>) | null>(null)
@@ -437,9 +437,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const response = await chatStream({
       signal: controller.signal,
       data: {
-        connection, message, history, provider, model,
-        apiKey: apiKey || undefined,
-        baseURL: baseURL || undefined,
+        connection, message, history,
+        ...aiRequest,
         thinkingMode, reasoningEffort, sqlPermission, executionLog,
         lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
         sqlExecutedCount: executionLog?.length ?? 0,
@@ -571,10 +570,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             hasToolCalls,
             isContinuation: hasExecutionContext,
             evidence: answerEvidence,
-            provider,
-            model,
-            apiKey: apiKey || undefined,
-            baseURL: baseURL || undefined,
+            ...aiRequest,
             sessionId,
           },
         })
@@ -605,7 +601,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     return hasSqlConfirm || hasSmartFilterConfirm
-  }, [updateSession, provider, model, apiKey, baseURL, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions, getFullConnection])
+  }, [updateSession, aiRequest, thinkingMode, reasoningEffort, sqlPermission, maxSqlExecutions, getFullConnection])
 
   processStreamRef.current = processStream
 
@@ -626,10 +622,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         data: {
           userMessage: userMsg.content,
           assistantContent: assistantMsg.content || '数据库查询操作',
-          provider,
-          model,
-          apiKey: apiKey || undefined,
-          baseURL: baseURL || undefined,
+          ...aiRequest,
           sessionId,
         },
       })
@@ -641,12 +634,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.warn('[useChat] AI title generation failed:', err)
     }
-  }, [updateSession, provider, model, apiKey, baseURL])
+  }, [updateSession, aiRequest])
 
   const markTaskComplete = useCallback((sessionId: string) => {
-    const providerName = PROVIDERS.find((p) => p.id === provider)?.name ?? provider
-    const modelEntry = AVAILABLE_MODELS.find((m) => m.id === model && m.provider === provider)
-    const modelLabel = modelEntry ? `${providerName} / ${modelEntry.name}` : model
+    const providerName = activeProvider?.name ?? provider
+    const modelEntry = activeProvider?.models.find((m) => m.id === model)
+    const answerModelLabel = `${providerName} / ${modelEntry ? modelLabel(modelEntry) : model}`
 
     updateSession(sessionId, (s) => {
       const messages = [...s.messages]
@@ -673,7 +666,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             ...messages[i],
             answerDuration: duration,
             answerQueryCount: queryCount,
-            answerModel: modelLabel,
+            answerModel: answerModelLabel,
           }
           break
         }
@@ -681,7 +674,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
       return { ...s, messages, taskEndTime: Date.now() }
     })
-  }, [updateSession, provider, model])
+  }, [updateSession, provider, model, activeProvider])
 
   const sendMessage = useCallback(async (content: string) => {
     if (!storageLoaded || !activeConnectionId || isStreaming) return
@@ -885,10 +878,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           data: {
             columns: result.columns,
             sampleRows: sanitizeModelData(result.rows.slice(0, 3)) as Record<string, unknown>[],
-            provider,
-            model,
-            apiKey: apiKey || undefined,
-            baseURL: baseURL || undefined,
+            ...aiRequest,
             sessionId: activeSessionId,
           },
         }).then((classification) => {
@@ -925,7 +915,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setStreamingSessionId((current) => current === activeSessionId ? null : current)
       }
     }
-  }, [isStreaming, activeSessionId, activeConnectionId, updateSession, runContinuation, getFullConnection, confirmAndExecuteSql, sqlPermission, provider, model, apiKey, baseURL])
+  }, [isStreaming, activeSessionId, activeConnectionId, updateSession, runContinuation, getFullConnection, confirmAndExecuteSql, sqlPermission, aiRequest])
 
   const cancelSql = useCallback((messageId: string) => {
     if (!activeSessionId) return

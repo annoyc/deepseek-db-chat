@@ -4,7 +4,7 @@ import { getChatEndpoint } from '@/core/client/endpoints'
 import { apiRequest } from '@/core/client/request'
 import { withRetry } from '@/core/client/retry'
 import { apiStreamRequest } from '@/core/client/stream-request'
-import { getProvider } from '@/core/provider'
+import { buildThinkingParams, findProvider } from '@/core/provider'
 import { buildToolParameters, validateToolConsistency } from '@/core/tool'
 import { startObservation } from '@langfuse/tracing'
 import { sanitizeModelMessages } from '@/lib/masking'
@@ -13,8 +13,8 @@ import { traceContent, traceError, traceMetadata } from '@/core/telemetry'
 function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const { messages, response_format, tools = [] } = params
   const { toolParameters, toolChoice } = buildToolParameters(tools, config.strict)
-  const provider = getProvider(config.provider ?? 'deepseek')
-  const thinkingParams = provider.buildThinkingParams(config.thinking, config.reasoningEffort)
+  const thinkingStyle = config.thinkingStyle ?? findProvider(config.provider ?? 'deepseek')?.thinkingStyle ?? 'none'
+  const thinkingParams = buildThinkingParams(thinkingStyle, config.thinking, config.reasoningEffort)
 
   return omitBy({
     messages: sanitizeModelMessages(messages),
