@@ -85,3 +85,26 @@ test('a rejected thinking parameter suggests switching the style off', async () 
   assert.deepEqual(result.checks.map(c => [c.key, c.status]), [['tools', 'pass'], ['json', 'pass'], ['thinking', 'fail']])
   assert.match(result.checks[2].detail!, /不发送/)
 })
+
+test('an empty JSON-mode reply is retried once; non-JSON replies are previewed', async () => {
+  let jsonCalls = 0
+  mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body))
+    if (body.stream) return toolCallStream('report_status')
+    if (body.response_format) return completion(jsonCalls++ === 0 ? '' : "{ok: true}")
+    return completion('ok')
+  })
+  const recovered = await testProviderConnection(request('none'))
+  assert.equal(jsonCalls, 2)
+  assert.deepEqual(recovered.checks.map(c => [c.key, c.status]), [['tools', 'pass'], ['json', 'pass']])
+
+  mock.restoreAll()
+  mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body))
+    if (body.stream) return toolCallStream('report_status')
+    return completion('Sure! Here is the answer you asked for.')
+  })
+  const failed = await testProviderConnection(request('none'))
+  assert.equal(failed.checks[1].status, 'fail')
+  assert.match(failed.checks[1].detail!, /「Sure! Here is the answer/)
+})
