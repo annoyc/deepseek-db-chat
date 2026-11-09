@@ -147,7 +147,7 @@ Every provider speaks the OpenAI Chat Completions protocol; the only difference 
 - **Server-managed**: DeepSeek is built in (`DEEPSEEK_API_KEY`). Add more with `AI_PROVIDERS`, a JSON array whose entries reference their key via `apiKeyEnv` (see `.env.example`). The legacy `BAILIAN_API_KEY` still registers Alibaba Cloud Bailian. Server keys are only ever sent to the server-configured endpoint.
 - **User-added**: Settings → 模型服务 → 添加, optionally from a template, with Base URL, API key and models (or "fetch from service"). Custom providers only ever use the user's own key, never a server key. A Bailian key previously saved in the browser is migrated to a custom provider automatically.
 
-The app relies on tool calling and JSON output, so pick models that support both.
+The app relies on tool calling and JSON output, so pick models that support both. "测试连接" (Test connection) in Settings probes streamed tool calls, JSON output and the thinking parameter with the values currently in the form and explains any failure.
 
 ---
 

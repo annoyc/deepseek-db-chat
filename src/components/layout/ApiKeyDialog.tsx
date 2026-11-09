@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Eye, EyeOff, Server, Lock, Loader2, Globe, Plus, Trash2, RefreshCw } from 'lucide-react'
+import { X, Eye, EyeOff, Server, Lock, Loader2, Globe, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import type { ProviderConfig } from '@/hooks/useSettings'
-import { listProviderModels } from '@/server/functions/settings'
+import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
+import type { ConnectionTestResult } from '@/server/providers'
 import { encryptPasswordFn } from '@/server/functions/crypto'
 import {
   createCustomProviderId,
@@ -12,6 +13,7 @@ import {
   THINKING_STYLE_LABELS,
   validateBaseURL,
   type CustomProvider,
+  type ProviderModel,
   type ProviderTemplate,
   type ServerProvider,
   type ThinkingStyle,
@@ -107,9 +109,99 @@ function SavedKeyNotice({ onClear }: { onClear: () => void }) {
   )
 }
 
-function ServerProviderForm({ provider, draft, onChange, onClearKey }: {
+interface ConnectionRequest {
+  provider: string
+  apiKey?: string
+  baseURL?: string
+  thinkingStyle?: ThinkingStyle
+}
+
+async function encryptIfTyped(typed: string, saved: string | undefined): Promise<string | undefined> {
+  const trimmed = typed.trim()
+  if (trimmed) return (await encryptPasswordFn({ data: { password: trimmed } })).encrypted
+  return saved || undefined
+}
+
+/** Probes the request shapes the app depends on, using the values currently in the form. */
+function ConnectionTester({ models, buildRequest }: {
+  models: ProviderModel[]
+  /** Throws an Error whose message explains what is missing. */
+  buildRequest: () => Promise<ConnectionRequest>
+}) {
+  const [selected, setSelected] = useState('')
+  const [running, setRunning] = useState(false)
+  const [result, setResult] = useState<ConnectionTestResult | null>(null)
+  const [error, setError] = useState('')
+  const model = models.some((m) => m.id === selected) ? selected : (models[0]?.id ?? '')
+
+  const handleTest = async () => {
+    setError('')
+    setResult(null)
+    if (!model) { setError('请先添加至少一个模型'); return }
+    setRunning(true)
+    try {
+      const request = await buildRequest()
+      setResult(await testProviderConnectionFn({ data: { ...request, model } }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '测试失败，请重试')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border border-gray-200 p-3">
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-sm font-medium text-gray-700">连接测试</span>
+        <select
+          value={model}
+          onChange={(e) => { setSelected(e.target.value); setResult(null) }}
+          disabled={running || models.length === 0}
+          aria-label="测试使用的模型"
+          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
+        >
+          {models.length === 0 && <option value="">尚未添加模型</option>}
+          {models.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}
+        </select>
+        <button
+          type="button"
+          onClick={handleTest}
+          disabled={running}
+          className="flex shrink-0 items-center gap-1 rounded-lg border border-primary/40 px-2.5 py-1.5 text-xs font-medium text-primary hover:bg-primary/5 disabled:opacity-50"
+        >
+          {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Activity className="w-3.5 h-3.5" />}
+          {running ? '测试中…' : '测试连接'}
+        </button>
+      </div>
+      <p className="text-xs text-gray-400">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      {result && (
+        <ul className="space-y-1.5" aria-label="连接测试结果">
+          {result.checks.map((check) => (
+            <li key={check.key} className="flex items-start gap-1.5 text-xs">
+              {check.status === 'pass' && <CircleCheck className="mt-px h-3.5 w-3.5 shrink-0 text-green-600" />}
+              {check.status === 'fail' && <CircleX className="mt-px h-3.5 w-3.5 shrink-0 text-red-500" />}
+              {check.status === 'skip' && <CircleMinus className="mt-px h-3.5 w-3.5 shrink-0 text-gray-400" />}
+              <div className="min-w-0">
+                <span className={check.status === 'fail' ? 'text-red-700' : 'text-gray-700'}>{check.label}</span>
+                {check.latencyMs !== undefined && <span className="ml-1 text-gray-400 tabular-nums">{(check.latencyMs / 1000).toFixed(1)}s</span>}
+                {check.detail && <div className="break-words text-gray-500">{check.detail}</div>}
+              </div>
+            </li>
+          ))}
+          <li className={`pt-0.5 text-xs font-medium ${result.ok ? 'text-green-700' : 'text-amber-700'}`}>
+            {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
+          </li>
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function ServerProviderForm({ provider, draft, savedApiKey, onChange, onClearKey }: {
   provider: ServerProvider
   draft: ServerDraft
+  savedApiKey?: string
   onChange: (partial: Partial<ServerDraft>) => void
   onClearKey: () => void
 }) {
@@ -160,6 +252,22 @@ function ServerProviderForm({ provider, draft, onChange, onClearKey }: {
           留空则使用服务器配置的地址。填写自定义地址时，需要同时提供自有 API Key。
         </p>
       </div>
+
+      <ConnectionTester
+        models={provider.models}
+        buildRequest={async () => {
+          const baseURL = draft.baseURLInput.trim()
+          if (baseURL) {
+            const urlError = validateBaseURL(baseURL)
+            if (urlError) throw new Error(urlError)
+          }
+          return {
+            provider: provider.id,
+            apiKey: await encryptIfTyped(draft.apiKeyInput, draft.hasSavedKey ? savedApiKey : undefined),
+            baseURL: baseURL || undefined,
+          }
+        }}
+      />
     </div>
   )
 }
@@ -180,7 +288,7 @@ function CustomProviderForm({ draft, onChange, onRemove }: {
     if (!typedKey && !draft.savedApiKey) { setFetchMessage('请先填写 API Key'); return }
     setFetching(true)
     try {
-      const apiKey = typedKey ? (await encryptPasswordFn({ data: { password: typedKey } })).encrypted : draft.savedApiKey
+      const apiKey = await encryptIfTyped(typedKey, draft.savedApiKey)
       const ids = await listProviderModels({ data: { provider: draft.id, apiKey, baseURL: draft.baseURL.trim(), thinkingStyle: draft.thinkingStyle } })
       const existing = parseModelList(draft.modelsText)
       const known = new Set(existing.map((m) => m.id))
@@ -265,6 +373,17 @@ function CustomProviderForm({ draft, onChange, onRemove }: {
         <p className="text-xs text-gray-400 mt-1">第一个模型为默认模型。本应用依赖工具调用（function calling），请选择支持工具调用的模型。</p>
         {fetchMessage && <p className="text-xs text-gray-600 mt-1">{fetchMessage}</p>}
       </div>
+
+      <ConnectionTester
+        models={parseModelList(draft.modelsText)}
+        buildRequest={async () => {
+          const urlError = validateBaseURL(draft.baseURL)
+          if (urlError) throw new Error(urlError)
+          const apiKey = await encryptIfTyped(draft.apiKeyInput, draft.savedApiKey)
+          if (!apiKey) throw new Error('请先填写 API Key')
+          return { provider: draft.id, apiKey, baseURL: draft.baseURL.trim(), thinkingStyle: draft.thinkingStyle }
+        }}
+      />
 
       <div className="flex justify-end">
         <button
@@ -465,7 +584,9 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           {activeServer && (
             <ServerProviderForm
               provider={activeServer}
+              key={activeServer.id}
               draft={serverDrafts[activeServer.id] ?? EMPTY_SERVER_DRAFT}
+              savedApiKey={providerConfigs[activeServer.id]?.apiKey}
               onChange={(partial) => updateServerDraft(activeServer.id, partial)}
               onClearKey={() => handleClearServerKey(activeServer.id)}
             />

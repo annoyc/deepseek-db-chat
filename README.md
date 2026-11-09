@@ -153,7 +153,7 @@ DEMO_DB_DATABASE=deepseek_demo
 - **服务器托管**：内置 DeepSeek（`DEEPSEEK_API_KEY`）。其他服务通过 `AI_PROVIDERS`（JSON 数组）配置，密钥放在各自的环境变量里，由 `apiKeyEnv` 引用，示例见 `.env.example`。旧的 `BAILIAN_API_KEY` 仍然有效，会自动注册"阿里云百炼"。服务器密钥只会发往服务器配置的地址。
 - **用户自行添加**：设置 → 模型服务 → 添加，可从模板（百炼、硅基流动、OpenRouter）开始，填写 Base URL、API Key 与模型（可"从服务获取"）。自定义服务只使用用户自己的 Key，永远不会使用服务器密钥。之前在浏览器里填过百炼 Key 的用户，会自动迁移为一个自定义服务。
 
-本应用依赖工具调用（function calling）与 JSON 输出，请选择支持这两项能力的模型。
+本应用依赖工具调用（function calling）与 JSON 输出，请选择支持这两项能力的模型。设置中的「测试连接」会用当前填写的配置依次检查流式工具调用、JSON 输出和思考参数，并给出未通过项的原因。
 
 ---
 

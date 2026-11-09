@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { THINKING_STYLES } from '@/core/provider'
-import { checkServerKey, describeServerProviders, fetchProviderModels, type ServerProviderInfo } from '@/server/providers'
+import { checkServerKey, describeServerProviders, fetchProviderModels, testProviderConnection, type ConnectionTestResult, type ServerProviderInfo } from '@/server/providers'
 import { z } from 'zod'
 
 const providerIdSchema = z.string().max(64)
@@ -28,3 +28,14 @@ export const listProviderModels = createServerFn({ method: 'POST' })
     thinkingStyle: z.enum(THINKING_STYLES).optional(),
   }).parse(data))
   .handler(async ({ data }): Promise<string[]> => fetchProviderModels(data, getRequest().signal))
+
+/** Probe streaming + tool calls, JSON output and the thinking parameter for one model. */
+export const testProviderConnectionFn = createServerFn({ method: 'POST' })
+  .inputValidator((data: { provider: string; model: string; apiKey?: string; baseURL?: string; thinkingStyle?: string }) => z.object({
+    provider: providerIdSchema,
+    model: z.string().trim().min(1).max(200),
+    apiKey: z.string().max(40_000).optional(),
+    baseURL: z.string().max(2_048).optional(),
+    thinkingStyle: z.enum(THINKING_STYLES).optional(),
+  }).parse(data))
+  .handler(async ({ data }): Promise<ConnectionTestResult> => testProviderConnection(data, getRequest().signal))
