@@ -1,6 +1,5 @@
 import type { KnowledgeBase } from './knowledge-base'
-import { MIN_KEYWORD_COVERAGE } from '@/lib/retrieval/bm25'
-import { tokenizeQuery } from '@/lib/retrieval/tokenizer'
+import { KEYWORD_RELEVANCE, NO_RELEVANCE_GATE, type RelevanceGate } from '@/lib/retrieval/bm25'
 import type { KbChunk, KbDocumentMeta } from './types'
 
 export const RRF_K = 60
@@ -26,11 +25,11 @@ export interface RetrieveOptions {
   /** Vector hits below this cosine similarity are dropped. */
   minSimilarity?: number
   /**
-   * Built-in keyword hits matching less of the query (IDF-weighted) are dropped; see
-   * MIN_KEYWORD_COVERAGE. Upload candidates were already checked in the browser against
-   * all of the user's documents, which gives better term statistics than the candidates alone.
+   * Built-in keyword hits failing this gate are dropped; see KEYWORD_RELEVANCE. Upload
+   * candidates were already checked in the browser against all of the user's documents,
+   * which gives better term statistics than the candidates alone.
    */
-  minCoverage?: number
+  relevance?: RelevanceGate
   /** Further ranked lists of chunk ids to fuse, e.g. the browser's ranking of uploaded chunks. */
   extraRankings?: string[][]
   /** Documents left out entirely, e.g. default documents the user removed. */
@@ -80,8 +79,8 @@ export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: stri
     const excluded = options.excludeDocIds
     const include = (index: number) => !excluded?.has(kb.chunks[index].docId)
     queries.forEach((query, q) => {
-      const minCoverage = kb.source === 'upload' ? 0 : options.minCoverage ?? MIN_KEYWORD_COVERAGE
-      const keyword = kb.bm25.search(tokenizeQuery(query), candidates, { include, minCoverage })
+      const gate = kb.source === 'upload' ? NO_RELEVANCE_GATE : options.relevance ?? KEYWORD_RELEVANCE
+      const keyword = kb.bm25.search(kb.tokenizer.tokenizeQuery(query), candidates, { include, gate })
       rankings.push(keyword.map(({ index }, rank) => {
         const id = kb.chunks[index].id
         bm25Rank.set(id, Math.min(bm25Rank.get(id) ?? Infinity, rank + 1))

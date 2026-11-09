@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { Bm25Index } from '@/lib/retrieval/bm25'
 import { chunkSearchText } from './chunker'
 import { decodeVectors } from './index-builder'
-import { tokenize } from '@/lib/retrieval/tokenizer'
+import { defaultTokenizer, type Tokenizer } from '@/lib/retrieval/tokenizer'
 import { embeddingKey } from '@/lib/knowledge-documents'
 import type { KnowledgeUserChunkCandidate } from '@/lib/knowledge-types'
 import type { KbChunk, KbDocumentMeta, KbEmbeddingInfo, KbIndexFile } from './types'
@@ -14,19 +14,29 @@ export interface KnowledgeBase {
   documents: Map<string, KbDocumentMeta>
   chunks: KbChunk[]
   bm25: Bm25Index
+  /** The tokenizer the BM25 index was built with; queries must use the same one. */
+  tokenizer: Tokenizer
   /** Unit-length vectors, `dimensions` floats per chunk, when the index was embedded. */
   vectors?: Float32Array
   embedding?: KbEmbeddingInfo
 }
 
-export function createKnowledgeBase(index: KbIndexFile): KnowledgeBase {
+export interface KnowledgeBaseOptions {
+  tokenizer?: Tokenizer
+  /** Text indexed for each chunk; the default prefixes the title and heading path. */
+  searchText?: (meta: KbDocumentMeta, chunk: KbChunk) => string
+}
+
+export function createKnowledgeBase(index: KbIndexFile, options: KnowledgeBaseOptions = {}): KnowledgeBase {
+  const tokenizer = options.tokenizer ?? defaultTokenizer
+  const searchText = options.searchText ?? chunkSearchText
   if (index.version !== 1) throw new Error(`Unsupported knowledge index version: ${String(index.version)}`)
   const documents = new Map(index.documents.map(({ hash: _hash, ...meta }) => [meta.id, meta as KbDocumentMeta]))
   for (const chunk of index.chunks) {
     if (!documents.has(chunk.docId)) throw new Error(`Chunk ${chunk.id} references unknown document ${chunk.docId}`)
   }
-  const bm25 = new Bm25Index(index.chunks.map(chunk => tokenize(chunkSearchText(documents.get(chunk.docId)!, chunk))))
-  const base: KnowledgeBase = { corpusHash: index.corpusHash, documents, chunks: index.chunks, bm25 }
+  const bm25 = new Bm25Index(index.chunks.map(chunk => tokenizer.tokenize(searchText(documents.get(chunk.docId)!, chunk))))
+  const base: KnowledgeBase = { corpusHash: index.corpusHash, documents, chunks: index.chunks, bm25, tokenizer }
   if (!index.embedding) return base
   const { vectors, ...embedding } = index.embedding
   return { ...base, embedding, vectors: decodeVectors(vectors, index.chunks.length, embedding.dimensions) }
@@ -40,8 +50,8 @@ export function createUploadKnowledgeBase(candidates: KnowledgeUserChunkCandidat
   const documents = new Map<string, KbDocumentMeta>()
   for (const candidate of candidates) documents.set(candidate.docId, { id: candidate.docId, title: candidate.docTitle })
   const chunks: KbChunk[] = candidates.map(c => ({ id: c.id, docId: c.docId, headings: c.headings, label: c.label, text: c.text, hash: '' }))
-  const bm25 = new Bm25Index(chunks.map(chunk => tokenize(chunkSearchText(documents.get(chunk.docId)!, chunk))))
-  const base: KnowledgeBase = { source: 'upload', corpusHash: '', documents, chunks, bm25 }
+  const bm25 = new Bm25Index(chunks.map(chunk => defaultTokenizer.tokenize(chunkSearchText(documents.get(chunk.docId)!, chunk))))
+  const base: KnowledgeBase = { source: 'upload', corpusHash: '', documents, chunks, bm25, tokenizer: defaultTokenizer }
   if (!embedding) return base
   const key = embeddingKey(embedding)
   const usable = candidates.filter(c => c.vector && c.embeddingKey === key)

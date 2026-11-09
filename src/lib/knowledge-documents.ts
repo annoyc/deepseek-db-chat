@@ -1,4 +1,4 @@
-import { Bm25Index, MIN_KEYWORD_COVERAGE } from '@/lib/retrieval/bm25'
+import { Bm25Index, KEYWORD_RELEVANCE } from '@/lib/retrieval/bm25'
 import { chunkSearchText } from '@/lib/retrieval/search-text'
 import { tokenize, tokenizeQuery } from '@/lib/retrieval/tokenizer'
 import type { KnowledgeUploadedDocument, KnowledgeUploadKind, KnowledgeUploadLimits, KnowledgeUserChunkCandidate } from './knowledge-types'
@@ -61,7 +61,7 @@ export function createUploadSearchIndex(documents: KnowledgeUploadedDocument[]):
       // Each query is ranked on its own so a long earlier question cannot dilute the current one.
       const best = new Map<number, number>()
       for (const query of queries.filter(q => q.trim())) {
-        bm25.search(tokenizeQuery(query), limit, { minCoverage: MIN_KEYWORD_COVERAGE }).forEach(({ index }, rank) => {
+        bm25.search(tokenizeQuery(query), limit, { gate: KEYWORD_RELEVANCE }).forEach(({ index }, rank) => {
           best.set(index, Math.min(best.get(index) ?? Infinity, rank))
         })
       }
