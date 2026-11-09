@@ -1,0 +1,89 @@
+{"id": "lookup-01", "category": "lookup", "question": "电力中长期市场按什么周期结算？", "gold": [["mid-long-term-market-2025:第七十二条"]]}
+{"id": "lookup-02", "category": "lookup", "question": "月度交易的电网安全校核要在几个工作日内完成？", "gold": [["mid-long-term-market-2025:第六十条", "mid-long-term-market-2025:第六十二条"]]}
+{"id": "lookup-03", "category": "lookup", "question": "售电公司注册信息发生变化后，多长时间内要申请变更？", "gold": [["retail-company-2021:第十四条"]]}
+{"id": "lookup-04", "category": "lookup", "question": "售电公司每年什么时候前要披露持续满足注册条件的信息？", "gold": [["retail-company-2021:第十八条"]]}
+{"id": "lookup-05", "category": "lookup", "question": "售电公司自愿退出售电市场需要提前多少个工作日申请？", "gold": [["retail-company-2021:第三十一条"]]}
+{"id": "lookup-06", "category": "lookup", "question": "售电公司退出后，履约保函保留多长时间？", "gold": [["retail-company-2021:第三十五条"]]}
+{"id": "lookup-07", "category": "lookup", "question": "连续多长时间没有实际交易的售电公司会被暂停交易资格？", "gold": [["retail-company-2021:第二十七条"]]}
+{"id": "lookup-08", "category": "lookup", "question": "同一合同周期内，电力用户可以与几家售电公司确立零售服务关系？", "gold": [["retail-company-2021:第二十条"]]}
+{"id": "lookup-09", "category": "lookup", "question": "电力辅助服务费用的追退补应在多长时间内完成？", "gold": [["ancillary-service-market-2025:第五十一条"]]}
+{"id": "lookup-10", "category": "lookup", "question": "经营主体对辅助服务市场披露的信息有异议，应在多少个工作日内申请复核？", "gold": [["ancillary-service-market-2025:第五十三条"]]}
+{"id": "lookup-11", "category": "lookup", "question": "电力辅助服务结算采用什么方式？", "gold": [["ancillary-service-market-2025:第四十七条"]]}
+{"id": "lookup-12", "category": "lookup", "question": "电力辅助服务市场品种主要包括哪些？", "gold": [["ancillary-service-market-2025:第二十七条", "power-market-operation-2024:第十二条"]]}
+{"id": "lookup-13", "category": "lookup", "question": "电力市场交易类型包括哪些？", "gold": [["power-market-operation-2024:第十条"]]}
+{"id": "lookup-14", "category": "lookup", "question": "电能量交易按交易周期分为哪几类？", "gold": [["power-market-operation-2024:第十一条"]]}
+{"id": "lookup-15", "category": "lookup", "question": "电力市场管理委员会的定位是什么？", "gold": [["power-market-operation-2024:第九条"]]}
+{"id": "lookup-16", "category": "lookup", "question": "电力市场信息披露应遵循哪些原则？", "gold": [["power-market-operation-2024:第三十八条"]]}
+{"id": "lookup-17", "category": "lookup", "question": "电力现货市场一般包括哪些市场？", "gold": [["spot-market-2023:第二十九条"]]}
+{"id": "lookup-18", "category": "lookup", "question": "现货市场可以选择哪些边际电价机制？", "gold": [["spot-market-2023:第三十一条"]]}
+{"id": "lookup-19", "category": "lookup", "question": "现货市场中发电侧价格由什么构成？", "gold": [["spot-market-2023:第三十三条"]]}
+{"id": "lookup-20", "category": "lookup", "question": "直接参与交易的用户侧用电价格由哪些部分构成？", "gold": [["spot-market-2023:第三十四条"]]}
+{"id": "lookup-21", "category": "lookup", "question": "无正当理由退出市场的经营主体多长时间内不得申请市场准入？", "gold": [["spot-market-2023:第二十五条"]]}
+{"id": "lookup-22", "category": "lookup", "question": "电网企业代理工商业用户购电的偏差电量按什么价格结算？", "gold": [["spot-market-2023:第六十二条"]]}
+{"id": "lookup-23", "category": "lookup", "question": "经营主体对中长期交易成交结果有异议，应在多长时间内提出？", "gold": [["mid-long-term-market-2025:第六十三条"]]}
+{"id": "lookup-24", "category": "lookup", "question": "电力市场披露的信息保留或可供查询的时间不少于多久？", "gold": [["mid-long-term-market-2025:第八十一条"]]}
+{"id": "lookup-25", "category": "lookup", "question": "同一经营主体在同一交易序列同一时段能否既买入又卖出？", "gold": [["mid-long-term-market-2025:第三十条"]]}
+{"id": "lookup-26", "category": "lookup", "question": "跨电网经营区电力中长期交易由谁组织？", "gold": [["mid-long-term-market-2025:第四十条"]]}
+{"id": "lookup-27", "category": "lookup", "question": "售电公司参与绿电交易有什么要求？", "gold": [["mid-long-term-market-2025:第五十三条"]]}
+{"id": "definition-01", "category": "definition", "question": "什么是节点边际电价？", "gold": [["spot-market-2023:名词解释7", "spot-market-2023:第三十一条"]]}
+{"id": "definition-02", "category": "definition", "question": "分区边际电价是什么意思？", "gold": [["spot-market-2023:名词解释8", "spot-market-2023:第三十一条"]]}
+{"id": "definition-03", "category": "definition", "question": "阻塞费用是怎么定义的？", "gold": [["spot-market-2023:名词解释17", "spot-market-2023:第三十六条"]]}
+{"id": "definition-04", "category": "definition", "question": "日前市场指的是什么？", "gold": [["spot-market-2023:名词解释10"]]}
+{"id": "definition-05", "category": "definition", "question": "什么是履约保函？", "gold": [["spot-market-2023:名词解释21", "retail-company-2021:第二十四条"]]}
+{"id": "definition-06", "category": "definition", "question": "绿色电力指的是哪些电量？", "gold": [["mid-long-term-market-2025:名词解释7", "mid-long-term-market-2025:第二十六条"]]}
+{"id": "definition-07", "category": "definition", "question": "什么是挂牌交易？", "gold": [["mid-long-term-market-2025:名词解释6"]]}
+{"id": "definition-08", "category": "definition", "question": "滚动撮合交易是什么？", "gold": [["mid-long-term-market-2025:名词解释5"]]}
+{"id": "definition-09", "category": "definition", "question": "新型经营主体包括哪些？", "gold": [["mid-long-term-market-2025:名词解释1", "ancillary-service-market-2025:第七条"]]}
+{"id": "definition-10", "category": "definition", "question": "爬坡服务是什么？", "gold": [["ancillary-service-market-2025:第三十一条"]]}
+{"id": "definition-11", "category": "definition", "question": "调峰服务是指什么？", "gold": [["ancillary-service-market-2025:第二十八条"]]}
+{"id": "definition-12", "category": "definition", "question": "容量交易的标的是什么？", "gold": [["power-market-operation-2024:第十三条"]]}
+{"id": "definition-13", "category": "definition", "question": "什么是电力辅助服务？", "gold": [["ancillary-service-market-2025:第三条", "power-market-operation-2024:第十二条", "power-market-operation-2024:第十九条"]]}
+{"id": "definition-14", "category": "definition", "question": "售电公司是指什么样的市场主体？", "gold": [["retail-company-2021:第三条"]]}
+{"id": "paraphrase-01", "category": "paraphrase", "question": "售电公司是干啥的？", "gold": [["retail-company-2021:第三条"]]}
+{"id": "paraphrase-02", "category": "paraphrase", "question": "开一家售电公司最少得有多少钱的资产？", "gold": [["retail-company-2021:第五条"]]}
+{"id": "paraphrase-03", "category": "paraphrase", "question": "售电公司要招多少人才能注册？", "gold": [["retail-company-2021:第五条"]]}
+{"id": "paraphrase-04", "category": "paraphrase", "question": "现货电价有没有封顶，最高能报到多少？", "gold": [["spot-market-2023:第三十八条", "spot-market-2023:第三十九条", "spot-market-2023:第三十七条", "spot-market-2023:名词解释9"]]}
+{"id": "paraphrase-05", "category": "paraphrase", "question": "买绿电能拿到绿证吗？", "gold": [["mid-long-term-market-2025:第二十六条", "mid-long-term-market-2025:第七十九条"]]}
+{"id": "paraphrase-06", "category": "paraphrase", "question": "绿电的钱是怎么算的？", "gold": [["mid-long-term-market-2025:第七十七条", "mid-long-term-market-2025:第七十八条", "mid-long-term-market-2025:第三十三条"]]}
+{"id": "paraphrase-07", "category": "paraphrase", "question": "我们厂想同时找两家售电公司代理，行不行？", "gold": [["retail-company-2021:第二十条"]]}
+{"id": "paraphrase-08", "category": "paraphrase", "question": "售电公司被清退了，之前签的合同怎么办？", "gold": [["retail-company-2021:第三十条", "retail-company-2021:第二十六条"]]}
+{"id": "paraphrase-09", "category": "paraphrase", "question": "独立储能参与辅助服务，费用怎么分摊？", "gold": [["ancillary-service-market-2025:第四十一条"]]}
+{"id": "paraphrase-10", "category": "paraphrase", "question": "辅助服务的钱最后由谁来出？", "gold": [["ancillary-service-market-2025:第四十条", "ancillary-service-market-2025:第三十九条", "spot-market-2023:第六十六条"]]}
+{"id": "paraphrase-11", "category": "paraphrase", "question": "电网出了紧急状况，调度还用按合同来吗？", "gold": [["mid-long-term-market-2025:第六十八条"]]}
+{"id": "paraphrase-12", "category": "paraphrase", "question": "电价涨得离谱的时候政府能出手管吗？", "gold": [["spot-market-2023:第一百一十二条", "spot-market-2023:第一百一十七条", "mid-long-term-market-2025:第九十二条"]]}
+{"id": "paraphrase-13", "category": "paraphrase", "question": "忘了按时报价会怎么样？", "gold": [["spot-market-2023:第四十九条"]]}
+{"id": "paraphrase-14", "category": "paraphrase", "question": "电表不准，校验的费用谁来出？", "gold": [["power-market-operation-2024:第二十四条"]]}
+{"id": "paraphrase-15", "category": "paraphrase", "question": "找了售电公司以后，原来和电网签的供电合同还算数吗？", "gold": [["retail-company-2021:第二十一条"]]}
+{"id": "paraphrase-16", "category": "paraphrase", "question": "交易机构和调度各自负责哪种校核？", "gold": [["mid-long-term-market-2025:第五十六条"]]}
+{"id": "paraphrase-17", "category": "paraphrase", "question": "风电光伏出力忽高忽低，有专门应对的辅助服务吗？", "gold": [["ancillary-service-market-2025:第三十一条", "ancillary-service-market-2025:第二十八条"]]}
+{"id": "paraphrase-18", "category": "paraphrase", "question": "售电公司干不下去了想关门，怎么退出？", "gold": [["retail-company-2021:第三十一条", "retail-company-2021:第三十二条", "retail-company-2021:第三十三条"]]}
+{"id": "multi-01", "category": "multi", "question": "中长期市场和现货市场怎么衔接？", "gold": [["spot-market-2023:第五十八条", "spot-market-2023:第五十九条"], ["mid-long-term-market-2025:第六条", "mid-long-term-market-2025:第七十三条"]], "notes": "两份文件各有规定"}
+{"id": "multi-02", "category": "multi", "question": "辅助服务市场和现货市场是联合出清还是分开出清？", "gold": [["ancillary-service-market-2025:第四十四条"], ["spot-market-2023:第六十四条"]]}
+{"id": "multi-03", "category": "multi", "question": "现货市场运行的地区，辅助服务费用由谁承担？", "gold": [["spot-market-2023:第六十六条"], ["ancillary-service-market-2025:第四十条"]]}
+{"id": "multi-04", "category": "multi", "question": "售电公司履约保函的金额怎么确定？不交会怎样？", "gold": [["retail-company-2021:第二十四条"], ["retail-company-2021:第二十六条"]]}
+{"id": "multi-05", "category": "multi", "question": "售电公司注册要经过哪些步骤？", "gold": [["retail-company-2021:第八条", "retail-company-2021:第九条"], ["retail-company-2021:第十条"], ["retail-company-2021:第十一条"]]}
+{"id": "multi-06", "category": "multi", "question": "电力市场风险分为哪些类型？现货规则和中长期规则的分类一样吗？", "gold": [["mid-long-term-market-2025:第八十九条", "mid-long-term-market-2025:名词解释8"], ["spot-market-2023:第一百〇六条"]]}
+{"id": "multi-07", "category": "multi", "question": "绿电交易合同要写明哪些内容，环境价值部分怎么结算？", "gold": [["mid-long-term-market-2025:第六十六条"], ["mid-long-term-market-2025:第七十八条"]]}
+{"id": "multi-08", "category": "multi", "question": "电网安全校核没通过会怎么处理，削减要多久完成？", "gold": [["mid-long-term-market-2025:第六十一条"], ["mid-long-term-market-2025:第六十二条"]]}
+{"id": "multi-09", "category": "multi", "question": "售电公司和电力用户怎么建立零售关系，用户能同时绑定几家？", "gold": [["retail-company-2021:第十九条"], ["retail-company-2021:第二十条"]]}
+{"id": "multi-10", "category": "multi", "question": "辅助服务市场有哪些品种，各自的费用怎么计算？", "gold": [["ancillary-service-market-2025:第二十七条", "power-market-operation-2024:第十二条"], ["ancillary-service-market-2025:第三十七条"]]}
+{"id": "validity-01", "category": "validity", "question": "电力现货市场基本规则的有效期到什么时候？", "gold": [["spot-market-2023:第一百二十九条"]], "notes": "2026-10-15 已到期"}
+{"id": "validity-02", "category": "validity", "question": "电力中长期市场基本规则从什么时候开始施行？", "gold": [["mid-long-term-market-2025:第九十八条"]]}
+{"id": "validity-03", "category": "validity", "question": "售电公司管理办法的有效期是多久？", "gold": [["retail-company-2021:第四十六条"]]}
+{"id": "validity-04", "category": "validity", "question": "电力市场运行基本规则施行后废止了哪个文件？", "gold": [["power-market-operation-2024:第四十五条"]]}
+{"id": "validity-05", "category": "validity", "question": "原来的绿色电力交易专章现在还适用吗？", "gold": [["mid-long-term-market-2025:第九十八条"]]}
+{"id": "followup-01", "category": "followup", "question": "那注册信息变了怎么办？", "history": [{"role": "user", "content": "售电公司注册需要满足什么条件？"}, {"role": "assistant", "content": "售电公司注册需要满足企业法人、资产、从业人员、经营场所和技术支持系统、信用等条件。"}], "gold": [["retail-company-2021:第十四条"]]}
+{"id": "followup-02", "category": "followup", "question": "它的费用怎么算？", "history": [{"role": "user", "content": "什么是爬坡服务？"}, {"role": "assistant", "content": "爬坡服务是经营主体为应对可再生能源发电波动等带来的净负荷短时大幅变化，根据调度指令调整出力的服务。"}], "gold": [["ancillary-service-market-2025:第三十七条"]]}
+{"id": "followup-03", "category": "followup", "question": "那环境价值部分按多少电量结算？", "history": [{"role": "user", "content": "绿电交易价格由什么组成？"}, {"role": "assistant", "content": "绿电交易价格由电能量价格与绿电环境价值组成，并在交易中分别明确。"}], "gold": [["mid-long-term-market-2025:第七十八条"]]}
+{"id": "followup-04", "category": "followup", "question": "需要提前多久申请？", "history": [{"role": "user", "content": "售电公司可以自愿退出售电市场吗？"}, {"role": "assistant", "content": "可以，售电公司可自愿申请退出售电市场。"}], "gold": [["retail-company-2021:第三十一条"]]}
+{"id": "followup-05", "category": "followup", "question": "其中第一个是什么意思？", "history": [{"role": "user", "content": "现货市场一般包括哪些市场？"}, {"role": "assistant", "content": "现货市场一般包括日前市场、日内市场和实时市场。"}], "gold": [["spot-market-2023:名词解释10"]]}
+{"id": "out_of_scope-01", "category": "out_of_scope", "question": "今天杭州天气怎么样？", "gold": []}
+{"id": "out_of_scope-02", "category": "out_of_scope", "question": "帮我写一首关于春天的诗", "gold": []}
+{"id": "out_of_scope-03", "category": "out_of_scope", "question": "怎么申请家用光伏发电补贴？", "gold": []}
+{"id": "out_of_scope-04", "category": "out_of_scope", "question": "电动汽车充电桩的电价一度多少钱？", "gold": []}
+{"id": "out_of_scope-05", "category": "out_of_scope", "question": "Python 怎么读取 Excel 文件？", "gold": []}
+{"id": "out_of_scope-06", "category": "out_of_scope", "question": "股票的涨跌停规则是什么？", "gold": []}
+{"id": "out_of_scope-07", "category": "out_of_scope", "question": "北京地铁几点停运？", "gold": []}
+{"id": "out_of_scope-08", "category": "out_of_scope", "question": "个人所得税怎么申报？", "gold": []}
+{"id": "out_of_scope-09", "category": "out_of_scope", "question": "张三的博客链接是什么？", "gold": []}
+{"id": "out_of_scope-10", "category": "out_of_scope", "question": "最近煤炭价格是涨还是跌？", "gold": []}

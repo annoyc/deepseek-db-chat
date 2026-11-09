@@ -15,6 +15,7 @@
     "eval": "node scripts/run-evals.mjs runner",
     "eval:report": "node scripts/run-evals.mjs report",
     "eval:html": "node scripts/run-evals.mjs report-html",
+    "eval:kb": "node scripts/run-evals.mjs knowledge",
     "kb:ingest": "node scripts/run-kb.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },

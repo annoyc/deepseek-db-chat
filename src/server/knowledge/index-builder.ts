@@ -1,4 +1,4 @@
-import { chunkDocument, chunkSearchText, contentHash } from './chunker'
+import { chunkDocument, chunkSearchText, contentHash, type ChunkOptions } from './chunker'
 import type { Embedder } from './embedding'
 import type { KbDocument, KbEmbeddingInfo, KbIndexFile } from './types'
 
@@ -25,6 +25,8 @@ export interface BuildIndexOptions {
   /** Vectors of unchanged chunks are reused from here if it was built with the same model. */
   previous?: KbIndexFile
   onProgress?: (message: string) => void
+  /** Chunking parameters; the default is what the app ships with. */
+  chunkOptions?: ChunkOptions
 }
 
 export async function buildIndex(documents: KbDocument[], options: BuildIndexOptions = {}): Promise<KbIndexFile> {
@@ -34,7 +36,7 @@ export async function buildIndex(documents: KbDocument[], options: BuildIndexOpt
     if (ids.has(doc.meta.id)) throw new Error(`Duplicate document id: ${doc.meta.id}`)
     ids.add(doc.meta.id)
   }
-  const chunksByDoc = sorted.map(doc => chunkDocument(doc))
+  const chunksByDoc = sorted.map(doc => chunkDocument(doc, options.chunkOptions))
   const chunks = chunksByDoc.flat()
   const docs = sorted.map((doc, i) => ({
     ...doc.meta,

@@ -193,12 +193,24 @@ test('browser limits: document count, file type and size', () => {
 
 test('browser pre-selection ranks uploaded chunks and attaches vectors only when embedded', () => {
   const index = createUploadSearchIndex([uploadedDoc])
-  const [first] = index.search('履约保函金额是多少')
+  const [first] = index.search(['履约保函金额是多少'])
   assert.equal(first.label, '第一条')
   assert.equal(first.docTitle, '购电合同管理办法')
   assert.equal(first.vector, undefined)
-  assert.deepEqual(index.search('天气'), [])
-  assert.deepEqual(createUploadSearchIndex([]).search('任何问题'), [])
+  assert.deepEqual(index.search(['天气']), [])
+  assert.deepEqual(createUploadSearchIndex([]).search(['任何问题']), [])
+})
+
+test('browser pre-selection drops weak matches, ranks each question separately and carries cited chunks', () => {
+  const index = createUploadSearchIndex([uploadedDoc])
+  // "月" alone matches the second article but covers almost none of this question.
+  assert.deepEqual(index.search(['公司每月的博客访问量是多少']).map(c => c.label), [])
+  // The current question is not diluted by a long earlier one.
+  assert.deepEqual(index.search(['偏差电量', '一个与合同和保函都无关的很长的上一个问题，讨论天气和交通']).map(c => c.label), ['第二条'])
+  // A pronoun follow-up keeps the chunk the previous answer cited, after the real matches.
+  const firstId = uploadedDoc.chunks[0].id
+  assert.deepEqual(index.search(['那他的联系方式呢'], { carry: [firstId, 'upload-missing#1'] }).map(c => c.id), [firstId])
+  assert.deepEqual(index.search(['偏差电量'], { carry: [firstId] }).map(c => c.label), ['第二条', '第一条'])
 })
 
 // ── Retrieval and pipeline ──────────────────────────────────
@@ -206,7 +218,7 @@ test('browser pre-selection ranks uploaded chunks and attaches vectors only when
 const kb = createKnowledgeBase(committedIndex as unknown as KbIndexFile)
 
 function candidates(): KnowledgeUserChunkCandidate[] {
-  return createUploadSearchIndex([uploadedDoc]).search('履约保函')
+  return createUploadSearchIndex([uploadedDoc]).search(['履约保函'])
 }
 
 test('uploaded vectors are used only when they come from the index model', () => {
@@ -275,6 +287,35 @@ test('removed default documents never take a retrieval slot', () => {
   const without = retrieve(kb, ['绿电的价格怎么结算？'], { topK: 6, excludeDocIds: new Set(['mid-long-term-market-2025']) })
   assert.ok(without.length > 0)
   assert.equal(without.some(hit => hit.doc.id === 'mid-long-term-market-2025'), false)
+})
+
+test('a question about an uploaded résumé does not pull in rules that only share a common word', async () => {
+  const resume: KnowledgeUploadedDocument = {
+    ...uploadedDoc,
+    id: 'upload-00000000-0000-4000-8000-000000000002',
+    title: '张三_前端开发工程师',
+    chunks: [
+      { id: 'upload-00000000-0000-4000-8000-000000000002#1', headings: [], label: '正文（1/2）', text: '张三 | 前端开发工程师 | example.github.io | 求职中' },
+      { id: 'upload-00000000-0000-4000-8000-000000000002#2', headings: [], label: '正文（2/2）', text: '2025.09 - 2026.10 某科技有限公司 前端开发工程师，负责电力交易平台前端。' },
+    ],
+  }
+  const chatModel: KnowledgePipelineDeps['chatModel'] = ({ purpose }) => ({
+    // The rewrite adds generic terms such as 个人 that every "任何单位和个人" rule contains.
+    async invoke() {
+      assert.equal(purpose, 'analysis')
+      return { choices: [{ message: { content: '{"standalone":"张三的博客链接是什么","subQuestions":[],"keywords":["个人博客","主页","链接","GitHub"]}' } }] } as any
+    },
+    async *invokeStream() { yield { choices: [{ delta: { content: '博客为 example.github.io[1]。' } }] } as any },
+  })
+  const userChunks = createUploadSearchIndex([resume]).search(['其博客链接是什么', '张三的上一家公司是哪家'], { carry: [resume.chunks[0].id] })
+  const chunks: KnowledgeStreamChunk[] = []
+  for await (const chunk of runKnowledgePipeline(
+    { message: '其博客链接是什么', history: [{ role: 'user', content: '张三的上一家公司是哪家' }, { role: 'assistant', content: '某科技有限公司[1]' }], useWebSearch: false, useBaseModel: true, answerMode: 'standard', userChunks },
+    { knowledgeBase: async () => kb, chatModel },
+  )) chunks.push(chunk)
+  const evidence = chunks.filter(c => c.type === 'evidence' && c.citations).at(-1) as Extract<KnowledgeStreamChunk, { type: 'evidence' }>
+  assert.ok(evidence.citations!.length > 0)
+  assert.deepEqual([...new Set(evidence.citations!.map(c => c.source))], ['upload'])
 })
 
 test('a user who removed every default document gets only their own documents', async () => {

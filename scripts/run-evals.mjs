@@ -4,16 +4,22 @@ import { resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 
 // Bundles an eval entry point like the regression tests do, then runs it with the given arguments.
-// Usage: node scripts/run-evals.mjs <runner|report|report-html> [...args]
+// Usage: node scripts/run-evals.mjs <runner|report|report-html|knowledge> [...args]
 const requireFromVite = createRequire(import.meta.resolve('vite'))
 const { build } = requireFromVite('esbuild')
 const root = resolve(import.meta.dirname, '..')
 const [entry = 'runner', ...args] = process.argv.slice(2)
-if (!['runner', 'report', 'report-html'].includes(entry)) throw new Error(`Unknown eval entry: ${entry}`)
+const entries = {
+  runner: 'evals/runner.ts',
+  report: 'evals/report.ts',
+  'report-html': 'evals/report-html.ts',
+  knowledge: 'evals/knowledge/runner.ts',
+}
+if (!entries[entry]) throw new Error(`Unknown eval entry: ${entry}`)
 const dir = await mkdtemp(resolve(root, 'node_modules/.dbpilot-evals-'))
 try {
   await build({
-    entryPoints: [resolve(root, 'evals', `${entry}.ts`)],
+    entryPoints: [resolve(root, entries[entry])],
     outfile: resolve(dir, `${entry}.mjs`),
     bundle: true,
     platform: 'node',

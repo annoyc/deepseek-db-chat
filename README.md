@@ -177,6 +177,8 @@ pnpm kb:ingest            # 修改 knowledge/corpus 后重新生成 knowledge/kb
 pnpm kb:ingest --embed    # 同时生成向量（需要 BAILIAN_API_KEY）
 ```
 
+检索质量用 `pnpm eval:kb` 评测（89 道题，含口语化、跨文件、追问和知识库外问题），说明与基线结果见 [evals/knowledge](./evals/knowledge/README.md)。
+
 上传限制可用 `KB_UPLOAD_MAX_DOCUMENTS`、`KB_UPLOAD_MAX_BYTES`、`KB_UPLOAD_MAX_CHARS` 调整。可以把私有语料生成的索引放在服务器上，用 `KB_INDEX_PATH` 指定；设置 `KNOWLEDGE_BACKEND=remote` 可切回原外部知识服务。
 
 ---
