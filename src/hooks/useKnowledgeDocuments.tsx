@@ -24,7 +24,7 @@ interface KnowledgeDocumentsState {
   restoreDefault: (id: string) => Promise<void>
   clearError: () => void
   /** Chunks of the user's documents relevant to a question, ranked in the browser. */
-  selectCandidates: (question: string, history: KnowledgeHistoryTurn[]) => KnowledgeUserChunkCandidate[]
+  selectCandidates: (question: string, history: KnowledgeHistoryTurn[], carry?: string[]) => KnowledgeUserChunkCandidate[]
 }
 
 const KnowledgeDocumentsContext = createContext<KnowledgeDocumentsState | null>(null)
@@ -136,10 +136,11 @@ export function KnowledgeDocumentsProvider({ children }: { children: React.React
 
   const searchIndex = useMemo(() => createUploadSearchIndex(documents), [documents])
 
-  const selectCandidates = useCallback((question: string, history: KnowledgeHistoryTurn[]) => {
-    // Include the previous question so follow-ups like "那它的期限呢" still match the topic.
+  const selectCandidates = useCallback((question: string, history: KnowledgeHistoryTurn[], carry: string[] = []) => {
+    // Follow-ups such as "他的博客链接呢" name nothing to match: the previous question is
+    // searched too, and chunks the previous answer cited are carried over.
     const previous = [...history].reverse().find(turn => turn.role === 'user')?.content ?? ''
-    return searchIndex.search(`${question}\n${previous.slice(0, 500)}`)
+    return searchIndex.search([question, previous.slice(0, 500)], { carry })
   }, [searchIndex])
 
   const value: KnowledgeDocumentsState = {

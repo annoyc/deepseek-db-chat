@@ -1,4 +1,4 @@
-import { Bm25Index } from '@/lib/retrieval/bm25'
+import { Bm25Index, MIN_KEYWORD_COVERAGE } from '@/lib/retrieval/bm25'
 import { chunkSearchText } from '@/lib/retrieval/search-text'
 import { tokenize, tokenizeQuery } from '@/lib/retrieval/tokenizer'
 import type { KnowledgeUploadedDocument, KnowledgeUploadKind, KnowledgeUploadLimits, KnowledgeUserChunkCandidate } from './knowledge-types'
@@ -40,8 +40,11 @@ export function validateUploadSelection(file: { name: string; size: number }, ex
 }
 
 export interface UploadSearchIndex {
-  /** Best-matching chunks for a question, at most `limit`, keyword matches only. */
-  search(query: string, limit?: number): KnowledgeUserChunkCandidate[]
+  /**
+   * Chunks relevant to any of `queries` (best rank first), then the `carry` chunk ids,
+   * at most `limit` in total. Keyword matches covering too little of a query are dropped.
+   */
+  search(queries: string[], options?: { limit?: number; carry?: string[] }): KnowledgeUserChunkCandidate[]
 }
 
 /**
@@ -53,9 +56,21 @@ export function createUploadSearchIndex(documents: KnowledgeUploadedDocument[]):
   const entries = documents.flatMap(doc => doc.chunks.map(chunk => ({ doc, chunk })))
   const bm25 = new Bm25Index(entries.map(({ doc, chunk }) => tokenize(chunkSearchText(doc, chunk))))
   return {
-    search(query, limit = MAX_UPLOAD_CANDIDATES) {
+    search(queries, { limit = MAX_UPLOAD_CANDIDATES, carry = [] } = {}) {
       if (!entries.length) return []
-      return bm25.search(tokenizeQuery(query), limit).map(({ index }) => {
+      // Each query is ranked on its own so a long earlier question cannot dilute the current one.
+      const best = new Map<number, number>()
+      for (const query of queries.filter(q => q.trim())) {
+        bm25.search(tokenizeQuery(query), limit, { minCoverage: MIN_KEYWORD_COVERAGE }).forEach(({ index }, rank) => {
+          best.set(index, Math.min(best.get(index) ?? Infinity, rank))
+        })
+      }
+      const ordered = [...best].sort((a, b) => a[1] - b[1] || a[0] - b[0]).map(([index]) => index)
+      for (const id of carry) {
+        const index = entries.findIndex(entry => entry.chunk.id === id)
+        if (index >= 0 && !best.has(index)) ordered.push(index)
+      }
+      return ordered.slice(0, limit).map((index) => {
         const { doc, chunk } = entries[index]
         return {
           id: chunk.id,

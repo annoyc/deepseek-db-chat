@@ -13,7 +13,7 @@ const CJK = /[㐀-鿿]/
 
 // Question phrasing carries no topic; removing it keeps BM25 from rewarding chunks
 // that merely contain 什么/如何. Only applied to queries, never to indexed text.
-const QUERY_FILLER = /请问|请介绍(?:一下)?|介绍一下|解释一下|是干什么的|干什么的|干什么|是什么意思|什么意思|是什么|什么是|有什么|有哪些|哪些|怎么样|怎么|如何|为什么|为何|是否|靠谱吗|靠谱|多少|吗|呢|吧/g
+const QUERY_FILLER = /请问|需要注意什么|要注意什么|注意什么|请介绍(?:一下)?|介绍一下|解释一下|是干什么的|干什么的|干什么|是什么意思|什么意思|是什么|什么是|有什么|有哪些|哪些|怎么样|怎么|如何|为什么|为何|是否|靠谱吗|靠谱|多少|吗|呢|吧/g
 
 export function tokenize(text: string): string[] {
   const normalized = text.normalize('NFKC').toLowerCase()

@@ -279,7 +279,12 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     // Prior turns (oldest first) so the backend can resolve references like
     // "它/那家/第二个" in follow-up questions. Captured before we append the new
     // user turn + assistant placeholder below.
-    const history = (sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? [])
+    const priorMessages = sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? []
+    // Uploaded chunks the previous answer cited keep a follow-up on the same document.
+    const carriedUploads = ([...priorMessages].reverse().find((m) => m.role === 'assistant')?.evidence?.citations ?? [])
+      .filter((c) => c.source === 'upload' && c.cited)
+      .map((c) => c.chunkId)
+    const history = priorMessages
       .filter((m) => m.content.trim())
       .slice(-10)
       .map((m) => ({ role: m.role, content: m.content }))
@@ -312,7 +317,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       useBaseModel,
       answerMode,
       history,
-      userChunks: selectCandidates(trimmed, history),
+      userChunks: selectCandidates(trimmed, history, carriedUploads),
       excludedDefaultIds: removedDefaultIds.length ? removedDefaultIds : undefined,
       ...aiRequest,
     }

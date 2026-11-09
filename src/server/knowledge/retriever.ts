@@ -1,4 +1,5 @@
 import type { KnowledgeBase } from './knowledge-base'
+import { MIN_KEYWORD_COVERAGE } from '@/lib/retrieval/bm25'
 import { tokenizeQuery } from '@/lib/retrieval/tokenizer'
 import type { KbChunk, KbDocumentMeta } from './types'
 
@@ -24,6 +25,12 @@ export interface RetrieveOptions {
   queryVectors?: Float32Array[]
   /** Vector hits below this cosine similarity are dropped. */
   minSimilarity?: number
+  /**
+   * Built-in keyword hits matching less of the query (IDF-weighted) are dropped; see
+   * MIN_KEYWORD_COVERAGE. Upload candidates were already checked in the browser against
+   * all of the user's documents, which gives better term statistics than the candidates alone.
+   */
+  minCoverage?: number
   /** Further ranked lists of chunk ids to fuse, e.g. the browser's ranking of uploaded chunks. */
   extraRankings?: string[][]
   /** Documents left out entirely, e.g. default documents the user removed. */
@@ -63,7 +70,7 @@ function denseSearch(kb: KnowledgeBase, query: Float32Array, limit: number, minS
 export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: string[], options: RetrieveOptions): RetrievalHit[] {
   const bases = Array.isArray(sources) ? sources : [sources]
   const candidates = options.candidates ?? 30
-  const rankings: string[][] = [...(options.extraRankings ?? [])]
+  const rankings: string[][] = []
   const bm25Rank = new Map<string, number>()
   const denseRank = new Map<string, number>()
   const similarity = new Map<string, number>()
@@ -73,7 +80,8 @@ export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: stri
     const excluded = options.excludeDocIds
     const include = (index: number) => !excluded?.has(kb.chunks[index].docId)
     queries.forEach((query, q) => {
-      const keyword = kb.bm25.search(tokenizeQuery(query), candidates, include)
+      const minCoverage = kb.source === 'upload' ? 0 : options.minCoverage ?? MIN_KEYWORD_COVERAGE
+      const keyword = kb.bm25.search(tokenizeQuery(query), candidates, { include, minCoverage })
       rankings.push(keyword.map(({ index }, rank) => {
         const id = kb.chunks[index].id
         bm25Rank.set(id, Math.min(bm25Rank.get(id) ?? Infinity, rank + 1))
@@ -90,6 +98,10 @@ export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: stri
       }))
     })
   }
+  // Only relevance-checked hits are returned, so the result may hold fewer than topK chunks.
+  // Extra rankings (the browser's order of uploaded chunks) add weight but never bring in
+  // a chunk from a source they do not belong to.
+  for (const ranking of options.extraRankings ?? []) rankings.push(ranking.filter(id => located.has(id)))
   return [...fuseRankings(rankings)]
     .filter(([id]) => located.has(id))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
