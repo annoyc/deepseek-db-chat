@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   const [storedValue, setStoredValue] = useState<T>(initialValue)
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -22,6 +23,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
         } catch (err) { console.warn('[useLocalStorage] localStorage migration failed:', err) }
       }
     }).catch((err) => console.warn('[useLocalStorage] IndexedDB read failed:', err))
+      .finally(() => { if (!cancelled) setHydrated(true) })
     return () => { cancelled = true }
   }, [key])
 
@@ -38,5 +40,5 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     setStoredValue(initialValue)
   }, [key, initialValue])
 
-  return [storedValue, setValue, removeValue] as const
+  return [storedValue, setValue, removeValue, hydrated] as const
 }

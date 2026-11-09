@@ -43,11 +43,11 @@ Ask a business question, review the generated SQL, confirm execution, and explor
 
 ## Why DataQuery Workbench?
 
-General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DataQuery Workbench supports multiple providers (DeepSeek, Alibaba Cloud Bailian) with deep integration, solving problems other tools cannot.
+General-purpose AI database tools rely on universal LLM SDKs that ignore provider-specific optimizations like DeepSeek's thinking mode and caching mechanisms. DataQuery Workbench ships with DeepSeek and connects to any OpenAI-compatible service (Alibaba Cloud Bailian, SiliconFlow, OpenRouter, ...), solving problems other tools cannot.
 
 ### Multi-Model & Cost Efficiency
 
-Supports **DeepSeek**, **Kimi**, **Qwen**, **GLM** and more via multiple providers (DeepSeek native + Alibaba Cloud Bailian). Built-in DeepSeek prefix caching optimization and context reuse minimize API call overhead. Deterministic message construction ensures maximum cache hit rates — switch models freely while maintaining the lowest possible cost.
+Supports **DeepSeek**, **Kimi**, **Qwen**, **GLM** and more via DeepSeek's native API plus any OpenAI-compatible provider, configured on the server or added by users in Settings. Built-in DeepSeek prefix caching optimization and context reuse minimize API call overhead. Deterministic message construction ensures maximum cache hit rates — switch models freely while maintaining the lowest possible cost.
 
 ### Rock-Solid Security
 
@@ -65,7 +65,7 @@ Personal connections and complete conversation history are stored in browser Ind
 
 ## Features
 
-- 🔀 **Multi-Provider Support** — DeepSeek / Kimi / Qwen / GLM via DeepSeek native API + Alibaba Cloud Bailian (DashScope), switch models freely in the UI
+- 🔀 **Multi-Provider Support** — DeepSeek built in; add any OpenAI-compatible service (Bailian, SiliconFlow, OpenRouter, ...) and switch models freely in the UI
 - ️ **Cost Optimization** — DeepSeek prefix caching with context reuse, deterministic messages, maximum cache hit rate
 -  **Security** — AES-256 credentials, server-enforced read-only defaults, AST validation, human confirmation and model-boundary masking
 -  **Smart Filter** — AI-driven interactive query parameter tuning (date ranges, enum selects, aggregation options) before SQL generation
@@ -96,7 +96,7 @@ pnpm install --frozen-lockfile
 
 # Set environment variables
 cp .env.example .env
-# Edit .env and fill in your API key (DeepSeek or Bailian)
+# Edit .env and fill in your API key (DeepSeek, or other services via AI_PROVIDERS)
 
 # Start development server
 pnpm dev
@@ -140,6 +140,15 @@ The built-in connection has no edit or delete action. Server policy keeps both i
 
 To offer AI queries without visitors supplying their own model key, also configure `DEEPSEEK_API_KEY` on the server. The database preset alone does not configure a model provider.
 
+### Model providers
+
+Every provider speaks the OpenAI Chat Completions protocol; the only difference is how thinking is toggled (`thinkingStyle`: `deepseek` → `thinking: {type, reasoning_effort}`, `enable_thinking` → `enable_thinking: bool` for Bailian/Qwen and SiliconFlow, `none` → nothing sent, the default).
+
+- **Server-managed**: DeepSeek is built in (`DEEPSEEK_API_KEY`). Add more with `AI_PROVIDERS`, a JSON array whose entries reference their key via `apiKeyEnv` (see `.env.example`). The legacy `BAILIAN_API_KEY` still registers Alibaba Cloud Bailian. Server keys are only ever sent to the server-configured endpoint.
+- **User-added**: Settings → 模型服务 → 添加, optionally from a template, with Base URL, API key and models (or "fetch from service"). Custom providers only ever use the user's own key, never a server key. A Bailian key previously saved in the browser is migrated to a custom provider automatically.
+
+The app relies on tool calling and JSON output, so pick models that support both.
+
 ---
 
 ## Tech Stack
@@ -147,7 +156,7 @@ To offer AI queries without visitors supplying their own model key, also configu
 | Layer | Technology |
 |-------|------------|
 | **Framework** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI Core** | Multi-provider Agent Engine (DeepSeek + Bailian/DashScope, based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
+| **AI Core** | Multi-provider Agent Engine (DeepSeek + any OpenAI-compatible service, based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
 | **Database** | [mysql2](https://github.com/sidorares/node-mysql2) |
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
 | **Charts** | [Recharts](https://recharts.org/) |
@@ -165,7 +174,7 @@ src/
 ├── core/               # Multi-provider Agent engine
 │   ├── agent/          # Agent creation and execution
 │   ├── client/         # HTTP client, SSE streaming, retry
-│   ├── model/          # Model wrapper (DeepSeek, Bailian)
+│   ├── model/          # Model wrapper (OpenAI-compatible protocol)
 │   ├── provider.ts     # Provider registry and endpoint resolution
 │   ├── tool/           # Tool definition and validation
 │   ├── generate/       # Agent loop, streaming, structured output

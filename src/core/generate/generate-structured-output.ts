@@ -81,7 +81,7 @@ export async function generateStructuredOutput<T extends z.ZodTypeAny>(
         type: 'format',
         usage: response.usage,
         text: lastResponseText,
-        reasoningContent: message.reasoning_content ?? undefined,
+        reasoningContent: message.reasoning_content ?? message.reasoning ?? undefined,
       }
       runner.runAfterStep(hooks, stepEvent)
       if (runner.stopped) {

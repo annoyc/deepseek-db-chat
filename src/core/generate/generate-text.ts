@@ -22,7 +22,7 @@ const textStepInvoker: StepInvoker = async function* (model, params) {
     finishReason: choice.finish_reason,
     usage: response.usage,
     assistantMessage: message as unknown as ChatMessage,
-    reasoningContent: message.reasoning_content ?? undefined,
+    reasoningContent: message.reasoning_content ?? message.reasoning ?? undefined,
   } as StepResult
 }
 

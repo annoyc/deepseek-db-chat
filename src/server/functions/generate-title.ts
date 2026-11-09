@@ -1,16 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { createModel, generateText, getProvider } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { generateText } from '@/core'
+import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import { withTrace } from '@/server/langfuse'
 
-interface GenerateTitleInput {
+interface GenerateTitleInput extends AiRequestConfig {
   userMessage: string
   assistantContent: string
-  provider?: string
-  model?: string
-  apiKey?: string
-  baseURL?: string
   sessionId?: string
 }
 
@@ -35,14 +31,7 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
       tags: ['title'],
     }, async () => {
       try {
-        const provider = data.provider ?? 'deepseek'
-        const providerDef = getProvider(provider)
-        const model = createModel({
-          provider: provider as any,
-          model: data.model || providerDef.defaultModel,
-          thinking: { type: 'disabled' },
-          ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
-        } as any)
+        const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
         const result = await generateText({
           model,

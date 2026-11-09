@@ -43,11 +43,11 @@
 
 ## 为什么选择数问工作台？
 
-通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理各厂商独有的思考模式和缓存机制。数问工作台支持多家大模型厂商（DeepSeek、阿里云百炼），深度集成各厂商特性，解决了其他工具无法解决的问题。
+通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理各厂商独有的思考模式和缓存机制。数问工作台内置 DeepSeek，并可接入任意 OpenAI 兼容的模型服务（阿里云百炼、硅基流动、OpenRouter 等），深度集成各厂商特性，解决了其他工具无法解决的问题。
 
 ### 多模型 & 极致成本
 
-支持 **DeepSeek**、**Kimi**、**Qwen**、**GLM** 等多款大模型，通过 DeepSeek 原生 API + 阿里云百炼（DashScope）双通道接入。内置 DeepSeek 前缀缓存优化与上下文复用，确定性消息构建确保缓存命中率最大化 — 自由切换模型的同时保持极致性价比。
+支持 **DeepSeek**、**Kimi**、**Qwen**、**GLM** 等多款大模型，内置 DeepSeek 原生 API，其他 OpenAI 兼容服务可由管理员在服务端配置，或由用户在设置中自行添加。内置 DeepSeek 前缀缓存优化与上下文复用，确定性消息构建确保缓存命中率最大化 — 自由切换模型的同时保持极致性价比。
 
 ### 安全可靠
 
@@ -65,7 +65,7 @@ AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都
 
 ## 核心特性
 
-- 🔀 **多模型支持** — DeepSeek / Kimi / Qwen / GLM 多款模型，通过 DeepSeek 原生 + 阿里云百炼双通道接入，界面内一键切换
+- 🔀 **多模型支持** — 内置 DeepSeek，可自行添加任意 OpenAI 兼容服务（百炼、硅基流动、OpenRouter…），界面内一键切换
 -  **极致成本** — DeepSeek 前缀缓存优化，上下文复用，确定性消息构建，最大化缓存命中率
 -  **安全可靠** — AES-256 密码加密、服务器默认只读、AST 校验、人工确认与统一模型出口脱敏
 -  **智能筛选** — AI 驱动的交互式查询参数微调（时间范围、枚举筛选、聚合方式），SQL 生成前精准确认用户意图
@@ -96,7 +96,7 @@ pnpm install --frozen-lockfile
 
 # 设置环境变量
 cp .env.example .env
-# 编辑 .env 并填入你的 API Key（DeepSeek 或百炼）
+# 编辑 .env 并填入你的 API Key（DeepSeek，或通过 AI_PROVIDERS 配置其他服务）
 
 # 启动开发服务器
 pnpm dev
@@ -140,6 +140,21 @@ DEMO_DB_DATABASE=deepseek_demo
 
 若希望访客无需自备模型密钥即可使用 AI 查询，还需在服务端配置 `DEEPSEEK_API_KEY`；数据库预设本身不会配置模型服务。
 
+### 模型服务
+
+所有模型服务都通过 OpenAI Chat Completions 协议接入，差异只在于"思考参数"的写法（`thinkingStyle`）：
+
+| thinkingStyle | 请求参数 | 适用 |
+|---|---|---|
+| `deepseek` | `thinking: { type, reasoning_effort }` | DeepSeek 官方 API |
+| `enable_thinking` | `enable_thinking: true/false` | 阿里云百炼 / 通义千问、硅基流动等 |
+| `none` | 不发送 | 其他服务（默认，兼容性最好） |
+
+- **服务器托管**：内置 DeepSeek（`DEEPSEEK_API_KEY`）。其他服务通过 `AI_PROVIDERS`（JSON 数组）配置，密钥放在各自的环境变量里，由 `apiKeyEnv` 引用，示例见 `.env.example`。旧的 `BAILIAN_API_KEY` 仍然有效，会自动注册"阿里云百炼"。服务器密钥只会发往服务器配置的地址。
+- **用户自行添加**：设置 → 模型服务 → 添加，可从模板（百炼、硅基流动、OpenRouter）开始，填写 Base URL、API Key 与模型（可"从服务获取"）。自定义服务只使用用户自己的 Key，永远不会使用服务器密钥。之前在浏览器里填过百炼 Key 的用户，会自动迁移为一个自定义服务。
+
+本应用依赖工具调用（function calling）与 JSON 输出，请选择支持这两项能力的模型。
+
 ---
 
 ## 技术栈
@@ -147,7 +162,7 @@ DEMO_DB_DATABASE=deepseek_demo
 | 层级 | 技术 |
 |------|------|
 | **框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI 核心** | 多模型 Agent Engine（DeepSeek + 百炼/DashScope，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
+| **AI 核心** | 多模型 Agent Engine（DeepSeek + 任意 OpenAI 兼容服务，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
 | **数据库** | [mysql2](https://github.com/sidorares/node-mysql2) |
 | **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
 | **图表** | [Recharts](https://recharts.org/) |
@@ -165,7 +180,7 @@ src/
 ├── core/               # 多模型 Agent 引擎
 │   ├── agent/          # Agent 创建与执行
 │   ├── client/         # HTTP 客户端、SSE 流式请求、重试
-│   ├── model/          # 模型封装（DeepSeek、百炼）
+│   ├── model/          # 模型封装（OpenAI 兼容协议）
 │   ├── provider.ts     # Provider 注册与端点解析
 │   ├── tool/           # 工具定义与校验
 │   ├── generate/       # Agent 循环、流式生成、结构化输出

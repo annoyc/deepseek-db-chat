@@ -1,20 +1,30 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getProvider } from '@/core/provider'
-import { decrypt } from '@/server/crypto'
+import { getRequest } from '@tanstack/react-start/server'
+import { THINKING_STYLES } from '@/core/provider'
+import { checkServerKey, describeServerProviders, fetchProviderModels, type ServerProviderInfo } from '@/server/providers'
 import { z } from 'zod'
+
+const providerIdSchema = z.string().max(64)
 
 export const getEnvApiKeyStatus = createServerFn({ method: 'POST' })
   .inputValidator((data: { provider?: string; apiKey?: string }) => z.object({
-    provider: z.enum(['deepseek', 'bailian']).optional(),
+    provider: providerIdSchema.optional(),
     apiKey: z.string().max(40_000).optional(),
   }).parse(data))
   .handler(
-    async ({ data }): Promise<{ hasEnvKey: boolean; isServerKey: boolean }> => {
-      const providerDef = getProvider(data.provider ?? 'deepseek')
-      const key = process.env[providerDef.envApiKeyName] || ''
-      if (!key) {
-        return { hasEnvKey: false, isServerKey: false }
-      }
-      return { hasEnvKey: true, isServerKey: !!data.apiKey && decrypt(data.apiKey) === key }
-    }
+    async ({ data }): Promise<{ hasEnvKey: boolean; isServerKey: boolean }> => checkServerKey(data.provider ?? 'deepseek', data.apiKey)
   )
+
+/** Providers configured on the server (never includes keys or env-overridden endpoints). */
+export const listServerProviders = createServerFn({ method: 'GET' })
+  .handler(async (): Promise<ServerProviderInfo[]> => describeServerProviders())
+
+/** Fetch model ids from a provider's OpenAI-compatible `/models` endpoint. */
+export const listProviderModels = createServerFn({ method: 'POST' })
+  .inputValidator((data: { provider: string; apiKey?: string; baseURL?: string; thinkingStyle?: string }) => z.object({
+    provider: providerIdSchema,
+    apiKey: z.string().max(40_000).optional(),
+    baseURL: z.string().max(2_048).optional(),
+    thinkingStyle: z.enum(THINKING_STYLES).optional(),
+  }).parse(data))
+  .handler(async ({ data }): Promise<string[]> => fetchProviderModels(data, getRequest().signal))
