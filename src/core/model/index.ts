@@ -2,9 +2,8 @@ import type { GetBalanceOptions } from './balance'
 import type { ListModelsOptions } from './list'
 import type { InvokeParams, ModelOptions, ResolvedModelOptions } from './types'
 import type { FIMParams } from '@/core/fim/types'
-import process from 'node:process'
 import { omitBy, toMerged } from '@/core/utils'
-import { getProvider } from '@/core/provider'
+import { findProvider, getServerApiKey, getServerBaseURL, isCustomProviderId } from '@/core/provider'
 import { getBalance } from './balance'
 import { fim } from './fim'
 import { invoke, invokeStream } from './invoke'
@@ -25,8 +24,7 @@ export class DeepSeekModel {
   }
 
   public enableBeta(): this {
-    const providerDef = getProvider(this._config.provider)
-    if (!providerDef.supportsBeta) return this
+    if (!this._config.supportsBeta) return this
 
     const base = this._config.baseURL
     if (base.endsWith('/beta') || base.endsWith('/beta/')) {
@@ -71,15 +69,22 @@ export class DeepSeekModel {
 }
 
 export function resolveConfig(options: ModelOptions): ResolvedModelOptions {
-  const providerDef = getProvider(options.provider ?? 'deepseek')
+  const providerId = options.provider || 'deepseek'
+  const providerDef = findProvider(providerId)
+  if (!providerDef && !isCustomProviderId(providerId)) {
+    throw new Error(`Unknown provider: "${providerId}"`)
+  }
 
   const cleaned = omitBy(options, v => v === undefined || v === '')
 
   const resolved = toMerged(
     {
-      provider: providerDef.id,
-      apiKey: process.env[providerDef.envApiKeyName],
-      baseURL: process.env[providerDef.envBaseURLName] || providerDef.defaultBaseURL,
+      provider: providerId,
+      // Custom providers never fall back to server credentials or endpoints.
+      apiKey: providerDef ? getServerApiKey(providerDef) || undefined : undefined,
+      baseURL: providerDef ? getServerBaseURL(providerDef) : undefined,
+      thinkingStyle: providerDef?.thinkingStyle ?? 'none',
+      supportsBeta: providerDef?.supportsBeta ?? false,
       thinking: {
         type: 'enabled',
       },
@@ -90,7 +95,11 @@ export function resolveConfig(options: ModelOptions): ResolvedModelOptions {
   ) as ResolvedModelOptions
 
   if (!resolved.apiKey) {
-    throw new Error(`${providerDef.envApiKeyName} is required`)
+    throw new Error(providerDef ? `${providerDef.envApiKeyName} is required` : 'apiKey is required')
+  }
+
+  if (!resolved.baseURL) {
+    throw new Error('baseURL is required')
   }
 
   if (!resolved.model) {

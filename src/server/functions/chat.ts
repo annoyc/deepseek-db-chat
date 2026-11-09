@@ -20,6 +20,7 @@ interface ChatInput {
   model?: string
   apiKey?: string
   baseURL?: string
+  thinkingStyle?: string
   thinkingMode?: 'enabled' | 'disabled'
   reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
@@ -91,10 +92,11 @@ export const chatStream = createServerFn({ method: 'POST' })
               controller.enqueue(encoder.encode(formatSSE({ type: 'status', message: '意图分析中...' })))
               const hasHistory = (data.executionLog?.length ?? 0) > 0 || (data.history?.length ?? 0) > 0
               intent = await classifyIntentWithLLM(data.message, hasHistory, {
-                provider: (data.provider ?? 'deepseek') as any,
-                model: data.model || '',
+                provider: data.provider,
+                model: data.model,
                 apiKey: data.apiKey,
                 baseURL: data.baseURL,
+                thinkingStyle: data.thinkingStyle,
               }, signal)
             }
 
@@ -104,10 +106,11 @@ export const chatStream = createServerFn({ method: 'POST' })
             })))
 
             const { agent, resultStore } = await createDbAgent(decryptedConnection, {
-              provider: data.provider as any,
+              provider: data.provider,
               model: data.model,
               apiKey: data.apiKey,
               baseURL: data.baseURL,
+              thinkingStyle: data.thinkingStyle,
               thinkingMode: data.thinkingMode,
               reasoningEffort: data.reasoningEffort,
               sqlPermission: effectiveSqlPermission,

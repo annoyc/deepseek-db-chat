@@ -3,7 +3,7 @@ import { ArrowUp, Square, Atom, ChevronDown, Shield, AlertTriangle } from 'lucid
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
-import { PROVIDERS, getModelsForProvider } from '@/lib/constants'
+import { modelLabel } from '@/lib/providers'
 import { isSubmitKey } from '@/lib/keyboard'
 
 export function MessageInput() {
@@ -13,7 +13,7 @@ export function MessageInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { provider, setProvider, model, setModel, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
+  const { provider, providers, activeProvider, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -23,9 +23,9 @@ export function MessageInput() {
     }
   }, [activeSessionId])
 
-  const providerModels = getModelsForProvider(provider)
-  const currentModel = providerModels.find((m) => m.id === model) ?? providerModels[0]
-  const currentProvider = PROVIDERS.find((p) => p.id === provider) ?? PROVIDERS[0]
+  const providerModels = activeProvider?.models ?? []
+  const currentModel = providerModels.find((m) => m.id === model)
+  const currentLabel = `${activeProvider?.name ?? provider} / ${currentModel ? modelLabel(currentModel) : (model || '未选择模型')}`
   const historyUnavailable = persistenceState === 'loading' || persistenceState === 'load-error'
   const historyHint = persistenceState === 'load-error' ? '历史记录读取失败，请先点击“重试读取”' : '正在读取历史记录，请稍候'
   const canSend = input.trim() && !isStreaming && activeConnectionId && !historyUnavailable
@@ -86,7 +86,7 @@ export function MessageInput() {
                   className="control-chip flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-stone-600 transition-colors hover:bg-white hover:text-stone-900"
                 >
                   <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-primary" />
-                  <span className="truncate">{currentProvider.name} / {currentModel.name}</span>
+                  <span className="truncate">{currentLabel}</span>
                   <ChevronDown className="w-3 h-3" />
                 </button>
 
@@ -94,12 +94,12 @@ export function MessageInput() {
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
                     <div className="absolute bottom-full left-0 z-20 mb-2 min-w-64 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-xl">
-                      <div className="flex border-b border-stone-100">
-                        {PROVIDERS.map((p) => (
+                      <div className="flex overflow-x-auto border-b border-stone-100">
+                        {providers.map((p) => (
                           <button
                             key={p.id}
                             onClick={() => setProvider(p.id)}
-                            className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors ${
+                            className={`flex-1 shrink-0 whitespace-nowrap px-3 py-2 text-xs font-semibold transition-colors ${
                               p.id === provider
                                 ? 'text-primary border-b-2 border-primary'
                                 : 'text-stone-500 hover:text-stone-800'
@@ -109,41 +109,48 @@ export function MessageInput() {
                           </button>
                         ))}
                       </div>
+                      {providerModels.length === 0 && (
+                        <div className="px-4 py-3 text-xs text-stone-500">该服务尚未添加模型，请在设置中编辑</div>
+                      )}
+                      <div className="max-h-72 overflow-y-auto">
                       {providerModels.map((m) => (
                         <button
-                          key={`${m.provider}-${m.id}`}
+                          key={m.id}
                           onClick={() => { setModel(m.id); setShowModelMenu(false) }}
                           className={`w-full text-left px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors flex items-center justify-between ${
                             m.id === model ? 'text-primary font-medium' : 'text-stone-700'
                           }`}
                         >
                           <div>
-                            <div className="font-medium">{m.name}</div>
-                            <div className="text-xs text-stone-400">{m.description}</div>
+                            <div className="font-medium">{modelLabel(m)}</div>
+                            {(m.description || (m.name && m.name !== m.id)) && (
+                              <div className="text-xs text-stone-400">{m.description ?? m.id}</div>
+                            )}
                           </div>
                           {m.id === model && (
                             <div className="w-2 h-2 rounded-full bg-primary" />
                           )}
                         </button>
                       ))}
+                      </div>
                     </div>
                   </>
                 )}
               </div>
 
-              <div className="flex items-center">
+              {thinkingStyle !== 'none' && <div className="flex items-center">
                 <button
                   onClick={() => setThinkingMode(thinkingMode === 'enabled' ? 'disabled' : 'enabled')}
                   className={`flex items-center gap-1 border px-2.5 py-1 text-xs font-medium transition-all ${
                     thinkingMode === 'enabled'
                       ? 'border-primary/50 bg-primary/5 text-primary'
                       : 'border-stone-300 text-stone-500'
-                  } ${thinkingMode === 'enabled' ? 'rounded-l-full border-r-0' : 'rounded-full'}`}
+                  } ${thinkingMode === 'enabled' && thinkingStyle === 'deepseek' ? 'rounded-l-full border-r-0' : 'rounded-full'}`}
                 >
                   <Atom className="w-3.5 h-3.5" />
                   <span>深度思考</span>
                 </button>
-                {thinkingMode === 'enabled' && (
+                {thinkingMode === 'enabled' && thinkingStyle === 'deepseek' && (
                   <select
                     value={reasoningEffort}
                     onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
@@ -154,7 +161,7 @@ export function MessageInput() {
                     <option value="max">最高</option>
                   </select>
                 )}
-              </div>
+              </div>}
 
               {!isProd && (
                 <button

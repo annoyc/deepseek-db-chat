@@ -1,18 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { createModel, generateText, getProvider } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { generateText } from '@/core'
+import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { withTrace } from '@/server/langfuse'
 import { listTables, getPool } from '@/server/database'
 import type { DatabaseConnection } from '@/lib/types'
 
-interface GenerateSuggestionsInput {
+interface GenerateSuggestionsInput extends AiRequestConfig {
   connection: DatabaseConnection
-  provider?: string
-  model?: string
-  apiKey?: string
-  baseURL?: string
   sessionId?: string
   /** 客户端刷新时传入，用于绕过请求/前缀缓存 */
   refreshNonce?: string
@@ -78,14 +74,7 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
         const tableSummary = tableInfos.slice(0, 40).join('\n')
         const truncated = tableInfos.length > 40 ? `\n...共 ${tableInfos.length} 张表` : ''
 
-        const provider = data.provider ?? 'deepseek'
-        const providerDef = getProvider(provider)
-        const model = createModel({
-          provider: provider as any,
-          model: data.model || providerDef.defaultModel,
-          thinking: { type: 'disabled' },
-          ...resolveAiCredentials(provider, data.apiKey, data.baseURL),
-        } as any)
+        const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
         const nonce = data.refreshNonce ?? Math.random().toString(36).slice(2, 10)
         const excludeBlock = data.excludeSuggestions?.length

@@ -4,7 +4,7 @@
 
 ## 运行
 
-需要已导入 `scripts/mysql-demo-seed.sql` 的 MySQL，以及模型 API Key（`.env` 中的 `DEEPSEEK_API_KEY` / `BAILIAN_API_KEY` 会自动加载）。
+需要已导入 `scripts/mysql-demo-seed.sql` 的 MySQL，以及模型 API Key（`.env` 中的 `DEEPSEEK_API_KEY`、`AI_PROVIDERS` 等会自动加载；评测只能使用服务器托管的模型服务）。
 
 ```bash
 export EVAL_DB_HOST=127.0.0.1 EVAL_DB_PORT=3306 EVAL_DB_USER=<只读账号> EVAL_DB_PASSWORD=<密码> EVAL_DB_DATABASE=deepseek_demo

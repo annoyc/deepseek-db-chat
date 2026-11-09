@@ -1,17 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
-import { createModel, generateText, getProvider } from '@/core'
-import { resolveAiCredentials } from '@/server/ai-credentials'
+import { generateText } from '@/core'
+import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import { sanitizeModelData } from '@/lib/masking'
 import { withTrace } from '@/server/langfuse'
 
-interface ClassifyInput {
+interface ClassifyInput extends AiRequestConfig {
   columns: string[]
   sampleRows: Record<string, unknown>[]
-  provider?: string
-  model?: string
-  apiKey?: string
-  baseURL?: string
   sessionId?: string
 }
 
@@ -44,14 +40,7 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
         tags: ['chart-classify'],
       }, async () => {
         try {
-            const providerId = data.provider ?? 'deepseek'
-          const providerDef = getProvider(providerId)
-          const model = createModel({
-            provider: providerId as any,
-            model: data.model || providerDef.defaultModel,
-            thinking: { type: 'disabled' },
-            ...resolveAiCredentials(providerId, data.apiKey, data.baseURL),
-          } as any)
+            const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
           const sample = sanitizeModelData(data.sampleRows.slice(0, 3)) as Record<string, unknown>[]
           const prompt = [
