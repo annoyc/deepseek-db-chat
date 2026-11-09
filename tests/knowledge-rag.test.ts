@@ -110,6 +110,18 @@ test('keyword retrieval finds the governing provisions in the sample corpus', ()
   assert.deepEqual(retrieve(kb, ['今天天气怎么样'], { topK: 5 }), [])
 })
 
+test('keyword hits matching only a common word are dropped instead of filling every slot', () => {
+  // Regression: a résumé question rewritten with 个人博客 matched "任何单位和个人" in three rules.
+  assert.deepEqual(retrieve(kb, ['个人博客 主页 链接 GitHub'], { topK: 6 }), [])
+  const coverage = kb.bm25.search(tokenizeQuery('个人博客 主页 链接 GitHub'), 3)
+  assert.ok(coverage.length > 0 && coverage.every(hit => hit.coverage < 0.2), 'the dropped hits really were weak')
+  // Topical questions keep their provisions, including ones phrased with filler.
+  const ids = (q: string) => retrieve(kb, [q], { topK: 6 }).map(hit => `${hit.doc.id}:${hit.chunk.text.slice(0, 6)}`)
+  assert.ok(ids('售电公司参与绿电交易需要注意什么').some(id => id.startsWith('mid-long-term-market-2025:第五十一条')))
+  assert.equal(ids('绿电的价格怎么结算？').length, 6)
+  assert.ok(ids('现货市场和中长期市场如何衔接').length >= 3)
+})
+
 // ── Vectors and embeddings ──────────────────────────────────
 
 const fakeDocs: KbDocument[] = [
