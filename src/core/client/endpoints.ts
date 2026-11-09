@@ -7,6 +7,10 @@ export function getChatEndpoint(baseUrl: string): string {
   return new URL('chat/completions', normalizeBase(baseUrl)).toString()
 }
 
+export function getEmbeddingsEndpoint(baseUrl: string): string {
+  return new URL('embeddings', normalizeBase(baseUrl)).toString()
+}
+
 export function getFimEndpoint(baseUrl: string): string {
   return new URL('completions', normalizeBase(baseUrl)).toString()
 }

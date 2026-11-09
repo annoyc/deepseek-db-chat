@@ -14,6 +14,28 @@ export interface KnowledgeWebResult {
   site_name?: string
 }
 
+export type KnowledgeDocumentStatus = 'active' | 'expired' | 'pending'
+
+/** One retrieved provision, numbered as the answer cites it ([1], [2], ...). */
+export interface KnowledgeCitation {
+  /** Citation number as written in the answer, without brackets. */
+  ref: string
+  chunkId: string
+  docTitle: string
+  docNo?: string
+  /** Article or glossary entry, e.g. 第七十七条. */
+  locator: string
+  headings: string[]
+  text: string
+  status: KnowledgeDocumentStatus
+  statusLabel: string
+  sourceUrl?: string
+  /** Which retrievers found it. */
+  retrievers: ('keyword' | 'vector')[]
+  /** Set once the answer is complete: whether the answer actually cites it. */
+  cited?: boolean
+}
+
 export type KnowledgeToolStatus = 'running' | 'done' | 'error'
 
 /**
@@ -42,6 +64,8 @@ export interface KnowledgeEvidence {
   webResults: KnowledgeWebResult[]
   progress: string[]
   toolSteps: KnowledgeToolStep[]
+  /** Knowledge-base provisions the answer may cite; absent for remote-backend answers. */
+  citations?: KnowledgeCitation[]
 }
 
 export interface KnowledgeMessage {
@@ -82,6 +106,7 @@ export type KnowledgeStreamChunk =
       subQuestions?: string[]
       memorySnippets?: KnowledgeMemorySnippet[]
       webResults?: KnowledgeWebResult[]
+      citations?: KnowledgeCitation[]
     }
   | { type: 'error'; message: string }
   | { type: 'finish' }
@@ -97,10 +122,25 @@ export interface KnowledgeChatInput {
   useBaseModel: boolean
   answerMode: KnowledgeAnswerMode
   history?: KnowledgeHistoryTurn[]
+  /** Answer model settings, as in the database workbench; the remote backend ignores them. */
+  provider?: string
+  model?: string
+  apiKey?: string
+  baseURL?: string
+}
+
+export interface KnowledgeIndexInfo {
+  documents: number
+  chunks: number
+  /** hybrid: keyword + vector; keyword: the index has no vectors or the server lacks the embedding key. */
+  retrieval: 'hybrid' | 'keyword'
 }
 
 export interface KnowledgeHealth {
   status: 'ok' | 'offline'
+  /** local: in-process RAG over the bundled index; remote: the MEMO_CHAT_API_BASE service. */
+  mode?: 'local' | 'remote'
+  index?: KnowledgeIndexInfo
   lmModel?: string
   webSearchAvailable?: boolean
   backendBase?: string

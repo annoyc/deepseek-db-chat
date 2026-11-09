@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleAlert, Cpu, Globe2, Loader2, WifiOff } from 'lucide-react'
+import { CheckCircle2, CircleAlert, Cpu, Database, Globe2, Loader2, WifiOff } from 'lucide-react'
 import type { KnowledgeHealth } from '@/lib/knowledge-types'
 
 export function getKnowledgeServiceLabel(health: KnowledgeHealth | null, checking: boolean): string {
@@ -22,6 +22,14 @@ export function KnowledgeServiceStatus({ health, checking }: { health: Knowledge
         </span>
       </div>
       <div className="space-y-2 px-2 text-xs text-stone-500">
+        {online && health.index && (
+          <div className="flex items-center gap-2">
+            <Database className="h-3.5 w-3.5 text-stone-400" />
+            <span>
+              {health.index.documents} 份文件 · {health.index.chunks} 个片段 · {health.index.retrieval === 'hybrid' ? '混合检索' : '关键词检索'}
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <Globe2 className="h-3.5 w-3.5 text-stone-400" />
           <span>{online ? health.webSearchAvailable ? '联网搜索可用' : '联网搜索未配置' : '联网搜索状态未知'}</span>

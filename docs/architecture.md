@@ -431,3 +431,30 @@ deepseek-db-chat/
 | Connection CRUD | POST (JSON) | Add, list, test, and remove database connections |
 
 These are invoked from the client via TanStack Start's `createServerFn` RPC layer, which handles serialization and routing automatically.
+
+---
+
+## Knowledge Q&A (RAG)
+
+The knowledge workbench (`/workbench/knowledge`) answers electricity-market rule questions in-process; `KNOWLEDGE_BACKEND=remote` restores the former proxy to the external service at `MEMO_CHAT_API_BASE`. Both paths emit the same `KnowledgeStreamChunk` SSE protocol, so the client is unchanged apart from the citation panel.
+
+```mermaid
+flowchart LR
+    corpus["knowledge/corpus/*.md<br/>front matter + articles"] -->|"pnpm kb:ingest [--embed]"| index["knowledge/kb-index.json<br/>chunks + optional vectors"]
+    index --> kb["loadKnowledgeBase()<br/>BM25 built in memory"]
+    q["question"] --> guard["guardrail<br/>maskPII"] --> rewrite["query_rewrite<br/>standalone + sub-questions"]
+    rewrite --> retrieve["kb_retrieve<br/>BM25 + cosine, RRF"]
+    kb --> retrieve
+    retrieve --> web["web_search<br/>Bocha (optional)"] --> answer["synthesis<br/>streamed, cites [n]"] --> check["citation_check"]
+```
+
+| Module (`src/server/knowledge/`) | Responsibility |
+|---|---|
+| `corpus.ts`, `chunker.ts` | Parse front matter; one chunk per article (第X条) or glossary entry, long articles split, short neighbours merged |
+| `tokenizer.ts`, `bm25.ts` | `Intl.Segmenter` words + CJK bigrams; Okapi BM25 |
+| `embedding.ts`, `index-builder.ts` | Server-key embeddings via the OpenAI-compatible `/embeddings` endpoint; vectors reused by content hash |
+| `retriever.ts` | Per-query keyword and vector rankings fused with reciprocal rank fusion (k = 60) |
+| `validity.ts` | Document status (in force / expired / not yet effective) computed from Beijing dates at question time |
+| `pipeline.ts`, `prompt.ts`, `citations.ts` | Stage orchestration, cited answer prompt, citation validation |
+
+The index records the embedding model it was built with; query embeddings always use that model and the server's own key, and retrieval falls back to keyword-only when either is unavailable. With general knowledge disabled, a question with no retrieved provision is refused without a model call.

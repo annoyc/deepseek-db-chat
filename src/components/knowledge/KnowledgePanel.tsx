@@ -24,8 +24,8 @@ const suggestions = [
 const features = [
   {
     icon: Brain,
-    title: '记忆模型',
-    description: '基于 MeMo 记忆模型查询省电、售电、交易规则知识',
+    title: '规则原文检索',
+    description: '关键词与向量混合检索电力市场规则原文，按条款给出出处',
     color: 'text-primary',
     bg: 'bg-primary/10',
   },
@@ -39,7 +39,7 @@ const features = [
   {
     icon: Eye,
     title: '证据可查',
-    description: '问题拆解、记忆片段、联网来源集中在证据面板',
+    description: '工具链、引用条款及有效期、联网来源集中在证据面板',
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
@@ -201,7 +201,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
               </div>
               <h1 className="anim-up d-1 text-2xl font-semibold tracking-tight text-stone-950 lg:text-3xl 2xl:text-4xl">知识库问答</h1>
               <p className="anim-up d-2 mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                基于 MeMo 记忆模型、基座模型与联网搜索，回答电力市场和交易规则问题。
+                基于电力市场规则原文检索、大模型与联网搜索，回答电力市场和交易规则问题，并标注引用条款。
               </p>
             </div>
           </div>
@@ -332,7 +332,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
       <header className="app-header flex flex-shrink-0 items-center justify-between border-b px-5 py-3 backdrop-blur-sm">
         <div>
           <div className="text-sm font-semibold text-stone-950">知识库问答</div>
-          <div className="text-xs text-stone-500">MeMo / 基座模型 / 联网搜索</div>
+          <div className="text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
         </div>
         <button
           onClick={onOpenContext}
@@ -407,13 +407,14 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => setUseBaseModel(!useBaseModel)}
+                  title={useBaseModel ? '知识库依据不足时，允许补充模型的通用知识（单独标注）' : '仅依据知识库条款回答，找不到依据时直接说明'}
                   className={cn(
                     'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all',
                     useBaseModel ? 'border-primary/50 bg-primary/5 text-primary' : 'border-stone-300 text-stone-500',
                   )}
                 >
                   <Brain className="h-3.5 w-3.5" />
-                  基座模型
+                  通用知识
                 </button>
                 <button
                   onClick={() => setUseWebSearch(!useWebSearch)}

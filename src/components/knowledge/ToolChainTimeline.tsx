@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import {
   AlertCircle,
+  BadgeCheck,
   Brain,
   Check,
   ChevronRight,
   Circle,
+  FileSearch,
   Globe2,
   ListTree,
   Loader2,
@@ -23,8 +25,10 @@ const ICONS: Record<string, LucideIcon> = {
   query_rewrite: Wand2,
   intent_analysis: ListTree,
   memory_query: Brain,
+  kb_retrieve: FileSearch,
   web_search: Globe2,
   synthesis: Sparkles,
+  citation_check: BadgeCheck,
   fixed: Zap,
   request: Server,
 }
