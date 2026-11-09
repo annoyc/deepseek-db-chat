@@ -1,8 +1,9 @@
 import { createAgent } from '@/core'
 import { createRequestModel } from '@/server/ai-credentials'
+import { findProvider } from '@/core/provider'
 import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
+import { APP_NAME, MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
 import { type IntentClassification, classifyIntentWithLLM, buildRoutingPrompt, FILTER_CONFIDENCE_THRESHOLD } from './intent-router'
@@ -14,6 +15,8 @@ interface AgentOptions {
   baseURL?: string
   /** Thinking parameter style for `custom-*` providers. */
   thinkingStyle?: string
+  /** Display name of a `custom-*` provider (server providers use their configured name). */
+  providerName?: string
   thinkingMode?: 'enabled' | 'disabled'
   reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
@@ -248,6 +251,26 @@ report_analysis 的 metrics 最多提取 5 个关键指标，每个指标必须�
 修复后通过 execute_sql 重新提交，最多重试 2 次。`
 
 // ────────────────────────────────────────────────────────────
+//  Model identity
+// ────────────────────────────────────────────────────────────
+
+function promptSafe(value: string, max: number): string {
+  // Strip control characters and the quote marks used below so the value stays a single inline fact.
+  return value.replace(/[\u0000-\u001f\u007f「」]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max)
+}
+
+/**
+ * Tell the model what it is. Without this it infers an identity from context
+ * such as the `deepseek_demo` database name and claims to be "基于 DeepSeek",
+ * although the app is a model-agnostic ReAct loop whose model the user picks.
+ */
+export function buildAssistantIdentityPrompt(modelId: string, providerName?: string): string {
+  const model = promptSafe(modelId, 200)
+  const via = providerName ? `${promptSafe(providerName, 50)} / ` : ''
+  return `你是「${APP_NAME}」数据分析助手，基于 ReAct 循环调用工具分析数据库，底层模型可由用户切换，当前为「${via}${model}」。`
+}
+
+// ────────────────────────────────────────────────────────────
 //  Agent factory
 // ────────────────────────────────────────────────────────────
 
@@ -319,6 +342,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
 
   systemPrompt += `\n\n当前时间: ${currentTime}`
   systemPrompt += `\n当前连接的数据库: ${connection.database} (${connection.host}:${connection.port})`
+  systemPrompt += `\n${buildAssistantIdentityPrompt(modelName, findProvider(model.config.provider)?.name ?? options?.providerName)}`
 
   // Intent-based routing hint
   if (intent) {

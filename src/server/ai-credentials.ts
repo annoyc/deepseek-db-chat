@@ -21,6 +21,8 @@ export interface AiRequestConfig {
   baseURL?: string
   /** Only honoured for `custom-*` providers; server providers define their own. */
   thinkingStyle?: string
+  /** Display name of a `custom-*` provider; used only to tell the model where it runs. */
+  providerName?: string
 }
 
 export interface AiTarget {
