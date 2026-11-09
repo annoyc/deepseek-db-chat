@@ -155,8 +155,9 @@ test('schema exploration can answer a table count using the metadata tool withou
     const system = body.messages.find((message: any) => message.role === 'system').content
     assert.match(system, /元数据.*真实证据/)
     assert.doesNotMatch(system, /只有 execute_sql 返回的才是真实数据|路径 A（简单查询/)
-    // The model is told its real identity, so it cannot infer "DeepSeek" from the database name.
-    assert.match(system, /【模型身份】你当前运行的模型是「test」（通过「DeepSeek」接入）/)
+    // The assistant is told what it is, so it cannot infer "基于 DeepSeek" from the database name.
+    assert.match(system, /【身份】你是「数问」的数据分析助手/)
+    assert.match(system, /当前为「test」（通过「DeepSeek」接入）/)
     if (requests === 1) {
       return completion({ content: null, tool_calls: [{ id: 'inventory', type: 'function', function: { name: 'list_tables', arguments: '{}' } }] }, 'tool_calls')
     }
@@ -231,7 +232,7 @@ test('exact business row counts still submit SQL for confirmation instead of usi
   } finally { await closePool(connection.id) }
 })
 
-test('a custom provider is introduced to the model by its own name, never as DeepSeek', async () => {
+test('with a custom provider the assistant is told it is the ReAct app on that model, not DeepSeek', async () => {
   const previousEncryptionKey = process.env.ENCRYPTION_KEY
   process.env.ENCRYPTION_KEY = '11'.repeat(32)
   const connection = fixture('agent-identity')
@@ -253,7 +254,8 @@ test('a custom provider is introduced to the model by its own name, never as Dee
     await agent.generate({ prompt: '你是什么模型' })
     assert.equal(url, 'https://api.qnaigc.example/v1/chat/completions')
     assert.match(system, /当前连接的数据库: deepseek_demo/)
-    assert.match(system, /你当前运行的模型是「z-ai\/glm-5\.3-flash」（通过「七牛云」接入）/)
+    assert.match(system, /不要声称自己基于 DeepSeek/)
+    assert.match(system, /当前为「z-ai\/glm-5\.3-flash」（通过「七牛云」接入）/)
   } finally {
     await closePool(connection.id)
     if (previousEncryptionKey === undefined) delete process.env.ENCRYPTION_KEY

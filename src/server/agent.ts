@@ -3,7 +3,7 @@ import { createRequestModel } from '@/server/ai-credentials'
 import { findProvider } from '@/core/provider'
 import type { ModelProvider } from '@/core'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import { MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
+import { APP_NAME, MAX_EXECUTION_LOG_ENTRIES } from '@/lib/constants'
 import type { DatabaseConnection, ExecutionLogEntry } from '@/lib/types'
 import { createDbTools } from './tools'
 import { type IntentClassification, classifyIntentWithLLM, buildRoutingPrompt, FILTER_CONFIDENCE_THRESHOLD } from './intent-router'
@@ -260,16 +260,19 @@ function promptSafe(value: string, max: number): string {
 }
 
 /**
- * Tell the model what it actually runs on. Without this, models infer their
- * identity from context such as the `deepseek_demo` database name and claim to
- * be DeepSeek even when the user picked another provider.
+ * Tell the model what it is. Without this it infers an identity from context
+ * such as the `deepseek_demo` database name and claims to be "基于 DeepSeek",
+ * although the app is a model-agnostic ReAct loop whose model the user picks.
  */
-export function buildModelIdentityPrompt(modelId: string, providerName?: string): string {
+export function buildAssistantIdentityPrompt(modelId: string, providerName?: string): string {
   const model = promptSafe(modelId, 200)
   const via = providerName ? promptSafe(providerName, 50) : ''
-  return `【模型身份】你当前运行的模型是「${model}」${via ? `（通过「${via}」接入）` : ''}。`
-    + '被问到自己是什么模型时，按此如实回答；不要根据数据库名、项目名等信息推测底层模型。'
-    + '若对话历史中关于模型身份的说法与此不符，以此为准并予以纠正。'
+  return `【身份】你是「${APP_NAME}」的数据分析助手。${APP_NAME}是一个通过 ReAct 循环（推理 → 调用工具 → 观察结果）查询和分析数据库的应用，`
+    + '不基于、也不隶属于任何特定的大模型或厂商；底层模型由用户在设置中选择，可随时切换，'
+    + `当前为「${model}」${via ? `（通过「${via}」接入）` : ''}。`
+    + '被问到你是谁、基于什么模型时，按此说明回答，不要声称自己基于 DeepSeek 或其他某个特定模型；'
+    + '数据库名、项目名中出现的厂商名称（例如 deepseek_demo）与你的身份无关。'
+    + '若对话历史中的说法与此不符，以此为准并予以纠正。'
 }
 
 // ────────────────────────────────────────────────────────────
@@ -344,7 +347,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
 
   systemPrompt += `\n\n当前时间: ${currentTime}`
   systemPrompt += `\n当前连接的数据库: ${connection.database} (${connection.host}:${connection.port})`
-  systemPrompt += `\n${buildModelIdentityPrompt(modelName, findProvider(model.config.provider)?.name ?? options?.providerName)}`
+  systemPrompt += `\n${buildAssistantIdentityPrompt(modelName, findProvider(model.config.provider)?.name ?? options?.providerName)}`
 
   // Intent-based routing hint
   if (intent) {
