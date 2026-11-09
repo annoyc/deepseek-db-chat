@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { apiRequest } from '@/core/client/request'
 import { ApiRequestError } from '@/core/client/errors'
 import { tool } from '@/core/tool'
+import { tryJsonParse } from '@/core/utils/json-parse'
 import { getModelsEndpoint } from '@/core/client/endpoints'
 import type { ListModelsResponse } from '@/core/model/types'
 import { findProvider, getProviderList, getServerApiKey, getServerBaseURL, isCustomProviderId } from '@/core/provider'
@@ -166,21 +167,27 @@ export async function testProviderConnection(request: AiRequestConfig & { model:
   })
 
   await run('json', async () => {
-    const response = await base.invoke({
-      messages: [
-        { role: 'system', content: 'Reply with a JSON object only.' },
-        { role: 'user', content: 'Return {"ok": true} as JSON.' },
-      ],
-      response_format: { type: 'json_object' },
-      signal,
-    })
-    const content = response.choices[0]?.message.content?.trim() ?? ''
-    try {
-      const parsed = JSON.parse(content.replace(/^```(?:json)?\s*|\s*```$/g, ''))
-      return parsed && typeof parsed === 'object' ? null : '返回内容不是 JSON 对象'
-    } catch {
-      return '返回内容不是合法 JSON'
+    const requestJson = async () => {
+      const response = await base.invoke({
+        messages: [
+          { role: 'system', content: 'Reply with a JSON object only.' },
+          { role: 'user', content: 'Return {"ok": true} as JSON.' },
+        ],
+        response_format: { type: 'json_object' },
+        signal,
+      })
+      return response.choices[0]?.message.content?.trim() ?? ''
     }
+    // JSON mode can occasionally return empty content (documented by DeepSeek); the
+    // app tolerates that, so one empty reply is retried rather than reported.
+    let content = await requestJson()
+    if (!content) content = await requestJson()
+    if (!content) return '模型连续两次返回空内容；JSON 输出偶尔为空时应用会降级处理，若频繁出现请换用其他模型'
+    // Parse exactly as the app does (with jsonrepair fallback), so the probe never fails on output the app accepts.
+    const parsed = await tryJsonParse(content.replace(/^```(?:json)?\s*|\s*```$/g, ''))
+    if (parsed.success && parsed.data && typeof parsed.data === 'object') return null
+    const preview = content.length > 60 ? `${content.slice(0, 60)}…` : content
+    return `返回内容不是 JSON 对象：「${preview}」`
   })
 
   if (base.config.thinkingStyle !== 'none') {
