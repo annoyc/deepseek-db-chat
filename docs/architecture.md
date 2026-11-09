@@ -431,3 +431,32 @@ deepseek-db-chat/
 | Connection CRUD | POST (JSON) | Add, list, test, and remove database connections |
 
 These are invoked from the client via TanStack Start's `createServerFn` RPC layer, which handles serialization and routing automatically.
+
+---
+
+## Knowledge Q&A (RAG)
+
+The knowledge workbench (`/workbench/knowledge`) answers electricity-market rule questions in-process; `KNOWLEDGE_BACKEND=remote` restores the former proxy to the external service at `MEMO_CHAT_API_BASE`. Both paths emit the same `KnowledgeStreamChunk` SSE protocol, so the client is unchanged apart from the citation panel.
+
+```mermaid
+flowchart LR
+    corpus["knowledge/corpus/*.md<br/>front matter + articles"] -->|"pnpm kb:ingest [--embed]"| index["knowledge/kb-index.json<br/>chunks + optional vectors"]
+    index --> kb["loadKnowledgeBase()<br/>BM25 built in memory"]
+    q["question"] --> guard["guardrail<br/>maskPII"] --> rewrite["query_rewrite<br/>standalone + sub-questions"]
+    rewrite --> retrieve["kb_retrieve<br/>BM25 + cosine, RRF"]
+    kb --> retrieve
+    retrieve --> web["web_search<br/>Bocha (optional)"] --> answer["synthesis<br/>streamed, cites [n]"] --> check["citation_check"]
+```
+
+| Module (`src/server/knowledge/`) | Responsibility |
+|---|---|
+| `corpus.ts`, `chunker.ts` | Parse front matter; one chunk per article (第X条) or glossary entry, long articles split, short neighbours merged |
+| `tokenizer.ts`, `bm25.ts` | `Intl.Segmenter` words + CJK bigrams; Okapi BM25 |
+| `embedding.ts`, `index-builder.ts` | Server-key embeddings via the OpenAI-compatible `/embeddings` endpoint; vectors reused by content hash |
+| `retriever.ts` | Per-query keyword and vector rankings fused with reciprocal rank fusion (k = 60) |
+| `validity.ts` | Document status (in force / expired / not yet effective) computed from Beijing dates at question time |
+| `pipeline.ts`, `prompt.ts`, `citations.ts` | Stage orchestration, cited answer prompt, citation validation |
+
+Users can also upload PDF, Word, Markdown and text files. They are parsed in the browser (`src/lib/document-text.ts`, pdf.js via unpdf and mammoth, loaded on demand), the extracted text is posted to `/workbench/knowledge-upload` for structuring, chunking and optional embedding, and the returned chunks are stored in IndexedDB; the server keeps nothing. For each question the browser ranks the stored chunks with the same BM25 code (`src/lib/retrieval/`) and sends up to 30 candidates, which the server fuses with the built-in results. The bundled documents are every user's default knowledge base: health lists them with their validity status, a user can remove any of them in their own browser (and restore it), and the removed ids travel with each question as `excludedDefaultIds` so retrieval skips those documents before ranking. Limits: `KB_UPLOAD_MAX_DOCUMENTS` (per browser), `KB_UPLOAD_MAX_BYTES`, `KB_UPLOAD_MAX_CHARS`. A Vite plugin keeps both parsers out of the server builds, and `pnpm build` runs Vite with a 4 GB heap because the combined build exceeded V8's default limit.
+
+The index records the embedding model it was built with; query embeddings always use that model and the server's own key, and retrieval falls back to keyword-only when either is unavailable. With general knowledge disabled, a question with no retrieved provision is refused without a model call.

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DbpilotRouteImport } from './routes/dbpilot'
 import { Route as EvalsRouteImport } from './routes/evals'
 import { Route as KnowledgeRouteImport } from './routes/knowledge'
+import { Route as KnowledgeUploadRouteImport } from './routes/knowledge-upload'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const KnowledgeRoute = KnowledgeRouteImport.update({
   path: '/knowledge',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KnowledgeUploadRoute = KnowledgeUploadRouteImport.update({
+  id: '/knowledge-upload',
+  path: '/knowledge-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dbpilot': typeof DbpilotRoute
   '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
+  '/knowledge-upload': typeof KnowledgeUploadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dbpilot': typeof DbpilotRoute
   '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
+  '/knowledge-upload': typeof KnowledgeUploadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,20 @@ export interface FileRoutesById {
   '/dbpilot': typeof DbpilotRoute
   '/evals': typeof EvalsRoute
   '/knowledge': typeof KnowledgeRoute
+  '/knowledge-upload': typeof KnowledgeUploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dbpilot' | '/evals' | '/knowledge'
+  fullPaths: '/' | '/dbpilot' | '/evals' | '/knowledge' | '/knowledge-upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dbpilot' | '/evals' | '/knowledge'
-  id: '__root__' | '/' | '/dbpilot' | '/evals' | '/knowledge'
+  to: '/' | '/dbpilot' | '/evals' | '/knowledge' | '/knowledge-upload'
+  id:
+    | '__root__'
+    | '/'
+    | '/dbpilot'
+    | '/evals'
+    | '/knowledge'
+    | '/knowledge-upload'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +82,7 @@ export interface RootRouteChildren {
   DbpilotRoute: typeof DbpilotRoute
   EvalsRoute: typeof EvalsRoute
   KnowledgeRoute: typeof KnowledgeRoute
+  KnowledgeUploadRoute: typeof KnowledgeUploadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof KnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/knowledge-upload': {
+      id: '/knowledge-upload'
+      path: '/knowledge-upload'
+      fullPath: '/knowledge-upload'
+      preLoaderRoute: typeof KnowledgeUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   DbpilotRoute: DbpilotRoute,
   EvalsRoute: EvalsRoute,
   KnowledgeRoute: KnowledgeRoute,
+  KnowledgeUploadRoute: KnowledgeUploadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

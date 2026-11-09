@@ -13,6 +13,8 @@ import type {
   KnowledgeToolStep,
 } from '@/lib/knowledge-types'
 import { knowledgeChatStream } from '@/server/functions/knowledge-chat'
+import { useSettings } from './useSettings'
+import { useKnowledgeDocuments } from './useKnowledgeDocuments'
 
 interface KnowledgeChatState {
   persistenceState: PersistenceState
@@ -145,6 +147,7 @@ function mergeEvidence(current: KnowledgeEvidence | undefined, chunk: Extract<Kn
   evidence.subQuestions = chunk.subQuestions ?? evidence.subQuestions
   evidence.memorySnippets = chunk.memorySnippets ?? evidence.memorySnippets
   evidence.webResults = chunk.webResults ?? evidence.webResults
+  evidence.citations = chunk.citations ?? evidence.citations
   evidence.progress = current?.progress ?? []
   evidence.toolSteps = current?.toolSteps ?? []
   return evidence
@@ -167,6 +170,8 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const [storageLoaded, setStorageLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const { persistenceState: saveState, retrySave: retryPersistedSessions } = useSessionPersistence('knowledgeSessions', sessions, storageLoaded)
+  const { aiRequest } = useSettings()
+  const { selectCandidates, removedDefaultIds } = useKnowledgeDocuments()
   const persistenceState: PersistenceState = loadError ? 'load-error' : saveState
   const sessionsRef = useRef(sessions)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -307,6 +312,9 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       useBaseModel,
       answerMode,
       history,
+      userChunks: selectCandidates(trimmed, history),
+      excludedDefaultIds: removedDefaultIds.length ? removedDefaultIds : undefined,
+      ...aiRequest,
     }
 
     try {
@@ -396,7 +404,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
       }
     }
-  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch])
+  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, aiRequest, selectCandidates, removedDefaultIds])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()

@@ -22,6 +22,8 @@ try {
     format: 'esm',
     target: 'node20',
     packages: 'external',
+    // Vite defines this per build; tests exercise the browser-side code paths.
+    define: { 'import.meta.env.SSR': 'false', 'import.meta.env.BASE_URL': '"/workbench/"' },
     tsconfig: resolve(root, 'tsconfig.json'),
     logLevel: 'warning',
   })
