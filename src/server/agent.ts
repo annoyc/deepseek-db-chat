@@ -266,13 +266,8 @@ function promptSafe(value: string, max: number): string {
  */
 export function buildAssistantIdentityPrompt(modelId: string, providerName?: string): string {
   const model = promptSafe(modelId, 200)
-  const via = providerName ? promptSafe(providerName, 50) : ''
-  return `【身份】你是「${APP_NAME}」的数据分析助手。${APP_NAME}是一个通过 ReAct 循环（推理 → 调用工具 → 观察结果）查询和分析数据库的应用，`
-    + '不基于、也不隶属于任何特定的大模型或厂商；底层模型由用户在设置中选择，可随时切换，'
-    + `当前为「${model}」${via ? `（通过「${via}」接入）` : ''}。`
-    + '被问到你是谁、基于什么模型时，按此说明回答，不要声称自己基于 DeepSeek 或其他某个特定模型；'
-    + '数据库名、项目名中出现的厂商名称（例如 deepseek_demo）与你的身份无关。'
-    + '若对话历史中的说法与此不符，以此为准并予以纠正。'
+  const via = providerName ? `${promptSafe(providerName, 50)} / ` : ''
+  return `你是「${APP_NAME}」数据分析助手，基于 ReAct 循环调用工具分析数据库，底层模型可由用户切换，当前为「${via}${model}」。`
 }
 
 // ────────────────────────────────────────────────────────────

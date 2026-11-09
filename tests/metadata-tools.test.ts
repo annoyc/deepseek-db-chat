@@ -156,8 +156,8 @@ test('schema exploration can answer a table count using the metadata tool withou
     assert.match(system, /元数据.*真实证据/)
     assert.doesNotMatch(system, /只有 execute_sql 返回的才是真实数据|路径 A（简单查询/)
     // The assistant is told what it is, so it cannot infer "基于 DeepSeek" from the database name.
-    assert.match(system, /【身份】你是「数问」的数据分析助手/)
-    assert.match(system, /当前为「test」（通过「DeepSeek」接入）/)
+    assert.match(system, /你是「数问」数据分析助手，基于 ReAct 循环/)
+    assert.match(system, /当前为「DeepSeek \/ test」/)
     if (requests === 1) {
       return completion({ content: null, tool_calls: [{ id: 'inventory', type: 'function', function: { name: 'list_tables', arguments: '{}' } }] }, 'tool_calls')
     }
@@ -254,8 +254,8 @@ test('with a custom provider the assistant is told it is the ReAct app on that m
     await agent.generate({ prompt: '你是什么模型' })
     assert.equal(url, 'https://api.qnaigc.example/v1/chat/completions')
     assert.match(system, /当前连接的数据库: deepseek_demo/)
-    assert.match(system, /不要声称自己基于 DeepSeek/)
-    assert.match(system, /当前为「z-ai\/glm-5\.3-flash」（通过「七牛云」接入）/)
+    assert.match(system, /你是「数问」数据分析助手，基于 ReAct 循环/)
+    assert.match(system, /当前为「七牛云 \/ z-ai\/glm-5\.3-flash」/)
   } finally {
     await closePool(connection.id)
     if (previousEncryptionKey === undefined) delete process.env.ENCRYPTION_KEY
