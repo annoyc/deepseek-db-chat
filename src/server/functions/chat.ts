@@ -21,7 +21,6 @@ interface ChatInput {
   apiKey?: string
   baseURL?: string
   thinkingStyle?: string
-  providerName?: string
   thinkingMode?: 'enabled' | 'disabled'
   reasoningEffort?: 'high' | 'max'
   sqlPermission?: 'readonly' | 'write'
@@ -112,7 +111,6 @@ export const chatStream = createServerFn({ method: 'POST' })
               apiKey: data.apiKey,
               baseURL: data.baseURL,
               thinkingStyle: data.thinkingStyle,
-              providerName: data.providerName,
               thinkingMode: data.thinkingMode,
               reasoningEffort: data.reasoningEffort,
               sqlPermission: effectiveSqlPermission,
