@@ -123,7 +123,7 @@ export function KnowledgeSidebar({
             <>
               <KnowledgeServiceStatus health={health} checking={checkingHealth} />
 
-              {health?.mode !== 'remote' && <KnowledgeDocuments limits={health?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS} />}
+              {health?.mode !== 'remote' && <KnowledgeDocuments limits={health?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS} defaultDocuments={health?.defaultDocuments} />}
 
               <div className="py-3">
                 <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">

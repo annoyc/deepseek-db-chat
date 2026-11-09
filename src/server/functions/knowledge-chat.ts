@@ -15,6 +15,7 @@ import { runKnowledgePipeline, type KnowledgePipelineDeps } from '@/server/knowl
 import { createBochaWebSearch } from '@/server/knowledge/web-search'
 import { uploadLimits } from '@/server/knowledge/upload'
 import { MAX_UPLOAD_CANDIDATES } from '@/lib/knowledge-documents'
+import { beijingDate, documentStatus } from '@/server/knowledge/validity'
 
 interface MemoChatResponse {
   answer?: string
@@ -169,6 +170,7 @@ const KnowledgeInputSchema = z.object({
     embeddingKey: z.string().max(200).optional(),
   }).refine(chunk => chunk.id.startsWith(`${chunk.docId}#`), 'chunk id must belong to its document'))
     .max(MAX_UPLOAD_CANDIDATES).optional(),
+  excludedDefaultIds: z.array(z.string().regex(/^[a-z0-9][a-z0-9-]{0,79}$/)).max(100).optional(),
   provider: z.string().max(40).optional(),
   model: z.string().max(120).optional(),
   apiKey: z.string().max(4096).optional(),
@@ -256,6 +258,7 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
             useBaseModel: data.useBaseModel,
             answerMode: data.answerMode,
             userChunks: data.userChunks,
+            excludedDefaultIds: data.excludedDefaultIds,
           }, deps, signal)
           for await (const chunk of pipeline) emit({ enqueue }, encoder, chunk)
         })
@@ -288,11 +291,27 @@ async function localHealth(): Promise<KnowledgeHealth> {
   try {
     const kb = await loadKnowledgeBase()
     const hybrid = Boolean(kb.embedding && createServerEmbedder(kb.embedding))
+    const today = beijingDate(new Date())
+    const chunkCounts = new Map<string, number>()
+    for (const chunk of kb.chunks) chunkCounts.set(chunk.docId, (chunkCounts.get(chunk.docId) ?? 0) + 1)
     return {
       status: 'ok',
       mode: 'local',
       index: { documents: kb.documents.size, chunks: kb.chunks.length, retrieval: hybrid ? 'hybrid' : 'keyword' },
       uploadLimits: uploadLimits(),
+      defaultDocuments: [...kb.documents.values()].map((doc) => {
+        const { status, label } = documentStatus(doc, today)
+        return {
+          id: doc.id,
+          title: doc.title,
+          docNo: doc.docNo,
+          issuer: doc.issuer,
+          chunks: chunkCounts.get(doc.id) ?? 0,
+          status,
+          statusLabel: label,
+          sourceUrl: doc.sourceUrl,
+        }
+      }),
       webSearchAvailable: Boolean(process.env.BOCHA_API_KEY?.trim()),
     }
   } catch (error) {

@@ -26,6 +26,8 @@ export interface RetrieveOptions {
   minSimilarity?: number
   /** Further ranked lists of chunk ids to fuse, e.g. the browser's ranking of uploaded chunks. */
   extraRankings?: string[][]
+  /** Documents left out entirely, e.g. default documents the user removed. */
+  excludeDocIds?: ReadonlySet<string>
 }
 
 /** Reciprocal rank fusion: sum of 1 / (k + rank) across ranked lists of ids. */
@@ -37,12 +39,13 @@ export function fuseRankings(rankings: string[][], k = RRF_K): Map<string, numbe
   return scores
 }
 
-function denseSearch(kb: KnowledgeBase, query: Float32Array, limit: number, minSimilarity: number) {
+function denseSearch(kb: KnowledgeBase, query: Float32Array, limit: number, minSimilarity: number, include: (index: number) => boolean) {
   const { vectors, embedding } = kb
   if (!vectors || !embedding || query.length !== embedding.dimensions) return []
   const dims = embedding.dimensions
   const scored: { index: number; similarity: number }[] = []
   for (let i = 0; i < kb.chunks.length; i++) {
+    if (!include(i)) continue
     let dot = 0
     const offset = i * dims
     for (let d = 0; d < dims; d++) dot += vectors[offset + d] * query[d]
@@ -67,8 +70,10 @@ export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: stri
   const located = new Map<string, { chunk: KbChunk; kb: KnowledgeBase }>()
   for (const kb of bases) {
     for (const chunk of kb.chunks) located.set(chunk.id, { chunk, kb })
+    const excluded = options.excludeDocIds
+    const include = (index: number) => !excluded?.has(kb.chunks[index].docId)
     queries.forEach((query, q) => {
-      const keyword = kb.bm25.search(tokenizeQuery(query), candidates)
+      const keyword = kb.bm25.search(tokenizeQuery(query), candidates, include)
       rankings.push(keyword.map(({ index }, rank) => {
         const id = kb.chunks[index].id
         bm25Rank.set(id, Math.min(bm25Rank.get(id) ?? Infinity, rank + 1))
@@ -76,7 +81,7 @@ export function retrieve(sources: KnowledgeBase | KnowledgeBase[], queries: stri
       }))
       const vector = options.queryVectors?.[q]
       if (!vector) return
-      const dense = denseSearch(kb, vector, candidates, options.minSimilarity ?? 0)
+      const dense = denseSearch(kb, vector, candidates, options.minSimilarity ?? 0, include)
       rankings.push(dense.map(({ index, similarity: value }, rank) => {
         const id = kb.chunks[index].id
         denseRank.set(id, Math.min(denseRank.get(id) ?? Infinity, rank + 1))

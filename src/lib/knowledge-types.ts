@@ -127,6 +127,8 @@ export interface KnowledgeChatInput {
   history?: KnowledgeHistoryTurn[]
   /** Candidate chunks from the user's uploaded documents, pre-selected in the browser. */
   userChunks?: KnowledgeUserChunkCandidate[]
+  /** Default (built-in) documents the user removed from their knowledge base. */
+  excludedDefaultIds?: string[]
   /** Answer model settings, as in the database workbench; the remote backend ignores them. */
   provider?: string
   model?: string
@@ -180,6 +182,18 @@ export interface KnowledgeUploadLimits {
   maxDocuments: number
 }
 
+/** A document of the built-in knowledge base, as listed in the sidebar. */
+export interface KnowledgeDefaultDocument {
+  id: string
+  title: string
+  docNo?: string
+  issuer?: string
+  chunks: number
+  status: KnowledgeDocumentStatus
+  statusLabel: string
+  sourceUrl?: string
+}
+
 export interface KnowledgeIndexInfo {
   documents: number
   chunks: number
@@ -194,6 +208,8 @@ export interface KnowledgeHealth {
   index?: KnowledgeIndexInfo
   /** Present when the local knowledge base accepts uploads. */
   uploadLimits?: KnowledgeUploadLimits
+  /** The built-in documents every user starts with; each user may remove them. */
+  defaultDocuments?: KnowledgeDefaultDocument[]
   lmModel?: string
   webSearchAvailable?: boolean
   backendBase?: string

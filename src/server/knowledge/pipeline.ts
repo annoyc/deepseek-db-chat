@@ -26,6 +26,8 @@ export interface KnowledgePipelineInput {
   answerMode: KnowledgeAnswerMode
   /** Uploaded-document chunks the browser pre-selected, best first. */
   userChunks?: KnowledgeUserChunkCandidate[]
+  /** Built-in documents the user removed from their knowledge base. */
+  excludedDefaultIds?: string[]
 }
 
 export interface KnowledgePipelineDeps {
@@ -139,6 +141,8 @@ export async function* runKnowledgePipeline(
       vectorNote = '；向量检索失败，已降级为关键词检索'
     }
   }
+  const excluded = new Set((input.excludedDefaultIds ?? []).filter(id => kb.documents.has(id)))
+  const excludedNote = excluded.size ? `；已按设置跳过 ${excluded.size} 份默认文档` : ''
   const userChunks = input.userChunks ?? []
   const uploads = userChunks.length ? createUploadKnowledgeBase(userChunks, kb.embedding) : undefined
   const hits = retrieve(uploads ? [kb, uploads] : kb, queries, {
@@ -147,14 +151,15 @@ export async function* runKnowledgePipeline(
     minSimilarity: deps.minSimilarity,
     // The browser ranked these over all uploaded chunks, with corpus-wide term statistics.
     extraRankings: uploads ? [userChunks.map(c => c.id)] : [],
+    excludeDocIds: excluded,
   })
   const citations = hits.map((hit, i) => toCitation(hit, i + 1, today))
   const documents = new Set(hits.map(hit => hit.doc.id)).size
   const uploadHits = hits.filter(hit => hit.source === 'upload').length
   yield tool('kb_retrieve', '知识库检索', 'done', {
     output: hits.length
-      ? `${queryVectors ? '关键词 + 向量' : '关键词'}检索，RRF 融合后取 ${hits.length} 条，来自 ${documents} 份文件${uploadHits ? `（含我的文档 ${uploadHits} 条）` : ''}${vectorNote}`
-      : `未检索到相关条款${vectorNote}`,
+      ? `${queryVectors ? '关键词 + 向量' : '关键词'}检索，RRF 融合后取 ${hits.length} 条，来自 ${documents} 份文件${uploadHits ? `（含我的文档 ${uploadHits} 条）` : ''}${excludedNote}${vectorNote}`
+      : `未检索到相关条款${excludedNote}${vectorNote}`,
     detail: queries.join('\n'),
     durationMs: elapsed(start),
   })

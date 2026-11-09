@@ -18,12 +18,19 @@ interface KnowledgeDocumentsState {
   error: string | null
   upload: (file: File, limits: KnowledgeUploadLimits) => Promise<void>
   remove: (id: string) => Promise<void>
+  /** Ids of default (built-in) documents removed in this browser. */
+  removedDefaultIds: string[]
+  removeDefault: (id: string) => Promise<void>
+  restoreDefault: (id: string) => Promise<void>
   clearError: () => void
   /** Chunks of the user's documents relevant to a question, ranked in the browser. */
   selectCandidates: (question: string, history: KnowledgeHistoryTurn[]) => KnowledgeUserChunkCandidate[]
 }
 
 const KnowledgeDocumentsContext = createContext<KnowledgeDocumentsState | null>(null)
+
+/** Settings-table key of the default documents the user removed. */
+export const REMOVED_DEFAULTS_KEY = 'knowledge-removed-default-documents'
 
 const byNewest = (a: KnowledgeUploadedDocument, b: KnowledgeUploadedDocument) => b.uploadedAt.localeCompare(a.uploadedAt)
 
@@ -36,6 +43,7 @@ export function KnowledgeDocumentsProvider({ children }: { children: React.React
   const [loaded, setLoaded] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [removedDefaultIds, setRemovedDefaultIds] = useState<string[]>([])
   const uploadController = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -44,6 +52,11 @@ export function KnowledgeDocumentsProvider({ children }: { children: React.React
       .then((stored) => setDocuments(stored.sort(byNewest)))
       .catch(() => setError('无法读取已上传的文档'))
       .finally(() => setLoaded(true))
+    db.settings.get(REMOVED_DEFAULTS_KEY)
+      .then((record) => {
+        if (Array.isArray(record?.value)) setRemovedDefaultIds(record.value.filter((id): id is string => typeof id === 'string'))
+      })
+      .catch(() => setError('无法读取默认文档设置'))
     return () => uploadController.current?.abort()
   }, [])
 
@@ -100,6 +113,27 @@ export function KnowledgeDocumentsProvider({ children }: { children: React.React
     }
   }, [])
 
+  const saveRemovedDefaults = useCallback(async (update: (ids: string[]) => string[]) => {
+    const record = await db.settings.get(REMOVED_DEFAULTS_KEY).catch(() => undefined)
+    const current = Array.isArray(record?.value) ? record.value as string[] : []
+    const next = update(current)
+    try {
+      await db.settings.put({ key: REMOVED_DEFAULTS_KEY, value: next })
+      setRemovedDefaultIds(next)
+    } catch {
+      setError('保存默认文档设置失败，请重试')
+    }
+  }, [])
+
+  const removeDefault = useCallback(
+    (id: string) => saveRemovedDefaults(ids => (ids.includes(id) ? ids : [...ids, id])),
+    [saveRemovedDefaults],
+  )
+  const restoreDefault = useCallback(
+    (id: string) => saveRemovedDefaults(ids => ids.filter(other => other !== id)),
+    [saveRemovedDefaults],
+  )
+
   const searchIndex = useMemo(() => createUploadSearchIndex(documents), [documents])
 
   const selectCandidates = useCallback((question: string, history: KnowledgeHistoryTurn[]) => {
@@ -115,6 +149,9 @@ export function KnowledgeDocumentsProvider({ children }: { children: React.React
     error,
     upload,
     remove,
+    removedDefaultIds,
+    removeDefault,
+    restoreDefault,
     clearError: useCallback(() => setError(null), []),
     selectCandidates,
   }

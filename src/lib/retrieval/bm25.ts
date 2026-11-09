@@ -34,14 +34,18 @@ export class Bm25Index {
     return Math.log(1 + (this.size - df + 0.5) / (df + 0.5))
   }
 
-  /** Each distinct query term counts once; returns documents with a positive score, best first. */
-  search(queryTokens: string[], limit: number): ScoredIndex[] {
+  /**
+   * Each distinct query term counts once; returns documents with a positive score, best first.
+   * `include` filters documents before the limit applies, so excluded ones never take a slot.
+   */
+  search(queryTokens: string[], limit: number, include?: (index: number) => boolean): ScoredIndex[] {
     const scores = new Map<number, number>()
     for (const term of new Set(queryTokens)) {
       const list = this.postings.get(term)
       if (!list) continue
       const idf = this.idf(term)
       for (const { doc, tf } of list) {
+        if (include && !include(doc)) continue
         const norm = this.k1 * (1 - this.b + this.b * (this.lengths[doc] / (this.averageLength || 1)))
         scores.set(doc, (scores.get(doc) ?? 0) + idf * (tf * (this.k1 + 1)) / (tf + norm))
       }

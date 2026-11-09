@@ -266,3 +266,58 @@ test('document list shows usage against the limit and disables upload when full'
   assert.match(full, /<button[^>]*disabled=""[^>]*>.*?上传/)
   assert.ok(render([], { uploading: '规则.pdf', error: '文件为空' }).includes('正在解析 规则.pdf'))
 })
+
+// ── Default documents ───────────────────────────────────────
+
+test('removed default documents never take a retrieval slot', () => {
+  const all = retrieve(kb, ['绿电的价格怎么结算？'], { topK: 6 })
+  assert.ok(all.some(hit => hit.doc.id === 'mid-long-term-market-2025'))
+  const without = retrieve(kb, ['绿电的价格怎么结算？'], { topK: 6, excludeDocIds: new Set(['mid-long-term-market-2025']) })
+  assert.ok(without.length > 0)
+  assert.equal(without.some(hit => hit.doc.id === 'mid-long-term-market-2025'), false)
+})
+
+test('a user who removed every default document gets only their own documents', async () => {
+  const allDefaults = [...kb.documents.keys()]
+  let modelCalls = 0
+  const chatModel: KnowledgePipelineDeps['chatModel'] = () => ({
+    async invoke() { modelCalls++; throw new Error('unused') },
+    async *invokeStream() { modelCalls++; yield { choices: [{ delta: { content: '见[1]' } }] } as any },
+  })
+  const run = async (userChunks?: KnowledgeUserChunkCandidate[]) => {
+    const chunks: KnowledgeStreamChunk[] = []
+    for await (const chunk of runKnowledgePipeline(
+      { message: '履约保函金额要求', history: [], useWebSearch: false, useBaseModel: false, answerMode: 'concise', userChunks, excludedDefaultIds: [...allDefaults, 'not-a-document'] },
+      { knowledgeBase: async () => kb, chatModel },
+    )) chunks.push(chunk)
+    return chunks
+  }
+  const empty = await run()
+  const retrieval = empty.filter(c => c.type === 'tool' && c.id === 'kb_retrieve').at(-1) as Extract<KnowledgeStreamChunk, { type: 'tool' }>
+  assert.equal(retrieval.output, '未检索到相关条款；已按设置跳过 5 份默认文档')
+  assert.equal(modelCalls, 0)
+
+  const withUploads = await run(candidates())
+  const evidence = withUploads.filter(c => c.type === 'evidence' && c.citations).at(-1) as Extract<KnowledgeStreamChunk, { type: 'evidence' }>
+  assert.ok(evidence.citations!.length > 0)
+  assert.ok(evidence.citations!.every(c => c.source === 'upload'))
+})
+
+test('default documents are listed with status and can be removed or restored', () => {
+  const defaults = [
+    { id: 'mid-long-term-market-2025', title: '电力中长期市场基本规则', chunks: 69, status: 'active' as const, statusLabel: '有效期内（至 2031-02-28）', sourceUrl: 'https://www.ndrc.gov.cn/a.html' },
+    { id: 'spot-market-2023', title: '电力现货市场基本规则（试行）', chunks: 111, status: 'expired' as const, statusLabel: '已过有效期（2026-10-15 到期）' },
+  ]
+  const markup = renderToStaticMarkup(createElement(KnowledgeDocumentList, {
+    documents: [], limits, uploading: null, error: null, onUpload() {}, onRemove() {}, onDismissError() {},
+    defaultDocuments: defaults, removedDefaultIds: ['spot-market-2023'],
+  }))
+  assert.ok(markup.includes('默认文档 · 电力市场规则'))
+  assert.ok(markup.includes('1/2 启用'))
+  assert.ok(markup.includes('有效期内（至 2031-02-28） · 69 段'))
+  assert.ok(markup.includes('已移除，不参与检索'))
+  assert.ok(markup.includes('title="恢复为默认文档"'))
+  assert.ok(markup.includes('title="从我的知识库移除（可随时恢复）"'))
+  assert.ok(markup.includes('href="https://www.ndrc.gov.cn/a.html"'))
+  assert.ok(markup.includes('0/3'))
+})

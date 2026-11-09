@@ -171,7 +171,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
   const [loadError, setLoadError] = useState(false)
   const { persistenceState: saveState, retrySave: retryPersistedSessions } = useSessionPersistence('knowledgeSessions', sessions, storageLoaded)
   const { provider, model, apiKey, baseURL } = useSettings()
-  const { selectCandidates } = useKnowledgeDocuments()
+  const { selectCandidates, removedDefaultIds } = useKnowledgeDocuments()
   const persistenceState: PersistenceState = loadError ? 'load-error' : saveState
   const sessionsRef = useRef(sessions)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -313,6 +313,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       answerMode,
       history,
       userChunks: selectCandidates(trimmed, history),
+      excludedDefaultIds: removedDefaultIds.length ? removedDefaultIds : undefined,
       provider,
       model,
       apiKey: apiKey || undefined,
@@ -406,7 +407,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
       }
     }
-  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, provider, model, apiKey, baseURL, selectCandidates])
+  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, provider, model, apiKey, baseURL, selectCandidates, removedDefaultIds])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
