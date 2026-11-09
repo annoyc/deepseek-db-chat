@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { X, Eye, EyeOff, Server, Lock, Loader2, Globe, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft } from 'lucide-react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import type { ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
@@ -44,7 +44,44 @@ interface CustomDraft {
 const EMPTY_SERVER_DRAFT: ServerDraft = { apiKeyInput: '', baseURLInput: '', hasSavedKey: false }
 const ADD_TAB = '__add__'
 
-const inputClass = 'w-full px-4 py-3 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
+type SettingsSection = 'models' | 'display' | 'sql'
+
+const inputClass = 'w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
+const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
+const hintClass = 'text-xs text-gray-500 mt-1.5'
+
+function SectionHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+        {description && <p className="mt-0.5 text-xs text-gray-500">{description}</p>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function CollapseToggle({ value, onChange, label }: { value: 'expanded' | 'collapsed'; onChange: (v: 'expanded' | 'collapsed') => void; label: string }) {
+  const options = [['expanded', '展开'], ['collapsed', '折叠']] as const
+  return (
+    <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-gray-100 p-0.5">
+      {options.map(([v, text]) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            value === v ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function toCustomDraft(p: CustomProvider): CustomDraft {
   return {
@@ -94,16 +131,17 @@ function ApiKeyInput({ value, onChange, placeholder }: { value: string; onChange
 
 function SavedKeyNotice({ onClear }: { onClear: () => void }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1.5 text-xs text-primary">
+    <div className="mt-1.5 flex items-center justify-between">
+      <div className="flex items-center gap-1.5 text-xs text-primary" title="使用 AES-256-GCM 加密后保存在本地">
         <Lock className="w-3.5 h-3.5" />
-        <span>已加密保存 API Key（AES-256-GCM）</span>
+        <span>已加密保存</span>
       </div>
       <button
+        type="button"
         onClick={onClear}
-        className="text-xs font-medium text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
+        className="rounded px-1.5 py-0.5 text-xs text-gray-500 underline-offset-2 transition-colors hover:text-red-600 hover:underline"
       >
-        清除
+        清除已保存的 Key
       </button>
     </div>
   )
@@ -192,7 +230,7 @@ function ConnectionTester({ models, buildRequest, currentModel, onUseModel }: {
           {running ? '测试中…' : '测试连接'}
         </button>
       </div>
-      <p className="text-xs text-gray-400">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
+      <p className="text-xs text-gray-500">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {result && (
         <ul className="space-y-1.5" aria-label="连接测试结果">
@@ -247,7 +285,9 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
 }) {
   const hasAnyKey = draft.hasSavedKey || provider.hasEnvKey
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <SectionHeader title={provider.name} description="内置模型服务，模型列表由服务器配置。" />
+
       {provider.hasEnvKey && (
         <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
           <Server className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
@@ -262,25 +302,20 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className={labelClass}>
           {provider.hasEnvKey ? '自定义 API Key（可选）' : `${provider.name} API Key`}
         </label>
         <ApiKeyInput value={draft.apiKeyInput} onChange={(v) => onChange({ apiKeyInput: v })} />
+        {draft.hasSavedKey && <SavedKeyNotice onClear={onClearKey} />}
+        {!hasAnyKey && (
+          <p className="mt-1.5 text-xs text-amber-700">
+            未检测到 {provider.name} 的 API Key，请输入后保存，或联系管理员在服务器配置
+          </p>
+        )}
       </div>
 
-      {draft.hasSavedKey && <SavedKeyNotice onClear={onClearKey} />}
-
-      {!hasAnyKey && (
-        <p className="text-xs text-amber-600">
-          未检测到 {provider.name} 的 API Key，请输入后保存，或联系管理员在服务器配置
-        </p>
-      )}
-
       <div>
-        <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
-          <Globe className="w-3.5 h-3.5" />
-          自定义 Base URL（可选）
-        </label>
+        <label className={labelClass}>自定义 Base URL（可选）</label>
         <input
           type="text"
           value={draft.baseURLInput}
@@ -288,7 +323,7 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
           placeholder={provider.defaultBaseURL ?? '服务器配置的地址'}
           className={`${inputClass} font-mono`}
         />
-        <p className="text-xs text-gray-400 mt-1">
+        <p className={hintClass}>
           留空则使用服务器配置的地址。填写自定义地址时，需要同时提供自有 API Key。
         </p>
       </div>
@@ -347,17 +382,44 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">服务名称</label>
-        <input type="text" value={draft.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="例如：阿里云百炼" maxLength={50} className={inputClass} />
+    <div className="space-y-5">
+      <SectionHeader
+        title={draft.name.trim() || '新服务'}
+        description="自定义 OpenAI 兼容服务"
+        action={(
+          <button
+            type="button"
+            onClick={onRemove}
+            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            删除服务
+          </button>
+        )}
+      />
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <div>
+          <label className={labelClass}>服务名称</label>
+          <input type="text" value={draft.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="例如：阿里云百炼" maxLength={50} className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass}>思考参数</label>
+          <select
+            value={draft.thinkingStyle}
+            onChange={(e) => onChange({ thinkingStyle: e.target.value as ThinkingStyle })}
+            className={inputClass}
+          >
+            {(Object.keys(THINKING_STYLE_LABELS) as ThinkingStyle[]).map((style) => (
+              <option key={style} value={style}>{THINKING_STYLE_LABELS[style].label}</option>
+            ))}
+          </select>
+          <p className={hintClass}>{THINKING_STYLE_LABELS[draft.thinkingStyle].hint}</p>
+        </div>
       </div>
 
       <div>
-        <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
-          <Globe className="w-3.5 h-3.5" />
-          Base URL
-        </label>
+        <label className={labelClass}>Base URL</label>
         <input
           type="text"
           value={draft.baseURL}
@@ -365,37 +427,22 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
           placeholder="https://example.com/v1"
           className={`${inputClass} font-mono`}
         />
-        <p className="text-xs text-gray-400 mt-1">OpenAI 兼容地址，请求将发送到 {'{Base URL}'}/chat/completions</p>
+        <p className={hintClass}>OpenAI 兼容地址，请求将发送到 {'{Base URL}'}/chat/completions</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
+        <label className={labelClass}>API Key</label>
         <ApiKeyInput
           value={draft.apiKeyInput}
           onChange={(v) => onChange({ apiKeyInput: v })}
           placeholder={draft.savedApiKey ? '已保存，留空则保持不变' : 'sk-...'}
         />
-        <p className="text-xs text-gray-400 mt-1">自定义服务只使用你自己的 Key，服务器密钥不会用于此服务。</p>
-      </div>
-
-      {draft.savedApiKey && <SavedKeyNotice onClear={() => onChange({ savedApiKey: '' })} />}
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">思考参数</label>
-        <select
-          value={draft.thinkingStyle}
-          onChange={(e) => onChange({ thinkingStyle: e.target.value as ThinkingStyle })}
-          className={inputClass}
-        >
-          {(Object.keys(THINKING_STYLE_LABELS) as ThinkingStyle[]).map((style) => (
-            <option key={style} value={style}>{THINKING_STYLE_LABELS[style].label}</option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-400 mt-1">{THINKING_STYLE_LABELS[draft.thinkingStyle].hint}</p>
+        {draft.savedApiKey && <SavedKeyNotice onClear={() => onChange({ savedApiKey: '' })} />}
+        <p className={hintClass}>自定义服务只使用你自己的 Key，服务器密钥不会用于此服务。</p>
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="mb-1.5 flex items-center justify-between">
           <label className="text-sm font-medium text-gray-700">模型</label>
           <button
             type="button"
@@ -410,12 +457,12 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
         <textarea
           value={draft.modelsText}
           onChange={(e) => onChange({ modelsText: e.target.value })}
-          rows={5}
+          rows={8}
           placeholder={'每行一个模型 ID，可用 “|” 指定显示名\nqwen3.7-plus | Qwen 3.7 Plus'}
-          className={`${inputClass} font-mono resize-y`}
+          className={`${inputClass} font-mono leading-relaxed resize-none`}
         />
-        <p className="text-xs text-gray-400 mt-1">第一个模型为默认模型。本应用依赖工具调用（function calling），请选择支持工具调用的模型。</p>
-        {fetchMessage && <p className="text-xs text-gray-600 mt-1">{fetchMessage}</p>}
+        <p className={hintClass}>每行一个，第一个为默认模型。本应用依赖工具调用（function calling），请选择支持工具调用的模型。</p>
+        {fetchMessage && <p className="mt-1 text-xs text-gray-700">{fetchMessage}</p>}
       </div>
 
       <ConnectionTester
@@ -430,17 +477,6 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
           return { provider: draft.id, apiKey, baseURL: draft.baseURL.trim(), thinkingStyle: draft.thinkingStyle }
         }}
       />
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onRemove}
-          className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-700 transition-colors px-2 py-1 rounded hover:bg-red-50"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          删除此服务
-        </button>
-      </div>
     </div>
   )
 }
@@ -463,6 +499,11 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   } = useSettings()
 
   const [activeTab, setActiveTab] = useState(provider)
+  const [section, setSection] = useState<SettingsSection>('models')
+  const selectProviderTab = (id: string) => {
+    setActiveTab(id)
+    setSection('models')
+  }
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const saveErrorRef = useRef<HTMLParagraphElement>(null)
@@ -478,7 +519,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
   useEffect(() => {
     if (open) {
-      setActiveTab(provider)
+      selectProviderTab(provider)
       setSaving(false)
       setSaveError('')
       setLocalThinkingCollapse(thinkingCollapseMode)
@@ -494,6 +535,15 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       setCustomDrafts(customProviders.map(toCustomDraft))
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, saving, onClose])
 
   if (!open) return null
 
@@ -536,7 +586,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       for (const draft of customDrafts) {
         const error = validateCustomDraft(draft)
         if (error) {
-          setActiveTab(draft.id)
+          selectProviderTab(draft.id)
           return `${draft.name.trim() || '新服务'}：${error}`
         }
       }
@@ -607,197 +657,177 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     updateServerDraft(providerId, { hasSavedKey: false, apiKeyInput: '' })
   }
 
-  const tabClass = (selected: boolean) => `relative flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium transition-colors ${
-    selected ? 'text-primary border-b-2 border-primary' : 'text-gray-500 hover:text-gray-700'
-  }`
+  const navItemClass = (selected: boolean, indent = false) => `flex w-auto shrink-0 items-center gap-2 whitespace-nowrap rounded-lg py-2 text-sm transition-colors sm:w-full ${
+    indent ? 'px-3 sm:pl-9' : 'px-3'
+  } ${selected ? 'bg-white font-medium text-primary shadow-sm ring-1 ring-gray-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
+
+  const providerNavItems = [
+    ...serverProviders.map((p) => ({ id: p.id, name: p.name, configured: p.hasEnvKey || !!serverDrafts[p.id]?.hasSavedKey })),
+    ...customDrafts.map((d) => ({ id: d.id, name: d.name.trim() || '新服务', configured: !!d.savedApiKey || !!d.apiKeyInput.trim() })),
+  ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 pb-2">
-          <h2 className="text-lg font-bold text-gray-900">设置</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        className="flex h-[min(720px,calc(100vh-2rem))] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 id="settings-dialog-title" className="text-lg font-bold text-gray-900">设置</h2>
+          <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-gray-100">
+            <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
-        <div className="px-5 pb-5 space-y-4 overflow-y-auto">
-          {/* Provider Tabs */}
-          <div className="space-y-3">
-            <div className="text-sm font-medium text-gray-700">模型服务</div>
-            <div className="flex overflow-x-auto border-b border-gray-200">
-              {serverProviders.map((p) => {
-                const configured = p.hasEnvKey || !!serverDrafts[p.id]?.hasSavedKey
-                return (
-                  <button key={p.id} onClick={() => setActiveTab(p.id)} className={tabClass(activeTab === p.id)}>
-                    {p.name}
-                    <span className={`w-1.5 h-1.5 rounded-full ${configured ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  </button>
-                )
-              })}
-              {customDrafts.map((d) => {
-                const configured = !!d.savedApiKey || !!d.apiKeyInput.trim()
-                return (
-                  <button key={d.id} onClick={() => setActiveTab(d.id)} className={tabClass(activeTab === d.id)}>
-                    {d.name.trim() || '新服务'}
-                    <span className={`w-1.5 h-1.5 rounded-full ${configured ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  </button>
-                )
-              })}
-              <button onClick={() => setActiveTab(ADD_TAB)} className={tabClass(activeTab === ADD_TAB)} title="添加模型服务">
-                <Plus className="w-4 h-4" />
-                添加
+        <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+          {/* Section navigation: a column on wide screens, a scrolling strip on phones */}
+          <nav aria-label="设置分类" className="flex shrink-0 gap-1 overflow-x-auto border-b border-gray-200 bg-gray-50 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3">
+            <div className="hidden items-center gap-2 px-3 py-2 text-sm font-medium text-gray-900 sm:flex">
+              <Cpu className="h-4 w-4 text-gray-500" />
+              模型服务
+            </div>
+            {providerNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => selectProviderTab(item.id)}
+                aria-current={section === 'models' && activeTab === item.id ? 'page' : undefined}
+                className={navItemClass(section === 'models' && activeTab === item.id, true)}
+              >
+                <span className="min-w-0 flex-1 truncate text-left">{item.name}</span>
+                <span
+                  title={item.configured ? '已配置 API Key' : '未配置 API Key'}
+                  aria-label={item.configured ? '已配置 API Key' : '未配置 API Key'}
+                  className={`h-2 w-2 shrink-0 rounded-full ${item.configured ? 'bg-green-500' : 'border border-gray-400'}`}
+                />
               </button>
-            </div>
-          </div>
+            ))}
+            <button
+              onClick={() => selectProviderTab(ADD_TAB)}
+              aria-current={section === 'models' && activeTab === ADD_TAB ? 'page' : undefined}
+              className={`${navItemClass(section === 'models' && activeTab === ADD_TAB, true)} ${section === 'models' && activeTab === ADD_TAB ? '' : '!text-primary'}`}
+            >
+              <Plus className="h-4 w-4" />
+              添加服务
+            </button>
 
-          {activeServer && (
-            <ServerProviderForm
-              provider={activeServer}
-              key={activeServer.id}
-              draft={serverDrafts[activeServer.id] ?? EMPTY_SERVER_DRAFT}
-              savedApiKey={providerConfigs[activeServer.id]?.apiKey}
-              currentModel={provider === activeServer.id ? currentModel : undefined}
-              onUseModel={(modelId) => handleUseModel(activeServer.id, modelId)}
-              onChange={(partial) => updateServerDraft(activeServer.id, partial)}
-              onClearKey={() => handleClearServerKey(activeServer.id)}
-            />
-          )}
+            <div className="my-2 hidden border-t border-gray-200 sm:block" />
 
-          {activeCustom && (
-            <CustomProviderForm
-              key={activeCustom.id}
-              draft={activeCustom}
-              currentModel={provider === activeCustom.id ? currentModel : undefined}
-              onUseModel={(modelId) => handleUseModel(activeCustom.id, modelId)}
-              onChange={(partial) => updateCustomDraft(activeCustom.id, partial)}
-              onRemove={() => removeDraft(activeCustom.id)}
-            />
-          )}
+            <button onClick={() => setSection('display')} aria-current={section === 'display' ? 'page' : undefined} className={navItemClass(section === 'display')}>
+              <PanelsTopLeft className="h-4 w-4" />
+              显示
+            </button>
+            <button onClick={() => setSection('sql')} aria-current={section === 'sql' ? 'page' : undefined} className={navItemClass(section === 'sql')}>
+              <ShieldCheck className="h-4 w-4" />
+              SQL 安全
+            </button>
+          </nav>
 
-          {!activeServer && !activeCustom && (
-            <div className="space-y-2">
-              <p className="text-xs text-gray-500">添加任意兼容 OpenAI Chat Completions 接口的服务。选择模板可预填地址和参数：</p>
-              <div className="grid grid-cols-2 gap-2">
-                {PROVIDER_TEMPLATES.map((t) => (
-                  <button
-                    key={t.key}
-                    onClick={() => addFromTemplate(t)}
-                    className="rounded-xl border border-gray-200 px-3 py-2.5 text-left text-sm hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                  >
-                    <div className="font-medium text-gray-800">{t.name}</div>
-                    <div className="truncate text-xs text-gray-400 font-mono">{t.baseURL || '手动填写地址'}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 显示设置 */}
-          <div className="border-t border-gray-200 pt-4 space-y-3">
-            <div className="text-sm font-medium text-gray-700">默认折叠状态</div>
-            <p className="text-xs text-gray-400 -mt-1">
-              控制聊天中对应模块的初始展开/折叠状态
-            </p>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">思考过程</span>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                <button
-                  onClick={() => setLocalThinkingCollapse('expanded')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    localThinkingCollapse === 'expanded'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  展开
-                </button>
-                <button
-                  onClick={() => setLocalThinkingCollapse('collapsed')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    localThinkingCollapse === 'collapsed'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  折叠
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">工具调用</span>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-                <button
-                  onClick={() => setLocalToolCallCollapse('expanded')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    localToolCallCollapse === 'expanded'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  展开
-                </button>
-                <button
-                  onClick={() => setLocalToolCallCollapse('collapsed')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    localToolCallCollapse === 'collapsed'
-                      ? 'bg-white text-primary shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  折叠
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* SQL 执行限制 */}
-          <div className="border-t border-gray-200 pt-4 space-y-3">
-            <div className="text-sm font-medium text-gray-700">SQL 执行限制</div>
-            <p className="text-xs text-amber-700">
-              请使用 MySQL 只读账号连接生产库。默认仅允许查询；写入须由管理员在服务器为指定的非生产数据库显式开启。
-            </p>
-            <p className="text-xs text-gray-400 -mt-1">
-              每个会话中最多允许执行的 SQL 次数，防止 AI 过度查询
-            </p>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">最大执行次数</span>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={localMaxSqlExecutions}
-                onChange={(e) => {
-                  const v = parseInt(e.target.value, 10)
-                  if (!isNaN(v)) {
-                    setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
-                  }
-                }}
-                className="w-20 px-3 py-1.5 text-sm text-center border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all tabular-nums"
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            {section === 'models' && activeServer && (
+              <ServerProviderForm
+                provider={activeServer}
+                key={activeServer.id}
+                draft={serverDrafts[activeServer.id] ?? EMPTY_SERVER_DRAFT}
+                savedApiKey={providerConfigs[activeServer.id]?.apiKey}
+                currentModel={provider === activeServer.id ? currentModel : undefined}
+                onUseModel={(modelId) => handleUseModel(activeServer.id, modelId)}
+                onChange={(partial) => updateServerDraft(activeServer.id, partial)}
+                onClearKey={() => handleClearServerKey(activeServer.id)}
               />
-            </div>
-          </div>
+            )}
 
-          {saveError && <p ref={saveErrorRef} role="alert" className="text-xs text-red-600">{saveError}</p>}
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              onClick={onClose}
-              className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              关闭
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? '保存中...' : '保存'}
-            </button>
+            {section === 'models' && activeCustom && (
+              <CustomProviderForm
+                key={activeCustom.id}
+                draft={activeCustom}
+                currentModel={provider === activeCustom.id ? currentModel : undefined}
+                onUseModel={(modelId) => handleUseModel(activeCustom.id, modelId)}
+                onChange={(partial) => updateCustomDraft(activeCustom.id, partial)}
+                onRemove={() => removeDraft(activeCustom.id)}
+              />
+            )}
+
+            {section === 'models' && !activeServer && !activeCustom && (
+              <div className="space-y-4">
+                <SectionHeader title="添加模型服务" description="添加任意兼容 OpenAI Chat Completions 接口的服务。选择模板可预填地址和参数。" />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {PROVIDER_TEMPLATES.map((t) => (
+                    <button
+                      key={t.key}
+                      onClick={() => addFromTemplate(t)}
+                      className="rounded-xl border border-gray-200 px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
+                    >
+                      <div className="font-medium text-gray-800">{t.name}</div>
+                      <div className="truncate font-mono text-xs text-gray-500">{t.baseURL || '手动填写地址'}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {section === 'display' && (
+              <div className="space-y-5">
+                <SectionHeader title="默认折叠状态" description="控制聊天中对应模块的初始展开/折叠状态。" />
+                <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-sm text-gray-700">思考过程</span>
+                    <CollapseToggle value={localThinkingCollapse} onChange={setLocalThinkingCollapse} label="思考过程默认状态" />
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-sm text-gray-700">工具调用</span>
+                    <CollapseToggle value={localToolCallCollapse} onChange={setLocalToolCallCollapse} label="工具调用默认状态" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {section === 'sql' && (
+              <div className="space-y-5">
+                <SectionHeader title="SQL 执行限制" description="每个会话中最多允许执行的 SQL 次数，防止 AI 过度查询。" />
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <ShieldCheck className="mt-px h-4 w-4 shrink-0" />
+                  <p>请使用 MySQL 只读账号连接生产库。默认仅允许查询；写入须由管理员在服务器为指定的非生产数据库显式开启。</p>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
+                  <label htmlFor="max-sql-executions" className="text-sm text-gray-700">最大执行次数</label>
+                  <input
+                    id="max-sql-executions"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={localMaxSqlExecutions}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10)
+                      if (!isNaN(v)) {
+                        setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
+                      }
+                    }}
+                    className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-center text-sm tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+            )}
           </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-3">
+          {saveError && <p ref={saveErrorRef} role="alert" className="mr-auto min-w-0 text-xs text-red-600">{saveError}</p>}
+          <button
+            onClick={onClose}
+            className="rounded-xl border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+          >
+            关闭
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving ? '保存中...' : '保存'}
+          </button>
         </div>
       </div>
     </div>
