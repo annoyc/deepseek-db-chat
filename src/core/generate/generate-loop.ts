@@ -1,13 +1,15 @@
 import type z from 'zod'
-import type { GenerateTextParams, GenerateTextResult, StepInvoker, StepRef, StreamEvent } from './types'
+import type { GenerateTextParams, GenerateTextResult, PendingToolCall, StepInvoker, StepRef, StreamEvent } from './types'
 import type { ChatMessage, Usage } from '@/core/model/types'
+import type { DeepSeekModel } from '@/core/model'
 import type { Tool } from '@/core/tool'
-import type { ChatCompletionTool } from '@/core/tool/types'
+import type { ChatCompletionTool, ToolOutcome } from '@/core/tool/types'
 import { AGENT_LOOP_MAX_STEPS } from '@/core/constants'
 import { createCompactMessage } from '@/core/context/compact'
 import { AgentError, classifyError } from '@/core/errors'
 import { generateStructuredOutput } from './generate-structured-output'
 import { buildMessage, emptyUsage, HookRunner, lastAssistantMsg, mergeUsage, StopLoop } from './generate-utils'
+import { applyResume, conversationOf } from './suspend'
 
 function normalizeArgs(args: string): string {
   try {
@@ -26,22 +28,49 @@ function makeToolCallKey(toolCall: ChatCompletionTool): string {
   return `${toolCall.function?.name ?? ''}::${normalizeArgs(toolCall.function?.arguments ?? '{}')}`
 }
 
+/** Tool calls of the latest assistant message that have no tool message yet. */
+function unansweredToolCalls(messages: ChatMessage[]): ChatCompletionTool[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message.role !== 'assistant') continue
+    const answered = new Set(messages.slice(i + 1).flatMap(later => later.role === 'tool' ? [later.tool_call_id] : []))
+    return (message.tool_calls ?? []).filter(toolCall => !answered.has(toolCall.id))
+  }
+  return []
+}
+
 async function executeToolCalls(
   toolCalls: ChatCompletionTool[],
   tools: Tool[],
   signal?: AbortSignal,
   runner?: HookRunner,
   hooks?: GenerateTextParams<any>['hooks'],
-): Promise<Array<{ tool_call_id: string, content: string }>> {
+  model?: DeepSeekModel,
+  truncatedCallId?: string,
+): Promise<Array<{ toolCall: ChatCompletionTool, outcome: ToolOutcome }>> {
+  // Results keep the order of the calls, whichever finishes first.
   return Promise.all(
     toolCalls.map(async (toolCall) => {
       const name = toolCall.function?.name
       const tool = tools.find(t => t.name === name)
-      const result = tool
-        ? await tool.execute(toolCall.function.arguments, signal, runner, hooks)
-        : `Tool execution error: Tool "${name}" not found`
-
-      return { tool_call_id: toolCall.id, content: result }
+      let outcome: ToolOutcome
+      if (toolCall.id === truncatedCallId) {
+        // The repair step of argument parsing could turn cut-off JSON into valid
+        // but incomplete arguments (a statement missing its WHERE clause), so the call is refused.
+        const error = 'The response hit the output token limit before these tool arguments were complete, so the call was not executed. Call the tool again with shorter arguments.'
+        outcome = { content: JSON.stringify({ success: false, error }), error }
+      }
+      else if (!tool) {
+        const error = `Tool "${name}" not found`
+        outcome = { content: `Tool execution error: ${error}`, error }
+      }
+      else if (tool.run) {
+        outcome = await tool.run(toolCall.function.arguments, signal, runner, hooks, model)
+      }
+      else {
+        outcome = { content: await tool.execute(toolCall.function.arguments, signal, runner, hooks, model) }
+      }
+      return { toolCall, outcome }
     }),
   )
 }
@@ -50,8 +79,9 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
   params: GenerateTextParams<T>,
   stepInvoker: StepInvoker,
 ): AsyncGenerator<StreamEvent, GenerateTextResult<unknown>> {
-  const { model, tools, system, messages, fewShot, maxSteps = AGENT_LOOP_MAX_STEPS, prompt, output, hooks, signal, compact } = params
-  const currentMessages: ChatMessage[] = buildMessage(prompt, system, messages, fewShot)
+  const { model, tools, system, messages, fewShot, maxSteps = AGENT_LOOP_MAX_STEPS, prompt, output, hooks, signal, compact, resume } = params
+  // A resumed run continues the saved conversation; system and few-shot come from the params again.
+  const currentMessages: ChatMessage[] = buildMessage(prompt, system, resume ? applyResume(resume) : messages, fewShot)
   const currentTools: Tool[] = tools ? [...tools] : []
   const totalUsage: Usage = emptyUsage()
   const runner = new HookRunner()
@@ -64,10 +94,16 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
   let lastPromptTokens = 0
   const seenToolCallKeys = new Set<string>()
   let consecutiveDuplicateSteps = 0
+  // Set when repeated tool calls were blocked: the next step runs without tools so the
+  // model has to answer from what it already has. It is granted even past maxSteps.
+  let answerWithoutTools = false
+  let lastFinishReason: string | null = null
 
-  while (stepRef.value < maxSteps) {
+  while (stepRef.value < maxSteps || answerWithoutTools) {
     signal?.throwIfAborted()
     stepRef.value++
+    const stepTools = answerWithoutTools ? [] : currentTools
+    answerWithoutTools = false
     yield { type: 'step', step: stepRef.value }
 
     if (compactMessage && compactMessage.shouldCompact(lastPromptTokens)) {
@@ -86,7 +122,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       }
       else {
         const messagesBefore = [...currentMessages]
-        const compacted = await compactMessage.compact(currentMessages, signal)
+        const compacted = await compactMessage.compact(currentMessages, signal, currentModel)
         currentMessages.length = 0
         currentMessages.push(...compacted)
         runner.runAfterMessageCompact(hooks, {
@@ -110,7 +146,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
     try {
       const stepGen = stepInvoker(currentModel, {
         messages: currentMessages,
-        tools: currentTools,
+        tools: stepTools,
         signal,
       })
 
@@ -129,11 +165,12 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       }
 
       mergeUsage(totalUsage, stepResult.usage)
+      lastFinishReason = stepResult.finishReason
       lastPromptTokens = stepResult.usage.prompt_tokens
 
       currentMessages.push(stepResult.assistantMessage)
 
-      if (stepResult.toolCalls.length > 0 && currentTools.length > 0) {
+      if (stepResult.toolCalls.length > 0 && stepTools.length > 0) {
         yield { type: 'tool-call', step: stepRef.value, toolCalls: stepResult.toolCalls }
 
         // --- Tool call deduplication: detect and break infinite loops ---
@@ -149,23 +186,49 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         currentStepKeys.forEach(key => seenToolCallKeys.add(key))
 
         if (consecutiveDuplicateSteps >= 2) {
-          // Model is stuck repeating the same tool calls — force stop
+          // Model is stuck repeating the same tool calls: refuse them and ask for the answer.
           for (const toolCall of stepResult.toolCalls) {
-            currentMessages.push({
-              role: 'tool',
-              content: JSON.stringify({
-                success: false,
-                error: `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`,
-              }),
-              tool_call_id: toolCall.id,
-            })
+            const error = `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`
+            const content = JSON.stringify({ success: false, error })
+            currentMessages.push({ role: 'tool', content, tool_call_id: toolCall.id })
+            yield { type: 'tool-result', step: stepRef.value, toolCallId: toolCall.id, name: toolCall.function?.name ?? '', content, error }
           }
-          return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+          runner.runAfterStep(hooks, {
+            step: stepRef.value,
+            type: 'tool',
+            toolCalls: stepResult.toolCalls,
+            text: stepResult.text || undefined,
+            reasoningContent: stepResult.reasoningContent,
+            usage: stepResult.usage,
+          })
+          if (runner.stopped) {
+            return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+          }
+          consecutiveDuplicateSteps = 0
+          answerWithoutTools = true
+          continue
         }
 
-        const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks)
-        for (const { tool_call_id, content } of toolResults) {
-          currentMessages.push({ role: 'tool', content, tool_call_id })
+        // Calls are streamed in order, so only the last one can have been cut off.
+        const truncatedCallId = stepResult.finishReason === 'length' ? stepResult.toolCalls.at(-1)?.id : undefined
+        const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks, currentModel, truncatedCallId)
+        const pending: PendingToolCall[] = []
+        for (const { toolCall, outcome } of toolResults) {
+          const name = toolCall.function?.name ?? ''
+          currentMessages.push({ role: 'tool', content: outcome.content, tool_call_id: toolCall.id })
+          yield {
+            type: 'tool-result',
+            step: stepRef.value,
+            toolCallId: toolCall.id,
+            name,
+            content: outcome.content,
+            ...(outcome.data !== undefined ? { data: outcome.data } : {}),
+            ...(outcome.error !== undefined ? { error: outcome.error } : {}),
+            ...(outcome.suspension ? { suspended: true, payload: outcome.suspension.payload } : {}),
+          }
+          if (outcome.suspension) {
+            pending.push({ toolCallId: toolCall.id, name, arguments: toolCall.function?.arguments ?? '', payload: outcome.suspension.payload })
+          }
         }
 
         runner.runAfterStep(hooks, {
@@ -178,6 +241,12 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         })
         if (runner.stopped) {
           return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+        }
+        if (pending.length > 0) {
+          // Stop without another model call; the caller resumes with the real results.
+          const suspended = { messages: conversationOf(currentMessages), pending }
+          yield { type: 'suspend', step: stepRef.value, state: suspended }
+          return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage, suspended }
         }
         continue
       }
@@ -214,7 +283,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
       }
 
-      return { text: stepResult.text, output: undefined, usage: totalUsage }
+      return { text: stepResult.text, output: undefined, usage: totalUsage, finishReason: lastFinishReason }
     }
     catch (error) {
       signal?.throwIfAborted()
@@ -228,6 +297,14 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       }
       if (result) {
         throw result
+      }
+      // The hook chose to carry on. Tool calls left without a result would make the
+      // next request invalid, so each one is answered with the failure.
+      for (const toolCall of unansweredToolCalls(currentMessages)) {
+        const error = `Tool call was not completed: ${agentError.message}`
+        const content = JSON.stringify({ success: false, error })
+        currentMessages.push({ role: 'tool', content, tool_call_id: toolCall.id })
+        yield { type: 'tool-result', step: stepRef.value, toolCallId: toolCall.id, name: toolCall.function?.name ?? '', content, error }
       }
     }
   }

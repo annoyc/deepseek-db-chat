@@ -85,12 +85,44 @@ export interface GenerateTextParams<T extends z.ZodTypeAny> {
   hooks?: GenerateTextHooks
   signal?: AbortSignal
   compact?: boolean | AgentCompactConfig
+  /** Continue a run that a tool suspended. Replaces `messages`; `system` and `fewShot` are rebuilt from the params. */
+  resume?: ResumeParams
+}
+
+/** A tool call that returned `suspend(...)` and is waiting for an outside answer. */
+export interface PendingToolCall {
+  toolCallId: string
+  name: string
+  /** Raw JSON arguments the model produced. */
+  arguments: string
+  /** Whatever the tool passed to `suspend()`. */
+  payload: unknown
+}
+
+/**
+ * Everything needed to continue a suspended run, as plain JSON.
+ * `messages` is the conversation without the system prompt and few-shot prefix,
+ * so the state can be stored outside the process without carrying configuration.
+ */
+export interface AgentSuspendedState {
+  messages: ChatMessage[]
+  pending: PendingToolCall[]
+}
+
+export interface ResumeParams {
+  state: AgentSuspendedState
+  /** Real results for pending calls. Calls without one keep their "not executed" placeholder. */
+  results: Array<{ toolCallId: string, content: string }>
 }
 
 export interface GenerateTextResult<TOutput = undefined> {
   text: string
   output: TOutput
   usage: Usage
+  /** Set when the run stopped because a tool suspended it. */
+  suspended?: AgentSuspendedState
+  /** Why the model stopped on its final answer; `'length'` means the text was cut off by the output limit. */
+  finishReason?: string | null
 }
 
 export interface TextDeltaStreamEvent {
@@ -109,6 +141,29 @@ export interface ToolCallStreamEvent {
   toolCalls: ChatCompletionTool[]
 }
 
+export interface ToolResultStreamEvent {
+  type: 'tool-result'
+  step: number
+  toolCallId: string
+  name: string
+  /** Exactly what the model receives as the tool message. */
+  content: string
+  /** Serialized tool output, when the call succeeded. */
+  data?: string
+  /** Failure reason, when the call failed or was blocked. */
+  error?: string
+  /** The call suspended the run; `payload` is what the tool passed to `suspend()`. */
+  suspended?: boolean
+  payload?: unknown
+}
+
+/** Emitted once, after the step's tool results, when at least one tool suspended the run. */
+export interface SuspendStreamEvent {
+  type: 'suspend'
+  step: number
+  state: AgentSuspendedState
+}
+
 export interface StepStreamEvent {
   type: 'step'
   step: number
@@ -118,12 +173,16 @@ export interface FinishStreamEvent {
   type: 'finish'
   text?: string
   usage?: Usage
+  suspended?: AgentSuspendedState
+  finishReason?: string | null
 }
 
 export type StreamEvent
   = | TextDeltaStreamEvent
     | ReasoningDeltaStreamEvent
     | ToolCallStreamEvent
+    | ToolResultStreamEvent
+    | SuspendStreamEvent
     | StepStreamEvent
     | FinishStreamEvent
 

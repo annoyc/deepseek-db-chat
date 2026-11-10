@@ -289,7 +289,7 @@ When conversation context approaches token limits, the agent loop automatically 
 
 - **Trigger threshold**: 85% of the context window (default 1M tokens)
 - **Keep recent rounds**: Last 3 conversation rounds are preserved in full
-- **Compaction model**: `deepseek-v4-flash` (fast, low-cost summarization)
+- **Compaction model**: the model of the running agent with thinking disabled, unless `compact.model` / `compact.provider` names another one
 - **Tool result compaction**: Verbose tool outputs over 1,500 characters are summarized
 
 Compaction is handled by `CompactMessage` and `CompactTool` in `src/core/context/compact.ts`. Usage metrics track `prompt_cache_hit_tokens` and `prompt_cache_miss_tokens` to monitor cache effectiveness.

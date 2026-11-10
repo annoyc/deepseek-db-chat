@@ -77,3 +77,59 @@ test('unified model HTTP boundary removes PII and preserves tool protocol identi
   assert.equal(sent.messages[1].content.includes('alice@example.com'), false)
   assert.equal(sent.messages[2].content.includes('synthetic-secret-value'), false)
 })
+
+async function streamText(options: object = {}) {
+  const { createModel } = await import('../src/core/model')
+  const model = createModel({ provider: 'deepseek', model: 'test', apiKey: 'synthetic-test-key', ...options })
+  let text = ''
+  for await (const chunk of model.invokeStream({ messages: [{ role: 'user', content: 'hi' }] })) {
+    text += chunk.choices[0]?.delta.content ?? ''
+  }
+  return text
+}
+
+const sseBody = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content }, finish_reason: null }] })}\n\n`
+
+test('a streaming request that fails before its first event is retried like a JSON request', async () => {
+  let calls = 0
+  mock.method(globalThis, 'fetch', async () => {
+    if (++calls === 1) return Response.json({ error: { message: 'overloaded' } }, { status: 503 })
+    return new Response(`${sseBody('hello')}data: [DONE]\n\n`)
+  })
+  try {
+    assert.equal(await streamText(), 'hello')
+    assert.equal(calls, 2)
+  } finally { mock.restoreAll() }
+})
+
+test('streaming requests are not retried for client errors, when retries are off, or once events have arrived', async () => {
+  let calls = 0
+  mock.method(globalThis, 'fetch', async () => { calls++; return Response.json({ error: { message: 'bad request' } }, { status: 400 }) })
+  await assert.rejects(streamText(), /API error 400: bad request/)
+  assert.equal(calls, 1)
+  mock.restoreAll()
+
+  calls = 0
+  mock.method(globalThis, 'fetch', async () => { calls++; return Response.json({}, { status: 503 }) })
+  await assert.rejects(streamText({ maxRetries: 0 }), /API error 503/)
+  assert.equal(calls, 1)
+  mock.restoreAll()
+
+  calls = 0
+  mock.method(globalThis, 'fetch', async () => {
+    calls++
+    const encoder = new TextEncoder()
+    let sent = false
+    return new Response(new ReadableStream({
+      pull(controller) {
+        if (sent) return controller.error(new Error('connection reset'))
+        sent = true
+        controller.enqueue(encoder.encode(sseBody('partial')))
+      },
+    }))
+  })
+  // Text already delivered cannot be taken back, so a broken stream surfaces as an error.
+  await assert.rejects(streamText(), /connection reset/)
+  assert.equal(calls, 1)
+  mock.restoreAll()
+})

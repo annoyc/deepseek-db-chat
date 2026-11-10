@@ -182,7 +182,9 @@ flowchart TB
 | `get_table_schema` | Yes (read-only) | Returns columns, types, keys, defaults, comments, and indexes for a named table |
 | `execute_sql` | **No** | Returns a JSON payload with `status: "pending_confirmation"`, the proposed SQL, and an explanation. Does not touch the database. |
 
-Tool results for `list_tables` and `get_table_schema` are pushed into a per-request `resultStore` (`Map<string, string[]>`) so the server can emit `tool-call-end` SSE events after each agent step. The `execute_sql` result is intentionally withheld from the client stream (`displayResult = ''`) to avoid leaking the raw pending-confirmation payload into the UI; the client instead reads SQL and explanation from the `tool-call-start` args.
+Every tool call is closed by a `tool-result` event that carries its call id, which the server (`src/server/chat-events.ts`) turns into a `tool-call-end` SSE event. The `execute_sql` and `smart_filter` tools do not return a result: they return `suspend(payload)`, which ends the agent run without another model call and yields a `suspend` event with a serializable state (the conversation without the system prompt, plus the pending tool calls). The server sends that state to the client in an `agent-suspended` event right before the confirmation request.
+
+When the user confirms, revises or cancels, the client sends the state back as `resume` together with the real outcome. The server validates it (`parseSuspendedState`), rebuilds the system prompt, writes the outcome over the pending call's placeholder and continues the same conversation. A state that is missing, stale or invalid falls back to a fresh turn built from the visible history.
 
 ### Agent loop
 
@@ -190,7 +192,7 @@ The core `generateStream` function runs an agent loop (up to `maxSteps`):
 
 1. Stream a model step from the DeepSeek API.
 2. If the model emits tool calls, execute them and append tool results to the message history.
-3. Repeat until the model finishes without tool calls, or `maxSteps` is reached.
+3. Repeat until the model finishes without tool calls, a tool suspends the run, or `maxSteps` is reached.
 4. Yield normalized `StreamEvent` objects throughout.
 
 Thinking mode is always enabled (`thinking: { type: 'enabled' }`), so the model can emit `reasoning_content` deltas that become visible "thinking" blocks in the UI.

@@ -2,6 +2,7 @@ import type { AssistantMessage, ChatMessage, Model, ModelProvider, ToolMessage }
 import type { ToolCompactConfig } from '@/core/tool/types'
 import crypto from 'node:crypto'
 import { getProvider } from '@/core/provider'
+import type { DeepSeekModel } from '@/core/model'
 import { createModel } from '@/core/model'
 
 const DEFAULT_TOOL_MESSAGE_THRESHOLD = 1500
@@ -21,29 +22,42 @@ Rules:
 7. Never fabricate or infer information that is not present in the original content.
 8. Output only the compacted content — no explanations, no meta-commentary.`
 
+/** Entries kept per compactor; the least recently used one is evicted first. */
+const TOOL_COMPACT_CACHE_SIZE = 100
+
+/**
+ * The model that performs a compaction. An explicit `model`/`provider` in the
+ * config wins. Otherwise the model of the running agent is reused, so the
+ * compaction is billed to the same credentials and endpoint as the run itself.
+ */
+function resolveCompactModel(
+  config: { model?: Model, provider?: ModelProvider },
+  runModel: DeepSeekModel | undefined,
+): DeepSeekModel {
+  if (config.model !== undefined || config.provider !== undefined || !runModel) {
+    const provider = config.provider ?? 'deepseek'
+    return createModel({
+      provider,
+      model: config.model ?? getProvider(provider).defaultModel,
+      thinking: { type: 'disabled' },
+    })
+  }
+  return runModel.withConfig({ thinking: { type: 'disabled' }, reasoningEffort: undefined })
+}
+
 /**
  * CompactTool — compresses verbose tool results via an LLM to reduce context window usage.
  *
- * ## Why Singleton?
- *
- * CompactTool is implemented as a singleton so that all tool executions share a single
- * in-memory cache. When the same tool is called repeatedly with identical arguments (e.g.
- * reading the same file twice), the compacted result is served from cache instead of
- * making another LLM call, saving both latency and cost.
- *
- * The `update()` method is intentionally called before each `compact()` invocation. It
- * merges the caller's config into the singleton's state so that per-tool overrides (e.g.
- * a custom `threshold` or `model`) take effect for that call while the cache remains
- * shared across all tools. If you need different tools to use consistently different
- * settings, set the config once at startup rather than per-call.
+ * Each tool definition owns one instance, so its settings and its cache are
+ * never shared with other tools or other requests. Identical results of the
+ * same tool are served from a small LRU cache instead of a second LLM call.
  *
  * ## Configuration
  *
  * - `threshold` (number, default 1500) — minimum character length of a tool result
  *   before compacting is triggered. Results shorter than this are returned as-is.
- * - `model` (Model, default 'deepseek-v4-flash') — the LLM used to compress content.
- *
- * Both options can be set via the `compact` field on a tool definition:
+ * - `model` / `provider` — the LLM used to compress content. When neither is set,
+ *   the model of the running agent is used (with thinking disabled).
  *
  * ```ts
  * // Enable compacting with defaults
@@ -54,39 +68,15 @@ Rules:
  * ```
  */
 export class CompactTool {
-  private static instance: CompactTool | null = null
   private readonly cache = new Map<string, string>()
-  private _threshold: number = DEFAULT_TOOL_MESSAGE_THRESHOLD
-  private model: Model = 'deepseek-v4-flash'
-  private provider: ModelProvider = 'deepseek'
+  private readonly config: ToolCompactConfig
 
-  private constructor() {}
-
-  static getInstance(): CompactTool {
-    if (!CompactTool.instance) {
-      CompactTool.instance = new CompactTool()
-    }
-    return CompactTool.instance
+  constructor(config: ToolCompactConfig = {}) {
+    this.config = { ...config }
   }
 
   get threshold(): number {
-    return this._threshold
-  }
-
-  update(config: ToolCompactConfig): this {
-    if (config.threshold !== undefined) {
-      this._threshold = config.threshold
-    }
-    if (config.model !== undefined) {
-      this.model = config.model
-    }
-    if (config.provider !== undefined) {
-      this.provider = config.provider
-      if (config.model === undefined) {
-        this.model = getProvider(this.provider).defaultModel
-      }
-    }
-    return this
+    return this.config.threshold ?? DEFAULT_TOOL_MESSAGE_THRESHOLD
   }
 
   async compact(
@@ -94,28 +84,35 @@ export class CompactTool {
     name: string,
     description: string,
     signal?: AbortSignal,
+    runModel?: DeepSeekModel,
   ): Promise<string> {
-    if (content.length < this._threshold) {
+    if (content.length < this.threshold) {
       return content
     }
-    const contentHash = crypto.createHash('sha256').update(content).digest('hex').slice(0, 16)
+    const key = crypto.createHash('sha256').update(content).digest('hex').slice(0, 32)
 
-    const key = `${name}:${contentHash}`
-    if (this.cache.has(key)) {
-      return this.cache.get(key) ?? ''
+    const cached = this.cache.get(key)
+    if (cached !== undefined) {
+      // Re-insert so the entry counts as recently used.
+      this.cache.delete(key)
+      this.cache.set(key, cached)
+      return cached
     }
 
     try {
-      const compactContent = await this.compactContent(content, name, description, signal)
+      const compactContent = await this.compactContent(content, name, description, signal, runModel)
       if (!compactContent) {
         return content
       }
       this.cache.set(key, compactContent)
+      if (this.cache.size > TOOL_COMPACT_CACHE_SIZE) {
+        this.cache.delete(this.cache.keys().next().value!)
+      }
       return compactContent
     }
     catch (err) {
       signal?.throwIfAborted()
-      console.warn('[compact] Compaction failed, returning original:', err)
+      console.warn('[compact] Compaction failed, returning original:', err instanceof Error ? err.name : 'UnknownError')
       return content
     }
   }
@@ -125,14 +122,11 @@ export class CompactTool {
     toolName: string,
     description: string,
     signal?: AbortSignal,
+    runModel?: DeepSeekModel,
   ): Promise<string> {
     const toolContext = `Tool name: ${toolName}\nTool description: ${description}`
     const userPrompt = `${toolContext}\n\nOriginal content:\n\n${content}`
-    const llm = createModel({
-      provider: this.provider,
-      model: this.model,
-      thinking: { type: 'disabled' },
-    })
+    const llm = resolveCompactModel(this.config, runModel)
 
     const response = await llm.invoke({
       messages: [
@@ -147,7 +141,7 @@ export class CompactTool {
 }
 
 export function createCompactTool(config?: ToolCompactConfig) {
-  return CompactTool.getInstance().update(config ?? {})
+  return new CompactTool(config)
 }
 
 export interface AgentCompactConfig {
@@ -180,15 +174,13 @@ Rules:
 export class CompactMessage {
   private readonly _threshold: number
   private readonly keepRecentRounds: number
-  private readonly model: Model
-  private readonly provider: ModelProvider
+  private readonly config: AgentCompactConfig
   private readonly contextWindowSize: number
 
   constructor(config: AgentCompactConfig = {}) {
     this._threshold = config.threshold ?? DEFAULT_COMPACT_THRESHOLD
     this.keepRecentRounds = config.keepRecentRounds ?? DEFAULT_KEEP_RECENT_ROUNDS
-    this.provider = config.provider ?? 'deepseek'
-    this.model = config.model ?? getProvider(this.provider).defaultModel
+    this.config = { ...config }
     this.contextWindowSize = config.contextWindowSize ?? DEFAULT_CONTEXT_WINDOW_SIZE
   }
 
@@ -203,6 +195,7 @@ export class CompactMessage {
   async compact(
     messages: ChatMessage[],
     signal?: AbortSignal,
+    runModel?: DeepSeekModel,
   ): Promise<ChatMessage[]> {
     const { prefix, historyRounds, recentRounds } = this.splitRounds(messages)
 
@@ -211,7 +204,7 @@ export class CompactMessage {
     }
 
     try {
-      const summaryMessage = await this.summarizeRounds(historyRounds, signal)
+      const summaryMessage = await this.summarizeRounds(historyRounds, signal, runModel)
       return [
         ...prefix,
         summaryMessage,
@@ -220,7 +213,7 @@ export class CompactMessage {
     }
     catch (err) {
       signal?.throwIfAborted()
-      console.warn('[compact] History compaction failed, returning original:', err)
+      console.warn('[compact] History compaction failed, returning original:', err instanceof Error ? err.name : 'UnknownError')
       return messages
     }
   }
@@ -280,6 +273,7 @@ export class CompactMessage {
   private async summarizeRounds(
     rounds: MessageRound[],
     signal?: AbortSignal,
+    runModel?: DeepSeekModel,
   ): Promise<ChatMessage> {
     const conversationText = rounds
       .flatMap(r => r.messages)
@@ -309,11 +303,7 @@ export class CompactMessage {
       })
       .join('\n\n')
 
-    const llm = createModel({
-      provider: this.provider,
-      model: this.model,
-      thinking: { type: 'disabled' },
-    })
+    const llm = resolveCompactModel(this.config, runModel)
 
     const response = await llm.invoke({
       messages: [

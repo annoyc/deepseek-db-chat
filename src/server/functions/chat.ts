@@ -6,7 +6,7 @@ import { maskPII } from '@/lib/masking'
 import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
 import { createDbAgent } from '@/server/agent'
 import { classifyIntentWithLLM } from '@/server/intent-router'
-import { TOOL_ERROR_PREFIX, type ResultStore } from '@/server/tools'
+import { createChatEventMapper, parseResume, type ChatResumeInput } from '@/server/chat-events'
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { resolveSqlPermission } from '@/server/sql-policy'
 import { langfuseSpanProcessor, flushTraces, resolveUserId } from '@/server/langfuse'
@@ -30,42 +30,8 @@ interface ChatInput {
   maxSqlExecutions?: number
   sessionId?: string
   isContinuation?: boolean
-}
-
-function drainToolResults(
-  pendingNames: string[],
-  resultStore: ResultStore,
-  encoder: TextEncoder,
-  controller: Pick<ReadableStreamDefaultController<Uint8Array>, 'enqueue'>,
-): string | undefined {
-  let smartFilterResult: string | undefined
-  for (const name of pendingNames) {
-    const queue = resultStore.get(name)
-    const result = queue?.shift() ?? ''
-    if (queue?.length === 0) resultStore.delete(name)
-    if (name === 'smart_filter') smartFilterResult = result
-    const isError = result.startsWith(TOOL_ERROR_PREFIX)
-    const isSmartFilter = name === 'smart_filter'
-    const isReportAnalysis = name === 'report_analysis'
-    const displayResult = (name === 'execute_sql' || isSmartFilter || isReportAnalysis) ? '' : (isError ? result.slice(TOOL_ERROR_PREFIX.length) : result)
-
-    // Emit structured analysis report as a dedicated stream event
-    if (isReportAnalysis && !isError && result) {
-      try {
-        const parsed = JSON.parse(result)
-        if (parsed.report) {
-          const reportChunk: StreamChunk = { type: 'analysis-report', report: parsed.report }
-          controller.enqueue(encoder.encode(formatSSE(reportChunk)))
-        }
-      } catch { /* skip malformed report */ }
-    }
-
-    const chunk: StreamChunk = isError
-      ? { type: 'tool-call-end', name, result: '', error: displayResult }
-      : { type: 'tool-call-end', name, result: displayResult }
-    controller.enqueue(encoder.encode(formatSSE(chunk)))
-  }
-  return smartFilterResult
+  /** Continue the agent run a confirmation suspended; `result` answers the pending tool call. */
+  resume?: ChatResumeInput
 }
 
 export const chatStream = createServerFn({ method: 'POST' })
@@ -105,7 +71,7 @@ export const chatStream = createServerFn({ method: 'POST' })
               message: data.isContinuation ? '分析结果中...' : '生成回复中...',
             })))
 
-            const { agent, resultStore } = await createDbAgent(decryptedConnection, {
+            const { agent } = await createDbAgent(decryptedConnection, {
               provider: data.provider,
               model: data.model,
               apiKey: data.apiKey,
@@ -122,121 +88,19 @@ export const chatStream = createServerFn({ method: 'POST' })
               intent,
               signal,
             })
-            const agentStream = agent.stream({
-              prompt: data.message,
-              messages: data.history as any,
-              signal,
-            })
+            const resume = data.isContinuation ? parseResume(data.resume) : undefined
+            const agentStream = agent.stream(resume
+              ? { resume, signal }
+              : { prompt: data.message, messages: data.history as any, signal })
 
-            let pendingToolNames: string[] = []
-            let executeSqlDetected = false
-            let smartFilterDetected = false
-            let shouldBreak = false
-
+            // The loop ends by itself when a tool suspends it; no early break is needed.
+            const toChunks = createChatEventMapper()
             for await (const event of agentStream) {
-              let chunk: StreamChunk | null = null
-
-              switch (event.type) {
-                case 'reasoning-delta':
-                  chunk = { type: 'thinking', content: event.reasoningDelta }
-                  break
-
-                case 'text-delta':
-                  chunk = { type: 'text', content: event.textDelta }
-                  break
-
-                case 'tool-call': {
-                  for (const tc of event.toolCalls) {
-                    let args: Record<string, unknown> = {}
-                    try {
-                      args = JSON.parse(tc.function.arguments || '{}')
-                    } catch (err) { console.warn('[chat] Failed to parse tool call args:', err) }
-                    const name = tc.function.name
-                    pendingToolNames.push(name)
-                    controller.enqueue(encoder.encode(formatSSE({ type: 'tool-call-start', name, args })))
-                    if (name === 'execute_sql') {
-                      executeSqlDetected = true
-                    }
-                    if (name === 'smart_filter') {
-                      smartFilterDetected = true
-                    }
-                  }
-                  break
-                }
-
-                case 'step': {
-                  // Peek at execute_sql result BEFORE draining to decide break behavior
-                  if (executeSqlDetected) {
-                    const sqlQueue = resultStore.get('execute_sql')
-                    if (sqlQueue && sqlQueue.length > 0) {
-                      let isPendingConfirmation = false
-                      try {
-                        const parsed = JSON.parse(sqlQueue[0])
-                        if (parsed.status === 'pending_confirmation') {
-                          controller.enqueue(encoder.encode(formatSSE({
-                            type: 'sql-confirm' as const,
-                            sql: parsed.sql,
-                            explanation: parsed.explanation,
-                            intent_summary: parsed.intent_summary,
-                            expected_shape: parsed.expected_shape,
-                          })))
-                          isPendingConfirmation = true
-                        }
-                      } catch { /* non-JSON result (e.g. security error) — let agent see it and self-correct */ }
-                      if (isPendingConfirmation) {
-                        shouldBreak = true
-                      } else {
-                        executeSqlDetected = false
-                      }
-                    }
-                  }
-
-                  const smartFilterResult = drainToolResults(pendingToolNames, resultStore, encoder, controller)
-
-                  if (smartFilterDetected) {
-                    try {
-                      let suggestedFilters: Record<string, unknown>[] = []
-                      if (smartFilterResult && !smartFilterResult.startsWith(TOOL_ERROR_PREFIX)) {
-                        const parsed = JSON.parse(smartFilterResult)
-                        suggestedFilters = parsed.filters ?? []
-                      }
-                      if (suggestedFilters.length > 0) {
-                        controller.enqueue(encoder.encode(formatSSE({
-                          type: 'smart-filter-confirm',
-                          suggestedFilters: suggestedFilters as any,
-                        })))
-                      } else {
-                        controller.enqueue(encoder.encode(formatSSE({
-                          type: 'error',
-                          message: '筛选参数生成失败，请重试或换一种描述。',
-                        })))
-                      }
-                    } catch (err) {
-                      console.warn('[chat] Smart filter parsing failed:', err)
-                      controller.enqueue(encoder.encode(formatSSE({
-                        type: 'error',
-                        message: '筛选参数解析失败，请重试。',
-                      })))
-                    }
-                    shouldBreak = true
-                  }
-
-                  pendingToolNames = []
-                  break
-                }
-
-                case 'finish':
-                  break
-              }
-
-              if (chunk) {
+              for (const chunk of toChunks(event)) {
                 controller.enqueue(encoder.encode(formatSSE(chunk)))
               }
-
-              if (shouldBreak) break
             }
 
-            drainToolResults(pendingToolNames, resultStore, encoder, controller)
             controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
           } catch (err) {
             signal.throwIfAborted()

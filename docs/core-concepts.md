@@ -120,7 +120,7 @@ const executeSqlTool = tool({
 
 > **Important:** `execute_sql` intentionally does **not** run SQL. It returns a `pending_confirmation` status that triggers the human-in-the-loop flow. Read-only exploration (`list_tables`, `get_table_schema`) runs immediately; write and query operations require explicit user approval.
 
-> **Tip:** Tool results for `list_tables` and `get_table_schema` are stored in a per-request `resultStore` so the server can emit `tool-call-end` SSE events after each agent step. The raw `execute_sql` result is withheld from the client stream to avoid leaking the pending-confirmation payload into the chat UI.
+> **Tip:** Each tool call is closed by a `tool-result` event carrying its call id. `execute_sql` and `smart_filter` return `suspend(...)` instead of a result, which pauses the agent run; the client keeps the suspended state and sends it back with the user's decision so the same run continues.
 
 ---
 
@@ -135,7 +135,9 @@ The agent produces a stream of typed events via `agent.stream()`. The server con
 | `reasoning-delta` | Incremental thinking content from DeepSeek's reasoning mode |
 | `text-delta` | Incremental response text |
 | `tool-call` | Model invoked one or more tools |
-| `step` | An agent loop step completed (tools executed, history updated) |
+| `tool-result` | One tool call finished; carries the call id, the output or error, and whether it suspended the run |
+| `suspend` | A tool paused the run; carries the serializable state needed to resume it |
+| `step` | A new agent loop step is starting |
 | `finish` | Stream complete |
 
 The server maps agent events to `StreamChunk` types and writes them as SSE frames (`data: {...}\n\n`):
