@@ -33,6 +33,15 @@ function createEmptyBuffer(): StreamingBuffer {
   return { thinking: '', text: '', toolCalls: [], parts: [], statusText: '', errorText: '', finished: false }
 }
 
+type AgentResumePoint = NonNullable<ChatMessage['agentState']>
+
+/** A suspended run is stale once a newer turn starts, and it is too large to keep around. */
+function dropAgentState(message: ChatMessage): ChatMessage {
+  if (!message.agentState) return message
+  const { agentState: _dropped, ...rest } = message
+  return rest
+}
+
 function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
   switch (chunk.type) {
     case 'thinking': {
@@ -415,7 +424,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveSessionId(newSession.id)
   }, [activeConnectionId, sessions, activeSessionId, storageLoaded])
 
-  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0, isContinuation: boolean = false): Promise<boolean> => {
+  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0, isContinuation: boolean = false, resumeFrom?: AgentResumePoint): Promise<boolean> => {
     const controller = abortControllerRef.current
     if (!controller || controller.signal.aborted) throw new DOMException('已停止生成', 'AbortError')
     const updateStreamSession = (id: string, updater: (session: ChatSession) => ChatSession) => {
@@ -425,6 +434,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     let pendingSqlConfirm: { sql: string; explanation: string; intent_summary?: string; expected_shape?: string } | null = null
     let hasSmartFilterConfirm = false
     let pendingSmartFilterFilters: SuggestedFilter[] | null = null
+    let suspendedAgent: AgentResumePoint | undefined
     let hasToolCalls = false
     let smartFilterLoadingStarted = false
 
@@ -437,7 +447,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const response = await chatStream({
       signal: controller.signal,
       data: {
-        connection, message, history,
+        // A resumed run carries its own conversation; the rebuilt history is only the fallback.
+        connection, message, history: resumeFrom ? [] : history,
+        ...(resumeFrom ? { resume: { ...resumeFrom, result: message } } : {}),
         ...aiRequest,
         thinkingMode, reasoningEffort, sqlPermission, executionLog,
         lastConfirmedSql: lastConfirmedSqlRef.current || undefined,
@@ -468,6 +480,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     try {
     for await (const chunk of parseSSEStream(response as unknown as Response, controller.signal)) {
+      if (chunk.type === 'agent-suspended') {
+        suspendedAgent = { state: chunk.state, toolCallId: chunk.toolCallId }
+        continue
+      }
+
       if (chunk.type === 'sql-confirm') {
         hasSqlConfirm = true
         pendingSqlConfirm = {
@@ -535,6 +552,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         if (pendingSmartFilterFilters) {
           lastMsg.smartFilterConfirm = { suggestedFilters: pendingSmartFilterFilters, status: 'pending' as const }
         }
+        if (suspendedAgent) lastMsg.agentState = suspendedAgent
         messages[messages.length - 1] = lastMsg
         return { ...s, messages }
       })
@@ -696,7 +714,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     updateSession(sessionId, (s) => ({
       ...s,
-      messages: [...s.messages, userMessage, assistantMessage],
+      messages: [...s.messages.map(dropAgentState), userMessage, assistantMessage],
       title: s.messages.length === 0 ? content.slice(0, 20) : s.title,
       updatedAt: new Date().toISOString(),
       taskStartTime: Date.now(),
@@ -737,29 +755,37 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     sessionId: string,
     connectionId: string,
     prompt: string,
+    resumeFromMessageId?: string,
   ): Promise<boolean> => {
     const assistantMessage = createAssistantMessage()
 
+    // Only the newest suspension can be resumed: an older one predates later turns.
+    const before = sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? []
+    const lastSuspended = [...before].reverse().find((m) => m.agentState)
+    const resumeFrom = lastSuspended && lastSuspended.id === resumeFromMessageId && before[before.length - 1]?.id === lastSuspended.id
+      ? lastSuspended.agentState
+      : undefined
+
     updateSession(sessionId, (s) => ({
       ...s,
-      messages: [...s.messages, assistantMessage],
+      messages: [...s.messages.map(dropAgentState), assistantMessage],
       updatedAt: new Date().toISOString(),
     }))
 
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
     const history = buildApiHistory(currentSession?.messages ?? [])
 
-    return await processStream(sessionId, connectionId, prompt, history, 0, true)
+    return await processStream(sessionId, connectionId, prompt, history, 0, true, resumeFrom)
   }, [updateSession, processStream])
 
-  const runContinuation = useCallback(async (sessionId: string, connectionId: string, prompt: string) => {
+  const runContinuation = useCallback(async (sessionId: string, connectionId: string, prompt: string, resumeFromMessageId?: string) => {
     setIsStreaming(true)
     setStreamingSessionId(sessionId)
     const controller = new AbortController()
     abortControllerRef.current = controller
 
     try {
-      const hasSqlConfirm = await appendAssistantAndProcess(sessionId, connectionId, prompt)
+      const hasSqlConfirm = await appendAssistantAndProcess(sessionId, connectionId, prompt, resumeFromMessageId)
       if (!hasSqlConfirm && !controller.signal.aborted && abortControllerRef.current === controller) {
         markTaskComplete(sessionId)
         generateAiTitleForSession(sessionId)
@@ -843,7 +869,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return { ...s, messages, executionLog }
         })
 
-        await runContinuation(activeSessionId, activeConnectionId, formatSqlErrorForAI(message.sqlConfirm.sql, execResult.error))
+        await runContinuation(activeSessionId, activeConnectionId, formatSqlErrorForAI(message.sqlConfirm.sql, execResult.error), messageId)
         return
       }
 
@@ -896,7 +922,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         })
       }
 
-      await runContinuation(activeSessionId, activeConnectionId, formatSqlResultForAI(message.sqlConfirm.sql, result))
+      await runContinuation(activeSessionId, activeConnectionId, formatSqlResultForAI(message.sqlConfirm.sql, result), messageId)
     } catch (err) {
       const cancelled = controller.signal.aborted
       if (!cancelled) console.error('[confirmSql] Unexpected error:', err)
@@ -941,12 +967,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const reviseAndContinue = useCallback(async (
     statusUpdater: (s: ChatSession) => ChatSession,
     revisionPrompt: string,
+    resumeFromMessageId?: string,
   ) => {
     if (isStreaming || !activeSessionId || !activeConnectionId) return
 
     updateSession(activeSessionId, statusUpdater)
 
-    await runContinuation(activeSessionId, activeConnectionId, revisionPrompt)
+    await runContinuation(activeSessionId, activeConnectionId, revisionPrompt, resumeFromMessageId)
   }, [isStreaming, activeSessionId, activeConnectionId, updateSession, runContinuation])
 
   const reviseSql = useCallback(async (messageId: string, feedback: string) => {
@@ -981,6 +1008,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         ),
       }),
       revisionPrompt,
+      messageId,
     )
   }, [isStreaming, activeSessionId, reviseAndContinue])
 
@@ -1020,7 +1048,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return { ...s, messages }
     })
 
-    await runContinuation(activeSessionId, activeConnectionId, enhancedPrompt)
+    await runContinuation(activeSessionId, activeConnectionId, enhancedPrompt, messageId)
   }, [isStreaming, activeSessionId, activeConnectionId, updateSession, runContinuation])
 
   const cancelSmartFilter = useCallback(async (messageId: string) => {
@@ -1042,7 +1070,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     })
 
     // Continue conversation without filter parameters
-    await runContinuation(activeSessionId, activeConnectionId, '请继续帮我查询，不需要调整筛选参数。')
+    await runContinuation(activeSessionId, activeConnectionId, '请继续帮我查询，不需要调整筛选参数。', messageId)
   }, [isStreaming, activeSessionId, activeConnectionId, updateSession, runContinuation])
 
   const reviseSmartFilter = useCallback(async (messageId: string, feedback: string) => {
@@ -1077,6 +1105,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         ),
       }),
       revisionPrompt,
+      messageId,
     )
   }, [isStreaming, activeSessionId, reviseAndContinue])
 

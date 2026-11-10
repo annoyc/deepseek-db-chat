@@ -53,6 +53,8 @@ export interface ChatMessage {
   smartFilterConfirm?: SmartFilterConfirmInfo
   smartFilterValues?: Record<number, FilterValue>
   analysisReport?: AnalysisReport
+  /** Suspended agent run behind this message's pending confirmation. Dropped once a newer turn starts. */
+  agentState?: { state: unknown; toolCallId: string }
   statusText?: string
   timestamp: string
   answerDuration?: number
@@ -156,6 +158,8 @@ export type StreamChunk =
   | { type: 'text'; content: string }
   | { type: 'tool-call-start'; name: string; args: Record<string, unknown> }
   | { type: 'tool-call-end'; name: string; result: string; error?: string }
+  /** Sent right before a confirmation request; echo it back to resume the same agent run. */
+  | { type: 'agent-suspended'; state: unknown; toolCallId: string }
   | { type: 'sql-confirm'; sql: string; explanation: string; intent_summary?: string; expected_shape?: string }
   | { type: 'sql-result'; data: SqlResultInfo }
   | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }

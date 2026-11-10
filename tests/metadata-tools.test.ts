@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import mysql from 'mysql2/promise'
 import { closePool, getDatabaseOverview } from '../src/server/database'
 import { createDbAgent } from '../src/server/agent'
-import { createDbTools, TOOL_ERROR_PREFIX } from '../src/server/tools'
+import { createDbTools } from '../src/server/tools'
+import { parseResume } from '../src/server/chat-events'
 import type { DatabaseConnection } from '../src/lib/types'
 import type { IntentClassification } from '../src/server/intent-router'
 
@@ -58,7 +59,7 @@ test('table inventory returns an exact complete count and caches base tables and
     return (values?.[1] === 'VIEW' ? ['active_users'] : ['orders', 'users']).map(TABLE_NAME => ({ TABLE_NAME }))
   })
   try {
-    const { tool, resultStore } = tableTool(connection)
+    const { tool } = tableTool(connection)
     const tables = await metadataResult(tool)
     assert.deepEqual(tables, {
       database: 'sandbox', table_type: 'BASE TABLE', table_count: 2, tables: ['orders', 'users'], complete: true,
@@ -70,8 +71,6 @@ test('table inventory returns an exact complete count and caches base tables and
     })
     assert.deepEqual(await metadataResult(tool, '{"table_type":"VIEW"}'), views)
     assert.deepEqual(queries, [['sandbox', 'BASE TABLE'], ['sandbox', 'VIEW']])
-    assert.equal(resultStore.get('list_tables')?.length, 4)
-    assert.equal(resultStore.has('execute_sql'), false)
   } finally { await closePool(connection.id) }
 })
 
@@ -105,11 +104,9 @@ test('failed metadata retrieval is an error rather than zero and is not cached',
     return [{ TABLE_NAME: 'users' }]
   })
   try {
-    const { tool, resultStore } = tableTool(connection)
+    const { tool } = tableTool(connection)
     const failed = JSON.parse(await tool.execute('{}'))
-    assert.match(failed.data, /查询失败: metadata access denied/)
-    assert.equal(failed.data.includes('table_count'), false)
-    assert.equal(resultStore.get('list_tables')?.[0], `${TOOL_ERROR_PREFIX}metadata access denied`)
+    assert.deepEqual(failed, { success: false, error: '查询失败: metadata access denied' })
     assert.equal((await metadataResult(tool)).table_count, 1)
     assert.equal(queries, 2)
   } finally { await closePool(connection.id) }
@@ -117,12 +114,11 @@ test('failed metadata retrieval is an error rather than zero and is not cached',
 
 test('unrecognized inventory scopes are rejected before querying the database', async () => {
   const poolMock = mock.method(mysql, 'createPool', () => { throw new Error('unexpected database access') })
-  const { tool, resultStore } = tableTool(fixture('invalid-scope'))
+  const { tool } = tableTool(fixture('invalid-scope'))
   const result = JSON.parse(await tool.execute('{"table_type":"users; DROP TABLE users"}'))
   assert.equal(result.success, false)
   assert.match(result.error, /Invalid arguments/)
   assert.equal(poolMock.mock.callCount(), 0)
-  assert.equal(resultStore.size, 0)
 })
 
 function intent(type: IntentClassification['intent']): IntentClassification {
@@ -165,14 +161,13 @@ test('schema exploration can answer a table count using the metadata tool withou
     return completion({ content: '当前数据库共有 **2 张基础表**。' })
   })
   try {
-    const { agent, resultStore } = await createDbAgent(connection, {
+    const { agent } = await createDbAgent(connection, {
       model: 'test', thinkingMode: 'disabled', userQuery: '查询总共有多少表', intent: intent('explore_schema'),
     })
     const result = await agent.generate({ prompt: '查询总共有多少表' })
     assert.equal(result.text, '当前数据库共有 **2 张基础表**。')
     assert.equal(requests, 2)
     assert.equal(queries, 1)
-    assert.deepEqual([...resultStore.keys()], ['list_tables'])
   } finally { await closePool(connection.id) }
 })
 
@@ -200,6 +195,15 @@ test('exact business row counts still submit SQL for confirmation instead of usi
     assert.match(system, /路径 A（简单查询/)
     let name: string
     let args: object
+    if (requests === 3) {
+      // Resumed run: the same conversation, with the confirmed result answering the pending call.
+      assert.deepEqual(body.messages.map((message: any) => message.role), ['system', 'user', 'assistant', 'tool', 'assistant', 'tool'])
+      assert.match(JSON.parse(body.messages[3].content).data, /~123 rows/)
+      assert.equal(body.messages[5].tool_call_id, 'rows-2')
+      assert.equal(body.messages[5].content, 'user_count = 42')
+      const answer = { choices: [{ delta: { content: '共 **42** 条记录。' }, finish_reason: 'stop' }] }
+      return new Response(`data: ${JSON.stringify(answer)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+    }
     if (requests === 1) {
       name = 'get_table_schema'
       args = { table_name: 'users' }
@@ -214,17 +218,33 @@ test('exact business row counts still submit SQL for confirmation instead of usi
     return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
   })
   try {
-    const { agent, resultStore } = await createDbAgent(connection, {
+    const { agent } = await createDbAgent(connection, {
       model: 'test', thinkingMode: 'disabled', userQuery: 'users 表有多少条记录', intent: intent('simple_query'),
     })
-    for await (const event of agent.stream({ prompt: 'users 表有多少条记录' })) {
-      // Match the chat handler's boundary: stop as soon as SQL is pending confirmation.
-      if (event.type === 'step' && resultStore.has('execute_sql')) break
-    }
+    // No early break: the run suspends itself as soon as SQL is pending confirmation.
+    const events = []
+    for await (const event of agent.stream({ prompt: 'users 表有多少条记录' })) events.push(event)
     assert.equal(requests, 2)
-    const pending = JSON.parse(resultStore.get('execute_sql')![0])
+    const suspended = events.find(event => event.type === 'suspend')
+    assert.ok(suspended && suspended.type === 'suspend')
+    assert.equal(suspended.state.pending.length, 1)
+    assert.equal(suspended.state.pending[0].name, 'execute_sql')
+    assert.equal(suspended.state.messages.some(message => message.role === 'system'), false)
+    const pending = suspended.state.pending[0].payload as { status: string; sql: string }
     assert.equal(pending.status, 'pending_confirmation')
     assert.equal(pending.sql, 'SELECT COUNT(*) AS user_count FROM users')
     assert.equal(queries.some(sql => sql.includes('AS user_count')), false)
+
+    // The state survives a round trip through the client and a brand-new agent instance.
+    const resume = parseResume({ state: JSON.parse(JSON.stringify(suspended.state)), toolCallId: 'rows-2', result: 'user_count = 42' })
+    assert.ok(resume)
+    const { agent: resumedAgent } = await createDbAgent(connection, { model: 'test', thinkingMode: 'disabled', intent: null })
+    let answer = ''
+    for await (const event of resumedAgent.stream({ resume })) {
+      if (event.type === 'text-delta') answer += event.textDelta
+      assert.notEqual(event.type, 'suspend')
+    }
+    assert.equal(answer, '共 **42** 条记录。')
+    assert.equal(requests, 3)
   } finally { await closePool(connection.id) }
 })

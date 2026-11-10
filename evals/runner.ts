@@ -128,9 +128,9 @@ function createExecutor(connection: DatabaseConnection, now: Date) {
 
 // ── Agent turn ──────────────────────────────────────────────
 
-/** Mirrors chatStream: the turn stops once SQL awaits confirmation or smart_filter asks the user. */
+/** Mirrors chatStream: the turn ends when execute_sql or smart_filter suspends the agent run. */
 async function runAgent(connection: DatabaseConnection, question: string, options: EvalConfig, signal: AbortSignal) {
-  const { agent, resultStore } = await createDbAgent(connection, {
+  const { agent } = await createDbAgent(connection, {
     provider: options.provider,
     model: options.model,
     thinkingMode: options.thinkingMode,
@@ -150,17 +150,6 @@ async function runAgent(connection: DatabaseConnection, question: string, option
   const submittedSql: string[] = []
   let text = ''
   let pendingSql: string | undefined
-  let seenSqlResults = 0
-  const collectPending = () => {
-    const queue = resultStore.get('execute_sql') ?? []
-    for (const result of queue.slice(seenSqlResults)) {
-      try {
-        const parsed = JSON.parse(result)
-        if (parsed.status === 'pending_confirmation') pendingSql = parsed.sql
-      } catch { /* guard errors are plain text and let the model retry */ }
-    }
-    seenSqlResults = queue.length
-  }
   for await (const event of agent.stream({ prompt: question, signal })) {
     if (event.type === 'text-delta') text += event.textDelta
     else if (event.type === 'tool-call') {
@@ -172,11 +161,14 @@ async function runAgent(connection: DatabaseConnection, question: string, option
       }
     } else if (event.type === 'step') {
       trace(`step ${event.step}`)
-      collectPending()
-      if (pendingSql || toolCalls.includes('smart_filter')) break
+    } else if (event.type === 'suspend') {
+      // The run stops by itself once SQL awaits confirmation or smart_filter asks the user.
+      const sqlCall = event.state.pending.find(call => call.name === 'execute_sql')
+      if (sqlCall) pendingSql = String((sqlCall.payload as { sql?: unknown }).sql ?? '')
+    } else if (event.type === 'tool-result' && event.name === 'smart_filter' && !event.suspended) {
+      break // a rejected smart_filter call still counts as asking the user, as before
     }
   }
-  collectPending()
   const outcome: AgentOutcome = { pendingSql, smartFilterCalled: toolCalls.includes('smart_filter'), submittedSql, text }
   return { outcome, toolCalls }
 }

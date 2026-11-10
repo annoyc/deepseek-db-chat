@@ -1,15 +1,11 @@
-import { tool } from '@/core'
+import { suspend, tool } from '@/core'
 import { z } from 'zod'
 import { listTables, getTableSchema, getDatabaseOverview, explainQuery, getColumnFilterData } from './database'
 import type { TableType } from './database'
 import { validateSql } from '@/lib/sql-guard'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import type { DatabaseConnection, AnalysisReport } from '@/lib/types'
+import type { DatabaseConnection } from '@/lib/types'
 import { FILTER_CONFIDENCE_THRESHOLD } from './intent-router'
-
-export const TOOL_ERROR_PREFIX = '__TOOL_ERROR__:'
-
-export type ResultStore = Map<string, string[]>
 
 export function createDbTools(
   connection: DatabaseConnection,
@@ -21,21 +17,9 @@ export function createDbTools(
   seedTables?: string[],
   needsFilterConfidence: number = 0,
 ) {
-  const resultStore: ResultStore = new Map()
   const schemaCache = new Map<string, string>()
   const submittedSqlSet = new Set<string>()
   let smartFilterCalled = false
-
-  function pushResult(name: string, result: string) {
-    const queue = resultStore.get(name) ?? []
-    queue.push(result)
-    resultStore.set(name, queue)
-  }
-
-  function pushError(name: string, error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error)
-    pushResult(name, TOOL_ERROR_PREFIX + msg)
-  }
 
   /**
    * Detect if key date columns are present in referenced tables but not
@@ -100,17 +84,14 @@ export function createDbTools(
     execute: async () => {
       try {
         if (overviewCache !== null) {
-          pushResult('get_database_overview', overviewCache)
           return overviewCache
         }
         const result = await getDatabaseOverview(connection, userQuery, seedTables)
         overviewCache = result
-        pushResult('get_database_overview', result)
         return result
       } catch (err) {
-        pushError('get_database_overview', err)
-        const msg = err instanceof Error ? err.message : String(err)
-        return `查询失败: ${msg}`
+        // Thrown errors reach the model and the UI as a failed tool call.
+        throw new Error(`查询失败: ${err instanceof Error ? err.message : String(err)}`)
       }
     },
   })
@@ -125,18 +106,15 @@ export function createDbTools(
       try {
         const cached = tablesCache.get(table_type)
         if (cached !== undefined) {
-          pushResult('list_tables', cached)
           return cached
         }
         const tables = await listTables(connection, table_type)
         const result = JSON.stringify({ database: connection.database, table_type, table_count: tables.length, tables, complete: true })
         tablesCache.set(table_type, result)
-        pushResult('list_tables', result)
         return result
       } catch (err) {
-        pushError('list_tables', err)
-        const msg = err instanceof Error ? err.message : String(err)
-        return `查询失败: ${msg}`
+        // Thrown errors reach the model and the UI as a failed tool call.
+        throw new Error(`查询失败: ${err instanceof Error ? err.message : String(err)}`)
       }
     },
   })
@@ -152,18 +130,15 @@ export function createDbTools(
         // Return cached schema if already queried in this agent run
         const cached = schemaCache.get(table_name)
         if (cached) {
-          pushResult('get_table_schema', cached)
           return cached
         }
 
         const result = await getTableSchema(connection, table_name)
         schemaCache.set(table_name, result)
-        pushResult('get_table_schema', result)
         return result
       } catch (err) {
-        pushError('get_table_schema', err)
-        const msg = err instanceof Error ? err.message : String(err)
-        return `查询失败: ${msg}`
+        // Thrown errors reach the model and the UI as a failed tool call.
+        throw new Error(`查询失败: ${err instanceof Error ? err.message : String(err)}`)
       }
     },
   })
@@ -177,12 +152,10 @@ export function createDbTools(
     execute: async ({ sql }: { sql: string }) => {
       try {
         const result = await explainQuery(connection, sql)
-        pushResult('explain_sql', result)
         return result
       } catch (err) {
-        pushError('explain_sql', err)
-        const msg = err instanceof Error ? err.message : String(err)
-        return `EXPLAIN 失败: ${msg}`
+        // Thrown errors reach the model and the UI as a failed tool call.
+        throw new Error(`EXPLAIN 失败: ${err instanceof Error ? err.message : String(err)}`)
       }
     },
   })
@@ -208,7 +181,6 @@ export function createDbTools(
             missingFilters,
             message: `检测到查询涉及 ${missingFilters.join('、')} 但未指定筛选条件。请先调用 smart_filter 让用户确认这些参数。`,
           })
-          pushResult('execute_sql', gateMsg)
           return gateMsg
         }
       }
@@ -219,7 +191,6 @@ export function createDbTools(
           status: 'limit_reached',
           message: `本会话已执行 ${maxSqlExecutions} 条 SQL，达到上限。请基于已有的查询结果给出最终回复，不再生成新的 SQL。`,
         })
-        pushResult('execute_sql', limitMsg)
         return limitMsg
       }
 
@@ -230,7 +201,6 @@ export function createDbTools(
           status: 'duplicate_blocked',
           message: '此 SQL 与本轮已提交的 SQL 完全相同，已被阻止重复提交。请直接基于已有结果给出最终回复，不要再重复生成相同的 SQL。',
         })
-        pushResult('execute_sql', dupMsg)
         return dupMsg
       }
 
@@ -240,7 +210,6 @@ export function createDbTools(
           status: 'duplicate_blocked',
           message: '此 SQL 与上一轮用户已确认执行的 SQL 完全相同，已被阻止。你已经拿到了执行结果，请直接分析结果并给出最终回复，不要再重复提交相同的 SQL。',
         })
-        pushResult('execute_sql', dupMsg)
         return dupMsg
       }
 
@@ -276,7 +245,6 @@ export function createDbTools(
             unknown_tables: unknownTables,
             message: `SQL 引用了未经确认的表: ${unknownTables.join(', ')}。请先调用 get_table_schema 确认这些表的结构，再生成 SQL。已知表: ${[...schemaCache.keys()].join(', ')}`,
           })
-          pushResult('execute_sql', warnMsg)
           return warnMsg
         }
       }
@@ -286,22 +254,19 @@ export function createDbTools(
       if (!validation.allowed) {
         const allowedLabel = sqlPermission === 'write' ? 'SELECT/SHOW/DESCRIBE/EXPLAIN/WITH/DESC/INSERT/UPDATE/DELETE/REPLACE' : 'SELECT/SHOW/DESCRIBE/EXPLAIN/WITH/DESC'
         const errorMsg = `SQL 被安全策略拦截: ${validation.reason}。当前模式仅允许: ${allowedLabel}。`
-        pushError('execute_sql', new Error(errorMsg))
-        return errorMsg
+        throw new Error(errorMsg)
       }
 
       const resultPayload: Record<string, unknown> = {
         status: 'pending_confirmation',
         sql,
         explanation,
-        message: '已提交给用户确认。请立即停止，不要再调用任何工具。等待下一轮对话获取执行结果。',
       }
       if (intent_summary) resultPayload.intent_summary = intent_summary
       if (expected_shape) resultPayload.expected_shape = expected_shape
 
-      const result = JSON.stringify(resultPayload)
-      pushResult('execute_sql', result)
-      return result
+      // Suspend the agent run: the model is not called again until the user decides.
+      return suspend(resultPayload, '该 SQL 未执行：尚未获得用户确认。如仍需要，请重新提交。')
     },
   })
 
@@ -395,7 +360,6 @@ export function createDbTools(
         status: missing.length > 0 ? 'plan_warning' : 'plan_ready',
         message: parts.join('\n'),
       })
-      pushResult('plan_query', result)
       return result
     },
   })
@@ -445,13 +409,7 @@ export function createDbTools(
         }),
       )
 
-      const result = JSON.stringify({
-        status: 'pending',
-        filters: enrichedFilters,
-        message: '已将筛选建议提交给用户确认。请立即停止回复，等待用户确认筛选参数后继续。',
-      })
-      pushResult('smart_filter', result)
-      return result
+      return suspend({ status: 'pending', filters: enrichedFilters }, '筛选参数尚未获得用户确认。')
     },
   })
 
@@ -479,18 +437,10 @@ export function createDbTools(
       }).optional().describe('可视化建议，当数据适合图表展示时提供'),
       nextQueries: z.array(z.string()).optional().describe('建议的后续查询方向，如["按渠道拆分新增用户","对比上月同期数据"]'),
     }),
-    execute: async (params) => {
-      const report: AnalysisReport = {
-        summary: params.summary,
-        metrics: params.metrics,
-        chartSuggestion: params.chartSuggestion,
-        nextQueries: params.nextQueries,
-      }
-      const result = JSON.stringify({ status: 'report_submitted', report })
-      pushResult('report_analysis', result)
+    execute: async () => {
       return '分析报告已提交。请继续用自然语言输出详细的数据分析。'
     },
   })
 
-  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, planQueryTool, explainSqlTool, executeSqlTool, smartFilterTool, reportAnalysisTool], resultStore }
+  return { tools: [getDatabaseOverviewTool, listTablesTool, getTableSchemaTool, planQueryTool, explainSqlTool, executeSqlTool, smartFilterTool, reportAnalysisTool] }
 }

@@ -1,4 +1,4 @@
-import type { ConsistentTools, NonStrictTool, StrictTool, StrictToolDefinition, ToolCall, ToolChoice, ToolDefinition } from './types'
+import type { ConsistentTools, NonStrictTool, StrictTool, StrictToolDefinition, ToolCall, ToolChoice, ToolDefinition, ToolOutcome } from './types'
 import type { HookRunner } from '@/core/generate/generate-utils'
 import type { GenerateTextHooks } from '@/core/generate/types'
 import { z } from 'zod'
@@ -28,6 +28,35 @@ async function withRetries<T>(
   }
 }
 
+const SUSPEND = Symbol.for('agent-loop.tool.suspend')
+
+export interface ToolSuspension {
+  [SUSPEND]: true
+  payload: unknown
+  message: string
+}
+
+/**
+ * Return this from a tool's `execute` to pause the agent run until something
+ * outside the loop (a user confirmation, an approval, a slow job) supplies the
+ * real result. The loop finishes the step, emits a `suspend` event carrying a
+ * serializable state, and stops without calling the model again.
+ *
+ * @param payload Data for whoever handles the suspension, e.g. what to show the user.
+ * @param message Placeholder the model sees if the run is resumed without a result for this call.
+ */
+export function suspend(payload: unknown, message = 'Not executed: waiting for user input.'): ToolSuspension {
+  return { [SUSPEND]: true, payload, message }
+}
+
+function isSuspension(value: unknown): value is ToolSuspension {
+  return typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[SUSPEND] === true
+}
+
+function failure(error: string): ToolOutcome {
+  return { content: JSON.stringify({ success: false, error }), error }
+}
+
 export function serializeResult(result: unknown): string {
   if (typeof result === 'string') {
     return result
@@ -50,15 +79,15 @@ export function tool(config: any) {
   const { schema, execute, compact, name, description, timeout = 60000, retries = 0 } = config
   const jsonSchema = z.toJSONSchema(schema)
 
-  const wrappedExecute = async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks): Promise<string> => {
+  const run = async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks): Promise<ToolOutcome> => {
     const result = await parseAndValidate(args, schema)
 
     if (!result.success) {
       if (result.type === 'schema_validation_error') {
         const messages = result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join(', ')
-        return JSON.stringify({ success: false, error: `Invalid arguments: ${messages}` })
+        return failure(`Invalid arguments: ${messages}`)
       }
-      return JSON.stringify({ success: false, error: `Failed to parse arguments: ${result.error.message}` })
+      return failure(`Failed to parse arguments: ${result.error.message}`)
     }
 
     try {
@@ -68,6 +97,9 @@ export function tool(config: any) {
         timeout,
         signal,
       )
+      if (isSuspension(execResult)) {
+        return { ...failure(execResult.message), error: undefined, suspension: { payload: execResult.payload } }
+      }
       let data = serializeResult(execResult)
       if (compact) {
         try {
@@ -85,7 +117,7 @@ export function tool(config: any) {
             })
 
             if (runner.stopped) {
-              return JSON.stringify({ success: true, data })
+              return { content: JSON.stringify({ success: true, data }), data }
             }
 
             if (runner.skipped) {
@@ -112,23 +144,24 @@ export function tool(config: any) {
           console.warn('[tool] Compact failure (non-blocking):', err)
         }
       }
-      return JSON.stringify({ success: true, data })
+      return { content: JSON.stringify({ success: true, data }), data }
     }
     catch (err) {
       signal?.throwIfAborted()
-      return JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) })
+      return failure(err instanceof Error ? err.message : String(err))
     }
   }
 
   return {
     ...config,
     parameters: jsonSchema,
-    execute: (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks) => wrappedExecute(args, signal, runner, hooks),
+    run,
+    execute: async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks) => (await run(args, signal, runner, hooks)).content,
   }
 }
 
 export type Tool = StrictTool | NonStrictTool
-export type { ConsistentTools, NonStrictTool, StrictTool }
+export type { ConsistentTools, NonStrictTool, StrictTool, ToolOutcome }
 
 export function validateToolConsistency(tools: Tool[]): void {
   const strictCount = tools.filter(t => t.strict === true).length

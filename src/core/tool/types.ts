@@ -19,6 +19,18 @@ export interface ToolFailure {
 
 export type ToolResultType = ToolSuccess | ToolFailure
 
+/** Result of one tool call as the agent loop sees it. */
+export interface ToolOutcome {
+  /** The tool message sent to the model. */
+  content: string
+  /** Serialized output on success. */
+  data?: string
+  /** Failure reason on error. */
+  error?: string
+  /** Present when the tool returned `suspend(...)`. */
+  suspension?: { payload: unknown }
+}
+
 export interface ToolCompactConfig {
   threshold?: number
   model?: Model
@@ -112,6 +124,8 @@ export interface StrictTool {
   schema: z.ZodObject
   parameters: Record<string, any>
   execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<string>
+  /** Same call as `execute`, with the structured outcome the agent loop needs. */
+  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<ToolOutcome>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig
@@ -125,6 +139,8 @@ export interface NonStrictTool {
   schema: z.ZodObject
   parameters: Record<string, any>
   execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<string>
+  /** Same call as `execute`, with the structured outcome the agent loop needs. */
+  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<ToolOutcome>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig

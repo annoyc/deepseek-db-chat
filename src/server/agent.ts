@@ -279,7 +279,7 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
   // Tools are created AFTER classification so the intent classifier's
   // suggestedTables can seed schema-subsetting (force-include likely-relevant
   // tables in the overview) and skipOverview can suppress overview guidance.
-  const { tools, resultStore } = createDbTools(
+  const { tools } = createDbTools(
     connection,
     options?.sqlPermission,
     options?.lastConfirmedSql,
@@ -382,5 +382,5 @@ export async function createDbAgent(connection: DatabaseConnection, options?: Ag
     signal: options?.signal,
   })
 
-  return { agent, resultStore }
+  return { agent }
 }

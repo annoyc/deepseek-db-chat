@@ -1,13 +1,14 @@
 import type z from 'zod'
-import type { GenerateTextParams, GenerateTextResult, StepInvoker, StepRef, StreamEvent } from './types'
+import type { GenerateTextParams, GenerateTextResult, PendingToolCall, StepInvoker, StepRef, StreamEvent } from './types'
 import type { ChatMessage, Usage } from '@/core/model/types'
 import type { Tool } from '@/core/tool'
-import type { ChatCompletionTool } from '@/core/tool/types'
+import type { ChatCompletionTool, ToolOutcome } from '@/core/tool/types'
 import { AGENT_LOOP_MAX_STEPS } from '@/core/constants'
 import { createCompactMessage } from '@/core/context/compact'
 import { AgentError, classifyError } from '@/core/errors'
 import { generateStructuredOutput } from './generate-structured-output'
 import { buildMessage, emptyUsage, HookRunner, lastAssistantMsg, mergeUsage, StopLoop } from './generate-utils'
+import { applyResume, conversationOf } from './suspend'
 
 function normalizeArgs(args: string): string {
   try {
@@ -32,16 +33,24 @@ async function executeToolCalls(
   signal?: AbortSignal,
   runner?: HookRunner,
   hooks?: GenerateTextParams<any>['hooks'],
-): Promise<Array<{ tool_call_id: string, content: string }>> {
+): Promise<Array<{ toolCall: ChatCompletionTool, outcome: ToolOutcome }>> {
+  // Results keep the order of the calls, whichever finishes first.
   return Promise.all(
     toolCalls.map(async (toolCall) => {
       const name = toolCall.function?.name
       const tool = tools.find(t => t.name === name)
-      const result = tool
-        ? await tool.execute(toolCall.function.arguments, signal, runner, hooks)
-        : `Tool execution error: Tool "${name}" not found`
-
-      return { tool_call_id: toolCall.id, content: result }
+      let outcome: ToolOutcome
+      if (!tool) {
+        const error = `Tool "${name}" not found`
+        outcome = { content: `Tool execution error: ${error}`, error }
+      }
+      else if (tool.run) {
+        outcome = await tool.run(toolCall.function.arguments, signal, runner, hooks)
+      }
+      else {
+        outcome = { content: await tool.execute(toolCall.function.arguments, signal, runner, hooks) }
+      }
+      return { toolCall, outcome }
     }),
   )
 }
@@ -50,8 +59,9 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
   params: GenerateTextParams<T>,
   stepInvoker: StepInvoker,
 ): AsyncGenerator<StreamEvent, GenerateTextResult<unknown>> {
-  const { model, tools, system, messages, fewShot, maxSteps = AGENT_LOOP_MAX_STEPS, prompt, output, hooks, signal, compact } = params
-  const currentMessages: ChatMessage[] = buildMessage(prompt, system, messages, fewShot)
+  const { model, tools, system, messages, fewShot, maxSteps = AGENT_LOOP_MAX_STEPS, prompt, output, hooks, signal, compact, resume } = params
+  // A resumed run continues the saved conversation; system and few-shot come from the params again.
+  const currentMessages: ChatMessage[] = buildMessage(prompt, system, resume ? applyResume(resume) : messages, fewShot)
   const currentTools: Tool[] = tools ? [...tools] : []
   const totalUsage: Usage = emptyUsage()
   const runner = new HookRunner()
@@ -151,21 +161,32 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         if (consecutiveDuplicateSteps >= 2) {
           // Model is stuck repeating the same tool calls — force stop
           for (const toolCall of stepResult.toolCalls) {
-            currentMessages.push({
-              role: 'tool',
-              content: JSON.stringify({
-                success: false,
-                error: `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`,
-              }),
-              tool_call_id: toolCall.id,
-            })
+            const error = `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`
+            const content = JSON.stringify({ success: false, error })
+            currentMessages.push({ role: 'tool', content, tool_call_id: toolCall.id })
+            yield { type: 'tool-result', step: stepRef.value, toolCallId: toolCall.id, name: toolCall.function?.name ?? '', content, error }
           }
           return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
         }
 
         const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks)
-        for (const { tool_call_id, content } of toolResults) {
-          currentMessages.push({ role: 'tool', content, tool_call_id })
+        const pending: PendingToolCall[] = []
+        for (const { toolCall, outcome } of toolResults) {
+          const name = toolCall.function?.name ?? ''
+          currentMessages.push({ role: 'tool', content: outcome.content, tool_call_id: toolCall.id })
+          yield {
+            type: 'tool-result',
+            step: stepRef.value,
+            toolCallId: toolCall.id,
+            name,
+            content: outcome.content,
+            ...(outcome.data !== undefined ? { data: outcome.data } : {}),
+            ...(outcome.error !== undefined ? { error: outcome.error } : {}),
+            ...(outcome.suspension ? { suspended: true, payload: outcome.suspension.payload } : {}),
+          }
+          if (outcome.suspension) {
+            pending.push({ toolCallId: toolCall.id, name, arguments: toolCall.function?.arguments ?? '', payload: outcome.suspension.payload })
+          }
         }
 
         runner.runAfterStep(hooks, {
@@ -178,6 +199,12 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         })
         if (runner.stopped) {
           return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+        }
+        if (pending.length > 0) {
+          // Stop without another model call; the caller resumes with the real results.
+          const suspended = { messages: conversationOf(currentMessages), pending }
+          yield { type: 'suspend', step: stepRef.value, state: suspended }
+          return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage, suspended }
         }
         continue
       }

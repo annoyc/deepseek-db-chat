@@ -104,7 +104,8 @@ export async function* generateStream<T extends z.ZodTypeAny>(params: GenerateTe
       yield iterResult.value
       iterResult = await gen.next()
     }
-    yield { type: 'finish', text: iterResult.value.text, usage: iterResult.value.usage }
+    const { text, usage, suspended } = iterResult.value
+    yield { type: 'finish', text, usage, ...(suspended ? { suspended } : {}) }
   } finally {
     await gen.return(undefined as never)
   }
