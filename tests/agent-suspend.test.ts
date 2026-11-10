@@ -12,7 +12,7 @@ function call(id: string, name: string, args: object = {}) {
 }
 
 /** A model that replays scripted assistant messages and records every request. */
-function scriptedModel(script: Array<{ content?: string | null; tool_calls?: ReturnType<typeof call>[] }>) {
+function scriptedModel(script: Array<{ content?: string | null; tool_calls?: ReturnType<typeof call>[]; finish_reason?: string }>) {
   const requests: any[][] = []
   const toolCounts: number[] = []
   const model = {
@@ -23,7 +23,8 @@ function scriptedModel(script: Array<{ content?: string | null; tool_calls?: Ret
       requests.push(structuredClone(messages))
       const message = script[requests.length - 1]
       assert.ok(message, 'the model was called more often than scripted')
-      return { choices: [{ message: { role: 'assistant', content: null, ...message }, finish_reason: message.tool_calls ? 'tool_calls' : 'stop' }], usage }
+      const { finish_reason, ...rest } = message
+      return { choices: [{ message: { role: 'assistant', content: null, ...rest }, finish_reason: finish_reason ?? (message.tool_calls ? 'tool_calls' : 'stop') }], usage }
     },
     async *invokeStream({ messages }: { messages: any[] }) {
       requests.push(structuredClone(messages))
@@ -32,7 +33,7 @@ function scriptedModel(script: Array<{ content?: string | null; tool_calls?: Ret
       yield {
         choices: [{
           delta: { content: message.content ?? undefined, tool_calls: message.tool_calls?.map((tc, index) => ({ index, ...tc })) },
-          finish_reason: message.tool_calls ? 'tool_calls' : 'stop',
+          finish_reason: message.finish_reason ?? (message.tool_calls ? 'tool_calls' : 'stop'),
         }],
         usage,
       }
@@ -275,4 +276,86 @@ test('a blocked streaming run reports the blocked call and still streams an answ
   const finish = events.at(-1)
   assert.ok(finish?.type === 'finish')
   assert.equal(finish.text, '答案')
+})
+
+test('tool results are compacted with the model of the run, not with server credentials', async () => {
+  const long = 'x'.repeat(2000)
+  const verbose = tool({ name: 'verbose', description: 'test', schema: z.object({}), compact: true, execute: async () => long })
+  // DEEPSEEK_API_KEY is empty in tests: a compaction that built its own model would fail and keep the long text.
+  const { model, requests } = scriptedModel([{ tool_calls: [call('v1', 'verbose')] }, { content: 'short summary' }, { content: 'done' }])
+  const result = await generateText({ model, tools: [verbose], prompt: 'go' })
+  assert.equal(result.text, 'done')
+  assert.deepEqual(requests[1].map(message => message.role), ['system', 'user'])
+  assert.equal(requests[1][1].content.includes(long), true)
+  assert.deepEqual(JSON.parse(requests[2].at(-1).content), { success: true, data: 'short summary' })
+})
+
+test('each compactor keeps its own settings and a bounded cache', async () => {
+  const { CompactTool } = await import('../src/core/context/compact')
+  let calls = 0
+  const runModel = { withConfig() { return runModel }, async invoke() { calls++; return { choices: [{ message: { content: `summary ${calls}` } }] } } } as any
+  const eager = new CompactTool({ threshold: 10 })
+  const lazy = new CompactTool()
+  assert.equal(eager.threshold, 10)
+  assert.equal(lazy.threshold, 1500)
+
+  const text = 'a'.repeat(50)
+  assert.equal(await lazy.compact(text, 't', 'd', undefined, runModel), text)
+  assert.equal(await eager.compact(text, 't', 'd', undefined, runModel), 'summary 1')
+  assert.equal(await eager.compact(text, 't', 'd', undefined, runModel), 'summary 1')
+  assert.equal(calls, 1)
+
+  for (let i = 0; i < 100; i++) await eager.compact(`${i}`.padEnd(20, '-'), 't', 'd', undefined, runModel)
+  assert.equal(calls, 101)
+  // The oldest entry was evicted, so it is compacted again rather than growing the cache without limit.
+  assert.equal(await eager.compact(text, 't', 'd', undefined, runModel), 'summary 102')
+})
+
+test('an error the onError hook swallows leaves no tool call unanswered', async () => {
+  const broken = { name: 'broken', description: 'test', schema: z.object({}), parameters: {}, execute: async () => { throw new Error('exploded') } }
+  const { model, requests } = scriptedModel([{ tool_calls: [call('b1', 'broken'), call('b2', 'broken')] }, { content: 'recovered' }])
+  const seen: string[] = []
+  const events = await collect(generateStream({
+    model, tools: [broken as any], prompt: 'go',
+    hooks: { onError: (error) => { seen.push(error.message) } },
+  }))
+  assert.deepEqual(seen, ['exploded'])
+  assert.deepEqual(requests[1].map(message => message.role), ['user', 'assistant', 'tool', 'tool'])
+  assert.deepEqual(requests[1].slice(2).map(message => message.tool_call_id), ['b1', 'b2'])
+  assert.match(JSON.parse(requests[1][2].content).error, /not completed: exploded/)
+  assert.equal(events.filter(event => event.type === 'tool-result' && event.error).length, 2)
+  const finish = events.at(-1)
+  assert.ok(finish?.type === 'finish')
+  assert.equal(finish.text, 'recovered')
+})
+
+test('a tool call cut off by the output limit is refused instead of run with repaired arguments', async () => {
+  const executed: string[] = []
+  const submit = tool({
+    name: 'submit', description: 'test', schema: z.object({ sql: z.string() }),
+    execute: async ({ sql }) => { executed.push(sql); return 'ok' },
+  })
+  const complete = call('s1', 'submit', { sql: 'SELECT 1' })
+  // Valid-looking after repair, but the WHERE clause never arrived.
+  const cutOff = { id: 's2', type: 'function' as const, function: { name: 'submit', arguments: '{"sql":"DELETE FROM users' } }
+  const { model, requests } = scriptedModel([
+    { tool_calls: [complete, cutOff], finish_reason: 'length' },
+    { content: 'partial answer', finish_reason: 'length' },
+  ])
+  const result = await generateText({ model, tools: [submit], prompt: 'go' })
+  assert.deepEqual(executed, ['SELECT 1'])
+  assert.match(JSON.parse(requests[1].at(-1).content).error, /output token limit/)
+  assert.equal(result.finishReason, 'length')
+
+  const chunks = createChatEventMapper()({ type: 'finish', text: 'partial answer', finishReason: 'length' })
+  assert.deepEqual(chunks.map(chunk => chunk.type), ['error'])
+  assert.deepEqual(createChatEventMapper()({ type: 'finish', text: 'full answer', finishReason: 'stop' }), [])
+})
+
+test('a cancellation is not classified as a retryable timeout', async () => {
+  const { classifyError } = await import('../src/core/errors')
+  const aborted = classifyError(new DOMException('stopped', 'AbortError'), 2)
+  assert.deepEqual([aborted.type, aborted.retryable, aborted.step], ['aborted', false, 2])
+  const timedOut = classifyError(new DOMException('slow', 'TimeoutError'))
+  assert.deepEqual([timedOut.type, timedOut.retryable], ['timeout', true])
 })

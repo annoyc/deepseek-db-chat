@@ -98,6 +98,11 @@ export function createChatEventMapper() {
       }
       case 'suspend':
         return onSuspend(event.state)
+      case 'finish':
+        // Tell the user instead of presenting a cut-off answer as complete.
+        return event.finishReason === 'length'
+          ? [{ type: 'error', message: '回复达到模型输出长度上限，内容可能不完整。可以让我继续，或缩小问题范围。' }]
+          : []
       default:
         return []
     }

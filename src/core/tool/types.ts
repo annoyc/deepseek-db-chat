@@ -123,9 +123,9 @@ export interface StrictTool {
   required?: boolean
   schema: z.ZodObject
   parameters: Record<string, any>
-  execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<string>
+  execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any, model?: any) => Promise<string>
   /** Same call as `execute`, with the structured outcome the agent loop needs. */
-  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<ToolOutcome>
+  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any, model?: any) => Promise<ToolOutcome>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig
@@ -138,9 +138,9 @@ export interface NonStrictTool {
   required?: boolean
   schema: z.ZodObject
   parameters: Record<string, any>
-  execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<string>
+  execute: (args: string, signal?: AbortSignal, runner?: any, hooks?: any, model?: any) => Promise<string>
   /** Same call as `execute`, with the structured outcome the agent loop needs. */
-  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any) => Promise<ToolOutcome>
+  run?: (args: string, signal?: AbortSignal, runner?: any, hooks?: any, model?: any) => Promise<ToolOutcome>
   timeout?: number
   retries?: number
   compact?: boolean | ToolCompactConfig

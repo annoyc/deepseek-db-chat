@@ -121,6 +121,8 @@ export interface GenerateTextResult<TOutput = undefined> {
   usage: Usage
   /** Set when the run stopped because a tool suspended it. */
   suspended?: AgentSuspendedState
+  /** Why the model stopped on its final answer; `'length'` means the text was cut off by the output limit. */
+  finishReason?: string | null
 }
 
 export interface TextDeltaStreamEvent {
@@ -172,6 +174,7 @@ export interface FinishStreamEvent {
   text?: string
   usage?: Usage
   suspended?: AgentSuspendedState
+  finishReason?: string | null
 }
 
 export type StreamEvent

@@ -1,6 +1,7 @@
 import type { ConsistentTools, NonStrictTool, StrictTool, StrictToolDefinition, ToolCall, ToolChoice, ToolDefinition, ToolOutcome } from './types'
 import type { HookRunner } from '@/core/generate/generate-utils'
 import type { GenerateTextHooks } from '@/core/generate/types'
+import type { DeepSeekModel } from '@/core/model'
 import { z } from 'zod'
 import { createCompactTool } from '@/core/context/compact'
 import { parseAndValidate } from '@/core/utils/json-parse'
@@ -78,8 +79,10 @@ export function tool<T extends z.ZodObject>(config: ToolDefinition<T, false | un
 export function tool(config: any) {
   const { schema, execute, compact, name, description, timeout = 60000, retries = 0 } = config
   const jsonSchema = z.toJSONSchema(schema)
+  // One compactor per tool definition: its settings and cache are not shared.
+  const compactor = compact ? createCompactTool(typeof compact === 'object' ? compact : undefined) : null
 
-  const run = async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks): Promise<ToolOutcome> => {
+  const run = async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks, model?: DeepSeekModel): Promise<ToolOutcome> => {
     const result = await parseAndValidate(args, schema)
 
     if (!result.success) {
@@ -101,12 +104,9 @@ export function tool(config: any) {
         return { ...failure(execResult.message), error: undefined, suspension: { payload: execResult.payload } }
       }
       let data = serializeResult(execResult)
-      if (compact) {
+      if (compactor) {
         try {
-          const toolCompactConfig = typeof compact === 'object'
-            ? compact
-            : undefined
-          const ct = createCompactTool(toolCompactConfig)
+          const ct = compactor
 
           if (runner && hooks) {
             runner.runBeforeToolCompact(hooks, {
@@ -125,7 +125,7 @@ export function tool(config: any) {
             }
             else {
               const contentBefore = data
-              data = await ct.compact(data, name, description, signal)
+              data = await ct.compact(data, name, description, signal, model)
               runner.runAfterToolCompact(hooks, {
                 toolName: name,
                 toolDescription: description,
@@ -136,7 +136,7 @@ export function tool(config: any) {
             }
           }
           else {
-            data = await ct.compact(data, name, description, signal)
+            data = await ct.compact(data, name, description, signal, model)
           }
         }
         catch (err) {
@@ -156,7 +156,7 @@ export function tool(config: any) {
     ...config,
     parameters: jsonSchema,
     run,
-    execute: async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks) => (await run(args, signal, runner, hooks)).content,
+    execute: async (args: string, signal?: AbortSignal, runner?: HookRunner, hooks?: GenerateTextHooks, model?: DeepSeekModel) => (await run(args, signal, runner, hooks, model)).content,
   }
 }
 
