@@ -74,10 +74,15 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
   let lastPromptTokens = 0
   const seenToolCallKeys = new Set<string>()
   let consecutiveDuplicateSteps = 0
+  // Set when repeated tool calls were blocked: the next step runs without tools so the
+  // model has to answer from what it already has. It is granted even past maxSteps.
+  let answerWithoutTools = false
 
-  while (stepRef.value < maxSteps) {
+  while (stepRef.value < maxSteps || answerWithoutTools) {
     signal?.throwIfAborted()
     stepRef.value++
+    const stepTools = answerWithoutTools ? [] : currentTools
+    answerWithoutTools = false
     yield { type: 'step', step: stepRef.value }
 
     if (compactMessage && compactMessage.shouldCompact(lastPromptTokens)) {
@@ -120,7 +125,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
     try {
       const stepGen = stepInvoker(currentModel, {
         messages: currentMessages,
-        tools: currentTools,
+        tools: stepTools,
         signal,
       })
 
@@ -143,7 +148,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
 
       currentMessages.push(stepResult.assistantMessage)
 
-      if (stepResult.toolCalls.length > 0 && currentTools.length > 0) {
+      if (stepResult.toolCalls.length > 0 && stepTools.length > 0) {
         yield { type: 'tool-call', step: stepRef.value, toolCalls: stepResult.toolCalls }
 
         // --- Tool call deduplication: detect and break infinite loops ---
@@ -159,14 +164,27 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         currentStepKeys.forEach(key => seenToolCallKeys.add(key))
 
         if (consecutiveDuplicateSteps >= 2) {
-          // Model is stuck repeating the same tool calls — force stop
+          // Model is stuck repeating the same tool calls: refuse them and ask for the answer.
           for (const toolCall of stepResult.toolCalls) {
             const error = `重复调用被阻止: ${toolCall.function?.name} 已使用相同参数执行过。你已经拥有所需信息，请直接基于已有结果给出最终回复，不要再重复调用相同的工具。`
             const content = JSON.stringify({ success: false, error })
             currentMessages.push({ role: 'tool', content, tool_call_id: toolCall.id })
             yield { type: 'tool-result', step: stepRef.value, toolCallId: toolCall.id, name: toolCall.function?.name ?? '', content, error }
           }
-          return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+          runner.runAfterStep(hooks, {
+            step: stepRef.value,
+            type: 'tool',
+            toolCalls: stepResult.toolCalls,
+            text: stepResult.text || undefined,
+            reasoningContent: stepResult.reasoningContent,
+            usage: stepResult.usage,
+          })
+          if (runner.stopped) {
+            return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage }
+          }
+          consecutiveDuplicateSteps = 0
+          answerWithoutTools = true
+          continue
         }
 
         const toolResults = await executeToolCalls(stepResult.toolCalls, currentTools, signal, runner, hooks)

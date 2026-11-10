@@ -14,10 +14,12 @@ function call(id: string, name: string, args: object = {}) {
 /** A model that replays scripted assistant messages and records every request. */
 function scriptedModel(script: Array<{ content?: string | null; tool_calls?: ReturnType<typeof call>[] }>) {
   const requests: any[][] = []
+  const toolCounts: number[] = []
   const model = {
     config: {},
     withConfig() { return model },
-    async invoke({ messages }: { messages: any[] }) {
+    async invoke({ messages, tools }: { messages: any[]; tools?: unknown[] }) {
+      toolCounts.push(tools?.length ?? 0)
       requests.push(structuredClone(messages))
       const message = script[requests.length - 1]
       assert.ok(message, 'the model was called more often than scripted')
@@ -36,7 +38,7 @@ function scriptedModel(script: Array<{ content?: string | null; tool_calls?: Ret
       }
     },
   }
-  return { model: model as any, requests }
+  return { model: model as any, requests, toolCounts }
 }
 
 const lookup = tool({
@@ -241,4 +243,36 @@ test('a suspended streaming run keeps its reasoning so a resumed run can replay 
   assert.ok(suspended?.type === 'suspend')
   const state = parseSuspendedState(JSON.parse(JSON.stringify(suspended.state)))
   assert.equal((state.messages[1] as { reasoning_content?: string }).reasoning_content, '需要确认')
+})
+
+test('repeated identical tool calls are blocked and the model then answers without tools', async () => {
+  let executions = 0
+  const counter = tool({
+    name: 'counter', description: 'test', schema: z.object({ key: z.string() }),
+    execute: async () => `run ${++executions}`,
+  })
+  const same = () => ({ tool_calls: [call(`c${Math.random()}`, 'counter', { key: 'k' })] })
+  // maxSteps equals the step that gets blocked: the closing answer is still granted.
+  const { model, requests, toolCounts } = scriptedModel([same(), same(), same(), { content: '最终答案' }])
+  const result = await generateText({ model, tools: [counter], prompt: 'go', maxSteps: 3 })
+  assert.equal(result.text, '最终答案')
+  assert.equal(executions, 2)
+  assert.deepEqual(toolCounts, [1, 1, 1, 0])
+  const last = requests[3]
+  // Every tool call is answered, and the blocked one tells the model why.
+  assert.deepEqual(last.map(message => message.role), ['user', 'assistant', 'tool', 'assistant', 'tool', 'assistant', 'tool'])
+  assert.match(JSON.parse(last[6].content).error, /重复调用被阻止/)
+})
+
+test('a blocked streaming run reports the blocked call and still streams an answer', async () => {
+  const noop = tool({ name: 'noop', description: 'test', schema: z.object({}), execute: async () => 'same' })
+  const same = (id: string) => ({ tool_calls: [call(id, 'noop')] })
+  const { model } = scriptedModel([same('n1'), same('n2'), same('n3'), { content: '答案' }])
+  const events = await collect(generateStream({ model, tools: [noop], prompt: 'go' }))
+  const results = events.filter(event => event.type === 'tool-result')
+  assert.deepEqual(results.map(event => [event.toolCallId, event.data, Boolean(event.error)]), [['n1', 'same', false], ['n2', 'same', false], ['n3', undefined, true]])
+  assert.equal(events.filter(event => event.type === 'text-delta').map(event => event.textDelta).join(''), '答案')
+  const finish = events.at(-1)
+  assert.ok(finish?.type === 'finish')
+  assert.equal(finish.text, '答案')
 })
