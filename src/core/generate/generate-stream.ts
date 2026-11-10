@@ -45,6 +45,7 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
   })
 
   let text = ''
+  let reasoning = ''
   let toolCallsAccumulated: ChatCompletionTool[] = []
   let finishReason: string | null = null
   const stepUsage: Usage = emptyUsage()
@@ -68,6 +69,7 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
 
     const reasoningDelta = delta.reasoning_content || delta.reasoning
     if (reasoningDelta) {
+      reasoning += reasoningDelta
       yield { type: 'reasoning-delta', reasoningDelta }
     }
 
@@ -84,6 +86,9 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
     role: 'assistant',
     content: text || null,
     tool_calls: toolCallsAccumulated,
+    // Kept on the message like the non-streaming path does, so later steps of the
+    // same turn (and a resumed run) can hand the model its own reasoning back.
+    ...(reasoning ? { reasoning_content: reasoning } : {}),
   } as unknown as ChatMessage
 
   return {
@@ -92,7 +97,7 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
     finishReason,
     usage: stepUsage,
     assistantMessage,
-    reasoningContent: undefined,
+    reasoningContent: reasoning || undefined,
   } as StepResult
 }
 

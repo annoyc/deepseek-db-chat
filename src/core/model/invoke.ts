@@ -1,4 +1,4 @@
-import type { ChatCompletion, ChatCompletionChunk, InvokeParams, ModelOptions } from './types'
+import type { AssistantMessage, ChatCompletion, ChatCompletionChunk, ChatMessage, InvokeParams, ModelOptions } from './types'
 import { omitBy } from '@/core/utils'
 import { getChatEndpoint } from '@/core/client/endpoints'
 import { apiRequest } from '@/core/client/request'
@@ -10,14 +10,31 @@ import { startObservation } from '@langfuse/tracing'
 import { sanitizeModelMessages } from '@/lib/masking'
 import { traceContent, traceError, traceMetadata } from '@/core/telemetry'
 
+/**
+ * Reasoning is replayed only to providers that speak DeepSeek's thinking protocol,
+ * which expects it back between the tool-call steps of a turn. Other
+ * OpenAI-compatible services never produced the field in a form they accept as
+ * input, and a strict one may reject it, so it is removed for them.
+ */
+export function prepareMessages(messages: ChatMessage[], replayReasoning: boolean): ChatMessage[] {
+  if (replayReasoning) return messages
+  return messages.map((message) => {
+    if (message.role !== 'assistant' || !('reasoning_content' in message || 'reasoning' in message)) return message
+    const { reasoning_content: _content, reasoning: _alias, ...rest } = message as AssistantMessage & { reasoning?: unknown }
+    return rest
+  })
+}
+
 function buildRequestBody(config: ModelOptions, params: InvokeParams) {
   const { messages, response_format, tools = [] } = params
   const { toolParameters, toolChoice } = buildToolParameters(tools, config.strict)
   const thinkingStyle = config.thinkingStyle ?? findProvider(config.provider ?? 'deepseek')?.thinkingStyle ?? 'none'
   const thinkingParams = buildThinkingParams(thinkingStyle, config.thinking, config.reasoningEffort)
 
+  const replayReasoning = thinkingStyle === 'deepseek' && config.thinking?.type !== 'disabled'
+
   return omitBy({
-    messages: sanitizeModelMessages(messages),
+    messages: sanitizeModelMessages(prepareMessages(messages, replayReasoning)),
     model: config.model,
     ...thinkingParams,
     max_tokens: config.maxTokens,

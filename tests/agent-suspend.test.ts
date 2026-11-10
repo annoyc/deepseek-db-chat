@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
+import test, { mock } from 'node:test'
 import { z } from 'zod'
 import { generateStream, generateText, parseSuspendedState, suspend, tool } from '../src/core'
 import type { StreamEvent } from '../src/core'
@@ -178,4 +178,67 @@ test('chat events close each tool call by id and turn a suspension into a resuma
   ])
   const empty = { ...state, pending: [{ ...state.pending[0], payload: { filters: [] } }] }
   assert.deepEqual(map({ type: 'suspend', step: 1, state: empty }).map(chunk => chunk.type), ['error'])
+})
+
+function sse(chunks: object[]) {
+  return new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
+}
+
+/** Two streamed steps: reasoning plus a tool call, then the answer. Returns the second request's messages. */
+async function streamTwoSteps(modelOptions: object) {
+  const { createModel } = await import('../src/core/model')
+  const bodies: any[] = []
+  const fetchMock = mock.method(globalThis, 'fetch', async (_url: string, options: RequestInit) => {
+    bodies.push(JSON.parse(options.body as string))
+    if (bodies.length === 1) {
+      return sse([
+        { choices: [{ delta: { reasoning_content: '先查' }, finish_reason: null }] },
+        { choices: [{ delta: { reasoning_content: '结构' }, finish_reason: null }] },
+        { choices: [{ delta: { tool_calls: [{ index: 0, ...call('t1', 'lookup', { key: 'k', delay: 0 }) }] }, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse([{ choices: [{ delta: { content: 'ok' }, finish_reason: 'stop' }] }])
+  })
+  try {
+    const steps: Array<string | undefined> = []
+    const model = createModel({ provider: 'deepseek', model: 'test', apiKey: 'synthetic-test-key', ...modelOptions })
+    const events = await collect(generateStream({
+      model, tools: [lookup], prompt: 'go',
+      hooks: { afterStep: step => { steps.push(step.reasoningContent) } },
+    }))
+    assert.equal(bodies.length, 2)
+    return { assistant: bodies[1].messages.find((message: any) => message.role === 'assistant'), steps, events }
+  } finally { fetchMock.mock.restore() }
+}
+
+test('streamed reasoning is kept on the assistant message and replayed to DeepSeek within the turn', async () => {
+  const { assistant, steps, events } = await streamTwoSteps({})
+  assert.equal(assistant.reasoning_content, '先查结构')
+  assert.equal(assistant.tool_calls[0].id, 't1')
+  assert.deepEqual(steps, ['先查结构', undefined])
+  assert.equal(events.filter(event => event.type === 'reasoning-delta').length, 2)
+})
+
+test('reasoning is not replayed when thinking is off or the provider does not use the DeepSeek protocol', async () => {
+  for (const options of [{ thinkingStyle: 'none' }, { thinkingStyle: 'enable_thinking' }, { thinking: { type: 'disabled' } }]) {
+    const { assistant, steps } = await streamTwoSteps(options)
+    assert.equal('reasoning_content' in assistant, false, JSON.stringify(options))
+    assert.equal(assistant.tool_calls[0].id, 't1')
+    // Hooks still see the reasoning; only the outgoing request drops it.
+    assert.equal(steps[0], '先查结构')
+  }
+})
+
+test('a suspended streaming run keeps its reasoning so a resumed run can replay it', async () => {
+  const { model } = scriptedModel([{ tool_calls: [call('a1', 'approve', { action: 'x' })] }])
+  const stream = model.invokeStream
+  model.invokeStream = async function* (params: any) {
+    yield { choices: [{ delta: { reasoning_content: '需要确认' }, finish_reason: null }] }
+    yield* stream(params)
+  }
+  const events = await collect(generateStream({ model, tools: [approve], prompt: 'go' }))
+  const suspended = events.find(event => event.type === 'suspend')
+  assert.ok(suspended?.type === 'suspend')
+  const state = parseSuspendedState(JSON.parse(JSON.stringify(suspended.state)))
+  assert.equal((state.messages[1] as { reasoning_content?: string }).reasoning_content, '需要确认')
 })
