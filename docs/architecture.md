@@ -141,7 +141,7 @@ The agent is assembled in `src/server/agent.ts` from three primitives provided b
 flowchart TB
     subgraph config ["Configuration"]
         apiKey["API key<br/>IndexedDB or env"]
-        modelName["Model name<br/>deepseek-v4-flash / pro"]
+        modelName["Model name<br/>deepseek-flash / deepseek-v4-pro"]
         systemPrompt["System prompt<br/>Chinese DB analyst instructions"]
         maxSteps["maxSteps: 10"]
     end
@@ -336,7 +336,7 @@ flowchart LR
 |------|----------|--------|-------|
 | Chat sessions | Browser `IndexedDB` (`deepseek-chat-sessions`) | JSON array of `ChatSession` | Last 100 messages per session retained on save |
 | API key | Browser `IndexedDB` (`deepseek-api-key`) | Plain string | Sent to server per request; falls back to `DEEPSEEK_API_KEY` env var |
-| Model preference | Browser `IndexedDB` (`deepseek-model`) | String | Default: `deepseek-v4-flash` |
+| Model preference | Browser `IndexedDB` (`deepseek-model`) | String | Default: `deepseek-flash` |
 | Database connections | Server `data/connections.json` | JSON array | Host, port, user, password, database name |
 | Connection pools | Server in-memory `Map` | mysql2 `Pool` | Created lazily per connection ID; max 5 connections per pool |
 

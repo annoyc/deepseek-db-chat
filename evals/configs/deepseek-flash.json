@@ -1,7 +1,7 @@
 {
   "name": "deepseek-flash",
   "provider": "deepseek",
-  "model": "deepseek-v4-flash",
+  "model": "deepseek-flash",
   "thinkingMode": "enabled",
   "reasoningEffort": "high",
   "intentRouting": true,

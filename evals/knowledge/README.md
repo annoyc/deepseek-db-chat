@@ -8,7 +8,7 @@
 pnpm eval:kb                                        # 离线检索评测：全部离线配置，不需要 API Key
 pnpm eval:kb --variants baseline,rewrite            # 指定配置；rewrite 需要模型密钥
 pnpm eval:kb --variants hybrid                      # 需要先 pnpm kb:ingest --embed，且服务器有向量模型密钥
-pnpm eval:kb --mode answer --provider deepseek --model deepseek-v4-flash   # 端到端回答评测
+pnpm eval:kb --mode answer --provider deepseek --model deepseek-flash   # 端到端回答评测
 pnpm eval:kb --filter paraphrase,followup           # 只跑部分类别或题号前缀
 ```
 

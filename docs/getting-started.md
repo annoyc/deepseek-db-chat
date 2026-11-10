@@ -239,7 +239,7 @@ Choose between two DeepSeek models from the dropdown in the **message input area
 
 | Model | ID | Best for |
 |-------|----|----------|
-| **DeepSeek V4 Flash** | `deepseek-v4-flash` | Fast responses, lower cost — **default** |
+| **DeepSeek V4.1 Flash** | `deepseek-flash` | Fast responses, lower cost — **default** |
 | **DeepSeek V4 Pro** | `deepseek-v4-pro` | Deeper reasoning, complex multi-step queries |
 
 Your selection is persisted in `IndexedDB` (`deepseek-model`) and applies to all new messages in that browser.

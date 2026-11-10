@@ -86,13 +86,13 @@ DBPilot supports two models:
 
 | Model | Description |
 |-------|-------------|
-| `deepseek-v4-flash` (default) | Faster responses, lower cost. Good for most queries. |
+| `deepseek-flash` (default) | Faster responses, lower cost. Good for most queries. |
 | `deepseek-v4-pro` | Higher reasoning quality. Better for complex analytical queries. |
 
 The default model is defined in `src/lib/constants.ts`:
 
 ```typescript
-export const DEFAULT_MODEL = 'deepseek-v4-flash'
+export const DEFAULT_MODEL = 'deepseek-flash'
 ```
 
 ### Switching Models
@@ -103,7 +103,7 @@ Available models are registered in `src/lib/constants.ts`:
 
 ```typescript
 export const AVAILABLE_MODELS = [
-  { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', description: '快速响应' },
+  { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', description: '快速响应' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '深度推理' },
 ] as const
 ```
@@ -278,7 +278,7 @@ API requests default to a **60-second** timeout (`config.timeout ?? 60000`). The
 
 ```typescript
 const model = createModel({
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   timeout: 90_000,  // 90 seconds
 })
 ```

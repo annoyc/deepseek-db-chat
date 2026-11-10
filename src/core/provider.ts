@@ -41,9 +41,11 @@ export const DEEPSEEK_PROVIDER: ProviderDefinition = {
   id: 'deepseek',
   name: 'DeepSeek',
   defaultBaseURL: 'https://api.deepseek.com',
-  defaultModel: 'deepseek-v4-flash',
+  defaultModel: 'deepseek-flash',
+  // `deepseek-flash` always serves the newest Flash snapshot (V4.1 Flash); the
+  // retired `deepseek-v4-flash` alias is still accepted by the API but routed there.
   models: [
-    { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash', description: '快速响应' },
+    { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', description: '快速响应' },
     { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '深度推理' },
   ],
   envApiKeyName: 'DEEPSEEK_API_KEY',
