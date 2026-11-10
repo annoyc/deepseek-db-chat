@@ -103,6 +103,7 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
   }
   const body = { ...buildRequestBody(config, params), stream_options: config.streamOptions }
   const url = getChatEndpoint(config.baseURL!)
+  const maxRetries = config.maxRetries ?? 3
   const timeout = config.timeout ?? 60000
 
   const generation = startObservation(
@@ -117,9 +118,20 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
 
   let output = ''
   let lastUsage: ChatCompletionChunk['usage'] | undefined
+  let stream: AsyncGenerator<ChatCompletionChunk> | undefined
 
   try {
-    for await (const chunk of apiStreamRequest(url, config.apiKey!, body, timeout, params.signal, { idleTimeoutMs: config.idleTimeout, deadlineMs: config.streamDeadline })) {
+    // Retry only until the first event arrives. Up to then nothing has been handed
+    // to the caller, so a rate limit or a 5xx on connect can be replayed safely;
+    // a stream that breaks midway is never restarted.
+    const opened = await withRetry(async () => {
+      const chunks = apiStreamRequest(url, config.apiKey!, body, timeout, params.signal, { idleTimeoutMs: config.idleTimeout, deadlineMs: config.streamDeadline })
+      return { chunks, first: await chunks.next() }
+    }, maxRetries, params.signal)
+    stream = opened.chunks
+
+    for (let next = opened.first; !next.done; next = await stream.next()) {
+      const chunk = next.value
       if (chunk.usage) lastUsage = chunk.usage
       const delta = chunk.choices[0]?.delta
       if (delta?.content) output += delta.content
@@ -141,6 +153,8 @@ export async function* invokeStream(config: ModelOptions, params: InvokeParams):
     })
     throw error
   } finally {
+    // Closes the upstream connection when the consumer stops early.
+    await stream?.return(undefined)
     generation.end()
   }
 }
