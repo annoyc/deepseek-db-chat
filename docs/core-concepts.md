@@ -18,7 +18,7 @@ The system prompt in `src/server/agent.ts` is optimized for MySQL query generati
 
 ```ts
 const model = createModel({
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   thinking: { type: 'enabled' },
 })
 
@@ -229,7 +229,7 @@ DeepSeek models support an extended **thinking** mode that exposes the model's c
 
 ```ts
 const model = createModel({
-  model: 'deepseek-v4-flash',
+  model: 'deepseek-flash',
   thinking: { type: 'enabled' },
 })
 ```

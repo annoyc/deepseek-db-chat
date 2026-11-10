@@ -141,6 +141,26 @@ export function parseModelList(text: string): ProviderModel[] {
   return models
 }
 
+export interface ModelListComparison {
+  /** Returned by the service and already configured. */
+  configured: string[]
+  /** Returned by the service but not in the configured list. */
+  unconfigured: string[]
+  /** Configured, but the service did not return it (renamed or retired). */
+  missing: ProviderModel[]
+}
+
+/** Compare a provider's configured models with the ids its `/models` endpoint returned. */
+export function compareModelLists(configured: ProviderModel[], fetchedIds: string[]): ModelListComparison {
+  const configuredIds = new Set(configured.map(m => m.id))
+  const fetched = new Set(fetchedIds)
+  return {
+    configured: [...fetched].filter(id => configuredIds.has(id)),
+    unconfigured: [...fetched].filter(id => !configuredIds.has(id)),
+    missing: configured.filter(m => !fetched.has(m.id)),
+  }
+}
+
 export function formatModelList(models: ProviderModel[]): string {
   return models.map(m => (m.name && m.name !== m.id ? `${m.id} | ${m.name}` : m.id)).join('\n')
 }

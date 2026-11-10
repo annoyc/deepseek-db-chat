@@ -42,7 +42,7 @@ The default is `https://api.deepseek.com`.
 
 | Model | Best for |
 |-------|----------|
-| **deepseek-v4-flash** (default) | Faster and cheaper — good for most queries |
+| **deepseek-flash** (default) | Faster and cheaper — good for most queries |
 | **deepseek-v4-pro** | Better reasoning for complex analytical queries |
 
 You can switch models in the in-app settings dialog.
@@ -87,7 +87,7 @@ The AI may occasionally generate incorrect SQL — this is why **human confirmat
 
 Try these steps:
 
-1. **Use deepseek-v4-flash** — it is faster and cheaper than the pro model
+1. **Use deepseek-flash** — it is faster and cheaper than the pro model
 2. **First requests may be slower** — initial requests can take longer due to cache misses
 3. **Subsequent queries are faster** — similar queries benefit from DeepSeek's context caching
 

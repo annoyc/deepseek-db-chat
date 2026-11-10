@@ -5,7 +5,9 @@ import { resolveAiTarget } from '@/server/ai-credentials'
 import { checkServerKey, describeServerProviders } from '@/server/providers'
 import { buildThinkingParams, getProviderList } from '@/core/provider'
 import { resolveConfig } from '@/core/model'
-import { buildProviderOptions, migrateLegacyBailian, parseModelList, formatModelList, validateBaseURL } from '@/lib/providers'
+import { buildProviderOptions, compareModelLists, migrateLegacyBailian, parseModelList, formatModelList, validateBaseURL } from '@/lib/providers'
+import { DEEPSEEK_PROVIDER } from '@/core/provider'
+import { DEFAULT_MODEL } from '@/lib/constants'
 
 const ENV_KEYS = ['ENCRYPTION_KEY', 'DEEPSEEK_API_KEY', 'DEEPSEEK_API_BASE_URL', 'BAILIAN_API_KEY', 'BAILIAN_API_BASE_URL', 'AI_PROVIDERS', 'QWEN_API_KEY']
 
@@ -137,4 +139,20 @@ test('browser provider helpers: model lists, URLs, options and 百炼 migration'
   const keyless = migrateLegacyBailian({ bailian: { apiKey: '', baseURL: 'https://x' } }, [], ['deepseek'])!
   assert.equal(keyless.migratedId, undefined)
   assert.deepEqual(keyless.configs, {})
+})
+
+test('built-in DeepSeek defaults to the current Flash id and its default is listed', () => {
+  assert.equal(DEEPSEEK_PROVIDER.defaultModel, 'deepseek-flash')
+  assert.equal(DEFAULT_MODEL, DEEPSEEK_PROVIDER.defaultModel)
+  assert.deepEqual(DEEPSEEK_PROVIDER.models.map(m => m.id), ['deepseek-flash', 'deepseek-v4-pro'])
+})
+
+test('fetched model ids are compared with the configured list without changing it', () => {
+  const configured = [{ id: 'deepseek-flash', name: 'Flash' }, { id: 'deepseek-v4-pro' }, { id: 'old-model' }]
+  const result = compareModelLists(configured, ['deepseek-v4-pro', 'deepseek-flash', 'deepseek-v5-preview'])
+  assert.deepEqual(result.configured, ['deepseek-v4-pro', 'deepseek-flash'])
+  assert.deepEqual(result.unconfigured, ['deepseek-v5-preview'])
+  assert.deepEqual(result.missing, [{ id: 'old-model' }])
+  assert.equal(configured.length, 3)
+  assert.deepEqual(compareModelLists(configured, []).missing.length, 3)
 })

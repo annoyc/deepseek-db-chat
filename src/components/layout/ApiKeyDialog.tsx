@@ -6,6 +6,7 @@ import { listProviderModels, testProviderConnectionFn } from '@/server/functions
 import type { ConnectionTestResult } from '@/server/providers'
 import { encryptPasswordFn } from '@/server/functions/crypto'
 import {
+  compareModelLists,
   createCustomProviderId,
   formatModelList,
   parseModelList,
@@ -164,8 +165,10 @@ async function encryptIfTyped(typed: string, saved: string | undefined): Promise
 /** Saves the dialog, switches the chat to this provider + model and closes; resolves to an error message on failure. */
 type UseModelHandler = (modelId: string) => Promise<string | null>
 
-function ConnectionTester({ models, buildRequest, currentModel, onUseModel }: {
+function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, onUseModel }: {
   models: ProviderModel[]
+  /** Models that may become the chat model; omitted means all of them. */
+  usableModelIds?: ReadonlySet<string>
   /** Throws an Error whose message explains what is missing. */
   buildRequest: () => Promise<ConnectionRequest>
   /** The chat's current model when this provider is the active one. */
@@ -218,7 +221,9 @@ function ConnectionTester({ models, buildRequest, currentModel, onUseModel }: {
           className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
         >
           {models.length === 0 && <option value="">尚未添加模型</option>}
-          {models.map((m) => <option key={m.id} value={m.id}>{m.id}</option>)}
+          {models.map((m) => (
+            <option key={m.id} value={m.id}>{!usableModelIds || usableModelIds.has(m.id) ? m.id : `${m.id}（未配置）`}</option>
+          ))}
         </select>
         <button
           type="button"
@@ -250,7 +255,9 @@ function ConnectionTester({ models, buildRequest, currentModel, onUseModel }: {
             <span className={`min-w-0 break-words text-xs font-medium ${result.ok ? 'text-green-700' : 'text-amber-700'}`}>
               {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
             </span>
-            {result.ok && onUseModel && (currentModel === result.model ? (
+            {result.ok && onUseModel && usableModelIds && !usableModelIds.has(result.model) ? (
+              <span className="shrink-0 text-xs text-gray-500" title="内置服务的模型列表由服务器配置">未配置，需管理员添加后使用</span>
+            ) : result.ok && onUseModel && (currentModel === result.model ? (
               <span className="flex shrink-0 items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700">
                 <CircleCheck className="h-3.5 w-3.5" />
                 当前模型
@@ -284,6 +291,43 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
   onClearKey: () => void
 }) {
   const hasAnyKey = draft.hasSavedKey || provider.hasEnvKey
+  const [fetching, setFetching] = useState(false)
+  const [fetchError, setFetchError] = useState('')
+  const [fetchedIds, setFetchedIds] = useState<string[] | null>(null)
+  const comparison = fetchedIds ? compareModelLists(provider.models, fetchedIds) : null
+  const configuredIds = new Set(provider.models.map((m) => m.id))
+  const testModels: ProviderModel[] = [
+    ...provider.models,
+    ...(comparison?.unconfigured ?? []).map((id) => ({ id })),
+  ]
+
+  const buildRequest = async (): Promise<ConnectionRequest> => {
+    const baseURL = draft.baseURLInput.trim()
+    if (baseURL) {
+      const urlError = validateBaseURL(baseURL)
+      if (urlError) throw new Error(urlError)
+    }
+    return {
+      provider: provider.id,
+      apiKey: await encryptIfTyped(draft.apiKeyInput, draft.hasSavedKey ? savedApiKey : undefined),
+      baseURL: baseURL || undefined,
+    }
+  }
+
+  const handleFetchModels = async () => {
+    setFetchError('')
+    setFetching(true)
+    try {
+      const request = await buildRequest()
+      setFetchedIds(await listProviderModels({ data: request }))
+    } catch (err) {
+      setFetchedIds(null)
+      setFetchError(err instanceof Error ? `获取失败：${err.message}` : '获取失败，请重试')
+    } finally {
+      setFetching(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
       <SectionHeader title={provider.name} description="内置模型服务，模型列表由服务器配置。" />
@@ -328,22 +372,66 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
         </p>
       </div>
 
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-700">模型</label>
+          <button
+            type="button"
+            onClick={handleFetchModels}
+            disabled={fetching}
+            title="调用服务的 /models 接口，与服务器配置的模型列表对比"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50"
+          >
+            {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            从服务获取
+          </button>
+        </div>
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200" aria-label="已配置的模型">
+          {provider.models.map((m) => {
+            const notReturned = comparison?.missing.some((x) => x.id === m.id)
+            return (
+              <li key={m.id} className="flex items-center gap-2 px-3 py-2 text-xs">
+                <span className="font-mono text-gray-800">{m.id}</span>
+                {m.name && m.name !== m.id && <span className="text-gray-500">{m.name}</span>}
+                {m.id === provider.defaultModel && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">默认</span>}
+                {comparison && (notReturned ? (
+                  <span className="ml-auto shrink-0 text-amber-700" title="服务的模型列表中没有此 ID，可能已更名或下线">服务未返回</span>
+                ) : (
+                  <span className="ml-auto shrink-0 text-green-700">服务可用</span>
+                ))}
+              </li>
+            )
+          })}
+        </ul>
+        <p className={hintClass}>内置服务的模型列表由服务器配置，此处只能查看，不能修改。</p>
+        {fetchError && <p role="alert" className="mt-1 text-xs text-red-600">{fetchError}</p>}
+        {comparison && (
+          <div className="mt-2 space-y-1.5 rounded-xl bg-gray-50 p-3 text-xs text-gray-700" aria-live="polite">
+            <p>
+              服务返回 {fetchedIds?.length ?? 0} 个模型：{comparison.configured.length} 个已配置
+              {comparison.unconfigured.length > 0 && `，${comparison.unconfigured.length} 个未配置`}
+              {comparison.missing.length > 0 && `；${comparison.missing.length} 个已配置模型未被返回`}。
+            </p>
+            {comparison.unconfigured.length > 0 && (
+              <>
+                <ul className="flex flex-wrap gap-1.5" aria-label="服务提供但未配置的模型">
+                  {comparison.unconfigured.map((id) => (
+                    <li key={id} className="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono">{id}</li>
+                  ))}
+                </ul>
+                <p className="text-gray-500">未配置的模型可在下方连接测试；如需在对话中使用，请联系管理员加入服务器配置。</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       <ConnectionTester
-        models={provider.models}
+        models={testModels}
+        usableModelIds={configuredIds}
         currentModel={currentModel}
         onUseModel={onUseModel}
-        buildRequest={async () => {
-          const baseURL = draft.baseURLInput.trim()
-          if (baseURL) {
-            const urlError = validateBaseURL(baseURL)
-            if (urlError) throw new Error(urlError)
-          }
-          return {
-            provider: provider.id,
-            apiKey: await encryptIfTyped(draft.apiKeyInput, draft.hasSavedKey ? savedApiKey : undefined),
-            baseURL: baseURL || undefined,
-          }
-        }}
+        buildRequest={buildRequest}
       />
     </div>
   )
