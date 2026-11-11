@@ -64,7 +64,8 @@ export function useVizFocus() {
 export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocusHandled }: VisualizationPanelProps) {
   const items = useMemo(() => extractVizItems(messages), [messages])
   const { draftMessage } = useChatStore()
-  const bottomRef = useRef<HTMLDivElement>(null)
+  // Scrolled directly rather than with scrollIntoView, which also scrolls overflow-hidden ancestors.
+  const scrollRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef(new Map<string, HTMLDivElement>())
   const prevLenRef = useRef(items.length)
   // Only the newest result is open by default; these record what the user toggled by hand.
@@ -73,7 +74,8 @@ export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocus
 
   useEffect(() => {
     if (items.length > prevLenRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      const container = scrollRef.current
+      container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
     }
     prevLenRef.current = items.length
   }, [items.length])
@@ -85,7 +87,11 @@ export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocus
     setExpandedOverrides((prev) => ({ ...prev, [id]: true }))
     setHighlightId(id)
     const frame = requestAnimationFrame(() => {
-      itemRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const container = scrollRef.current
+      const target = itemRefs.current.get(id)
+      if (!container || !target) return
+      const offset = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+      container.scrollTo({ top: offset, behavior: 'smooth' })
     })
     const timer = setTimeout(() => setHighlightId((current) => (current === id ? null : current)), 1800)
     return () => {
@@ -114,7 +120,7 @@ export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocus
   return (
     <div className="h-full flex flex-col border-l border-stone-200 bg-white">
       <Header onCollapse={onCollapse} count={items.length} />
-      <div className="subtle-scrollbar flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="subtle-scrollbar relative flex-1 overflow-y-auto">
         <div className="space-y-0">
           {items.map((item, idx) => {
             const isLast = idx === items.length - 1
@@ -136,7 +142,6 @@ export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocus
             )
           })}
         </div>
-        <div ref={bottomRef} />
       </div>
     </div>
   )
@@ -174,7 +179,7 @@ function VizItemCard({ item, index, isLast, expanded, highlighted, onToggle, onQ
     <div
       ref={containerRef}
       className={cn(
-        'scroll-mt-2 px-4 py-3 transition-colors duration-700 animate-in fade-in slide-in-from-right-3',
+        'px-4 py-3 transition-colors duration-700 animate-in fade-in slide-in-from-right-3',
         !isLast && 'border-b border-stone-100',
         highlighted && 'bg-primary/5',
       )}
