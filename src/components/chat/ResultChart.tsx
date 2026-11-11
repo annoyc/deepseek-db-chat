@@ -6,7 +6,7 @@ import {
 import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon } from 'lucide-react'
 import type { SqlResultInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { buildResultChartRows, canUseResultPie, recommendResultChartType, toResultNumber } from '@/lib/result-data'
+import { buildResultChartRows, canUseResultPie, formatResultAxisTick, recommendResultChartType, splitResultChartAxes, toResultNumber } from '@/lib/result-data'
 
 export type ChartType = 'bar' | 'line' | 'pie' | 'area'
 
@@ -23,7 +23,8 @@ interface ResultChartProps {
   chartHint?: ChartHint
 }
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899']
+// Brand teal first, then hues that stay distinguishable beside it.
+const COLORS = ['#0f766e', '#d97706', '#4f46e5', '#e11d48', '#0284c7', '#65a30d', '#9333ea', '#ea580c']
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}|T\d{2}:\d{2}|^\d{4}\/\d{2}/
 const CATEGORICAL_COL_PATTERN = /^(id|code|type|status|category|flag|level|rank|no|seq|sort|index|月份|类型|状态|编码|编号|序号|分类|等级|标记|排序)$/i
@@ -279,6 +280,15 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     itemStyle: { fontSize: 11, padding: 0 },
   }
 
+  const axes = splitResultChartAxes(data, valueCols)
+  const dualAxis = axes.right.length > 0
+  const axisOf = (col: string) => (axes.right.includes(col) ? 'right' : 'left')
+  const chartMargin = { top: 10, right: dualAxis ? 4 : 30, left: 0, bottom: 0 }
+  const yAxes = [
+    <YAxis key="left" yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={formatResultAxisTick} width={48} />,
+    dualAxis && <YAxis key="right" yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={formatResultAxisTick} width={48} />,
+  ]
+
   const legendProps = {
     wrapperStyle: { fontSize: 11, cursor: 'pointer' } as const,
     iconSize: 8,
@@ -322,6 +332,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
       <p className="mb-2 text-[11px] text-gray-400">
         图表覆盖全部已返回的 {data.length} 行，缺失值留空。
         {result.truncated && ' 查询结果已达到行数上限，不能代表完整数据。'}
+        {dualAxis && activeType !== 'pie' && ` 指标量级相差较大，已分轴显示：左轴 ${axes.left.join('、')}；右轴 ${axes.right.join('、')}。`}
       </p>
 
       <div className="h-64 w-full">
@@ -350,26 +361,27 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
               <Legend {...legendProps} />
             </PieChart>
           ) : activeType === 'line' ? (
-            <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+            <LineChart data={data} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              {yAxes}
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
               {valueCols.map((col, idx) => (
-                <Line key={col} type="linear" dataKey={col} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={data.length <= 60 ? { r: 3 } : false} connectNulls={false} hide={hiddenSeries.has(col)} />
+                <Line key={col} yAxisId={axisOf(col)} type="linear" dataKey={col} stroke={COLORS[idx % COLORS.length]} strokeWidth={2} dot={data.length <= 60 ? { r: 3 } : false} connectNulls={false} hide={hiddenSeries.has(col)} />
               ))}
             </LineChart>
           ) : activeType === 'area' ? (
-            <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+            <AreaChart data={data} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              {yAxes}
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
               {valueCols.map((col, idx) => (
                 <Area
                   key={col}
+                  yAxisId={axisOf(col)}
                   type="linear"
                   dataKey={col}
                   stroke={COLORS[idx % COLORS.length]}
@@ -382,14 +394,14 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
               ))}
             </AreaChart>
           ) : (
-            <BarChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+            <BarChart data={data} margin={chartMargin}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
+              {yAxes}
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
               {valueCols.map((col, idx) => (
-                <Bar key={col} dataKey={col} fill={COLORS[idx % COLORS.length]} radius={[4, 4, 0, 0]} hide={hiddenSeries.has(col)} />
+                <Bar key={col} yAxisId={axisOf(col)} dataKey={col} fill={COLORS[idx % COLORS.length]} radius={[4, 4, 0, 0]} hide={hiddenSeries.has(col)} />
               ))}
             </BarChart>
           )}

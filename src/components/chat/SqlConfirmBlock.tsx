@@ -5,6 +5,7 @@ import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
 import { isSubmitKey } from '@/lib/keyboard'
 import { CopyButton } from '@/components/ui/copy-button'
+import { useVizFocus } from './VisualizationPanel'
 
 interface SqlConfirmBlockProps {
   info: SqlConfirmInfo
@@ -15,6 +16,7 @@ interface SqlConfirmBlockProps {
 export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProps) {
   const { confirmSql, cancelSql, reviseSql, isStreaming } = useChatStore()
   const [feedback, setFeedback] = useState('')
+  const focusVizItem = useVizFocus()
   const feedbackRef = useRef<HTMLTextAreaElement>(null)
   const actionSubmittedRef = useRef(false)
 
@@ -198,10 +200,18 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
           <CheckCircle2 className="w-3 h-3 text-green-500" />
           <span>{result.rowCount} 行结果</span>
           <span className="text-gray-300">·</span>
-          <span className="text-primary inline-flex items-center gap-0.5">
-            已在右侧面板展示
-            <ArrowRight className="w-3 h-3" />
-          </span>
+          {focusVizItem ? (
+            <button
+              type="button"
+              onClick={() => focusVizItem(messageId)}
+              className="inline-flex items-center gap-0.5 rounded text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              在数据面板中查看
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          ) : (
+            <span className="text-primary">结果已保存到数据面板</span>
+          )}
         </div>
       )}
     </div>

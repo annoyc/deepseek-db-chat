@@ -4,6 +4,8 @@ import { analyzeChartData } from '../src/components/chat/ResultChart'
 import {
   buildResultChartRows,
   canUseResultPie,
+  formatResultAxisTick,
+  splitResultChartAxes,
   getResultPage,
   recommendResultChartType,
   resultRowsToMarkdown,
@@ -85,4 +87,25 @@ test('copy includes every returned row and escapes Markdown separators', () => {
   const output = resultRowsToMarkdown(['label'], rows)
   assert.equal(output.split('\n').length, 127)
   assert.ok(output.includes('last\\|row<br>next'))
+})
+
+test('series far smaller than the largest move to a second axis instead of flattening', () => {
+  const data = [{ name: '1月', orders: 800, gmv: 120000 }, { name: '2月', orders: 950, gmv: 210000 }]
+  assert.deepEqual(splitResultChartAxes(data, ['orders', 'gmv']), { left: ['gmv'], right: ['orders'] })
+  // Comparable magnitudes, a single series and all-zero series keep one shared axis.
+  assert.deepEqual(splitResultChartAxes(data, ['gmv']), { left: ['gmv'], right: [] })
+  const close = [{ name: 'a', x: 40, y: 300 }]
+  assert.deepEqual(splitResultChartAxes(close, ['x', 'y']), { left: ['x', 'y'], right: [] })
+  const zero = [{ name: 'a', x: 0, y: 300 }]
+  assert.deepEqual(splitResultChartAxes(zero, ['x', 'y']), { left: ['x', 'y'], right: [] })
+  // Negative values are compared by magnitude.
+  const negative = [{ name: 'a', loss: -50000, count: 12 }]
+  assert.deepEqual(splitResultChartAxes(negative, ['loss', 'count']), { left: ['loss'], right: ['count'] })
+})
+
+test('axis ticks use compact Chinese units and leave small numbers alone', () => {
+  assert.equal(formatResultAxisTick(220000), '22万')
+  assert.equal(formatResultAxisTick(150000000), '1.5亿')
+  assert.equal(formatResultAxisTick(800), '800')
+  assert.equal(formatResultAxisTick(0.25), '0.25')
 })

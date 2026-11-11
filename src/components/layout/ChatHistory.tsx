@@ -147,6 +147,7 @@ export function ChatHistory() {
                     title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
                     role="button"
                     tabIndex={0}
+                    data-drawer-close
                     aria-current={isActive ? 'true' : undefined}
                     onClick={() => {
                       if (!isRenaming) setActiveSession(session.id)

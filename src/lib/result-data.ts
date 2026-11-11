@@ -74,3 +74,38 @@ export function resultRowsToMarkdown(columns: string[], rows: ResultRow[]): stri
     ...rows.map((row) => `| ${columns.map((column) => escape(row[column])).join(' | ')} |`),
   ].join('\n')
 }
+
+/**
+ * Series whose peak is under a tenth of the largest get their own (right) axis;
+ * on a shared axis they would be drawn flat against zero.
+ */
+export function splitResultChartAxes(data: ResultRow[], valueColumns: string[]): { left: string[]; right: string[] } {
+  const single = { left: valueColumns, right: [] as string[] }
+  if (valueColumns.length < 2) return single
+  const peaks = new Map(valueColumns.map((column) => {
+    let peak = 0
+    for (const row of data) {
+      const value = toResultNumber(row[column])
+      if (value !== null) peak = Math.max(peak, Math.abs(value))
+    }
+    return [column, peak] as const
+  }))
+  const top = Math.max(...peaks.values())
+  if (!(top > 0)) return single
+  const right = valueColumns.filter((column) => {
+    const peak = peaks.get(column) ?? 0
+    return peak > 0 && peak < top / 10
+  })
+  if (right.length === 0) return single
+  return { left: valueColumns.filter((column) => !right.includes(column)), right }
+}
+
+const axisTickFormat = new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 })
+
+/** Short axis labels such as 22万 or 1.5亿, so wide numbers do not push the plot aside. */
+export function formatResultAxisTick(value: unknown): string {
+  const number = toResultNumber(value)
+  if (number === null) return String(value ?? '')
+  // Ratios and other small values keep their decimals; only large numbers are abbreviated.
+  return Math.abs(number) < 1000 ? String(Number(number.toFixed(2))) : axisTickFormat.format(number)
+}

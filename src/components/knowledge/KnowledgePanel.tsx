@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, PanelRightOpen, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, Menu, PanelRightOpen, Sparkles, Square } from 'lucide-react'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { cn } from '@/lib/utils'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
@@ -13,6 +13,8 @@ import { CopyButton } from '@/components/ui/copy-button'
 interface KnowledgePanelProps {
   contextOpen: boolean
   onOpenContext: () => void
+  /** Set on phones, where the sidebar is a drawer opened from the header. */
+  onOpenSidebar?: () => void
 }
 
 const suggestions = [
@@ -254,7 +256,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
   )
 }
 
-export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelProps) {
+export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: KnowledgePanelProps) {
   const {
     activeSession,
     isStreaming,
@@ -348,16 +350,28 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
   }
 
   return (
-    <div className="app-canvas relative flex h-screen min-w-0 flex-1 flex-col">
-      <header className="app-header flex flex-shrink-0 items-center justify-between border-b px-5 py-3 backdrop-blur-sm">
-        <div>
-          <div className="text-sm font-semibold text-stone-950">知识库问答</div>
-          <div className="text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
+    <div className="app-canvas relative flex h-full min-w-0 flex-1 flex-col">
+      <header className="app-header flex flex-shrink-0 items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm sm:px-5">
+        <div className="flex min-w-0 items-center gap-2">
+          {onOpenSidebar && (
+            <button
+              onClick={onOpenSidebar}
+              aria-label="打开侧边栏"
+              title="打开侧边栏"
+              className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-white/80 hover:text-stone-800"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-stone-950">知识库问答</div>
+            <div className="truncate text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
+          </div>
         </div>
         <button
           onClick={onOpenContext}
           className={cn(
-            'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+            'flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors',
             contextOpen
               ? 'border-primary/20 bg-primary/10 text-primary'
               : 'border-stone-200 bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800',

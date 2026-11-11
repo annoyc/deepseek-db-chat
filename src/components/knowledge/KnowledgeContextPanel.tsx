@@ -55,10 +55,12 @@ function CitationCard({ citation }: { citation: KnowledgeCitation }) {
 interface KnowledgeContextPanelProps {
   message: KnowledgeMessage | null
   width?: number
+  /** Fill the containing overlay instead of using a fixed width. */
+  fill?: boolean
   onClose: () => void
 }
 
-export function KnowledgeContextPanel({ message, width = 360, onClose }: KnowledgeContextPanelProps) {
+export function KnowledgeContextPanel({ message, width = 360, fill = false, onClose }: KnowledgeContextPanelProps) {
   const evidence = message?.evidence
   const toolSteps = evidence?.toolSteps ?? []
   const memorySnippets = evidence?.memorySnippets ?? []
@@ -70,8 +72,8 @@ export function KnowledgeContextPanel({ message, width = 360, onClose }: Knowled
 
   return (
     <aside
-      className="app-sidebar subtle-scrollbar h-screen flex-shrink-0 overflow-y-auto border-l border-sidebar-border p-4"
-      style={{ width }}
+      className="app-sidebar subtle-scrollbar h-full flex-shrink-0 overflow-y-auto border-l border-sidebar-border p-4"
+      style={fill ? undefined : { width }}
     >
       <div className="mb-4 flex items-center justify-between">
         <div>
@@ -81,7 +83,8 @@ export function KnowledgeContextPanel({ message, width = 360, onClose }: Knowled
         <button
           onClick={onClose}
           className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-white/75 hover:text-stone-700"
-          title="关闭上下文面板"
+          title="关闭证据面板"
+          aria-label="关闭证据面板"
         >
           <X className="h-4 w-4" />
         </button>

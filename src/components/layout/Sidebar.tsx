@@ -49,7 +49,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
     <>
       <aside
         className={cn(
-          'app-sidebar h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
+          'app-sidebar h-full flex flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
           collapsed ? 'w-15' : 'w-[272px]',
         )}
       >
@@ -140,6 +140,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             </div>
             {!collapsed && (
               <button
+                data-drawer-close
                 onClick={(e) => { e.stopPropagation(); createNewSession() }}
                 className="rounded-md p-0.5 text-stone-500 transition-colors hover:bg-primary/10 hover:text-primary"
                 title="新对话"
