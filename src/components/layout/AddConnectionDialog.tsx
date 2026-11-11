@@ -3,6 +3,7 @@ import { X, Database, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { MAX_DATABASE_CA_BYTES, requiresDatabaseTls, validateDatabaseCa } from '@/lib/database-tls'
 import type { DbEnv } from '@/lib/types'
+import { Modal, ModalTitle } from '@/components/ui/modal'
 
 const envOptions: { value: DbEnv; label: string; description: string }[] = [
   { value: 'dev', label: '开发环境 DEV', description: '日常开发和调试使用' },
@@ -39,7 +40,6 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const caFileRef = useRef<HTMLInputElement>(null)
-  const dialogTitleId = useId()
   const tlsInputId = useId()
   const caInputId = useId()
   const caHelpId = useId()
@@ -143,14 +143,13 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[calc(100dvh-2rem)] flex flex-col">
+    <Modal open onClose={handleClose} dismissible={!loading} closeOnBackdrop={false} className="flex max-h-[calc(100dvh-2rem)] flex-col">
         <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-primary" />
-            <h2 id={dialogTitleId} className="font-semibold text-gray-900">
+            <ModalTitle className="font-semibold text-gray-900">
               {isEdit ? '编辑数据库连接' : '添加数据库连接'}
-            </h2>
+            </ModalTitle>
           </div>
           <button onClick={handleClose} aria-label="关闭数据库连接窗口" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="w-4 h-4 text-gray-400" />
@@ -259,8 +258,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

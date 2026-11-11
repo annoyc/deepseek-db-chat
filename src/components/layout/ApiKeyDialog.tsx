@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
+import { Modal, ModalTitle } from '@/components/ui/modal'
 import type { ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
 import type { ConnectionTestResult } from '@/server/providers'
@@ -624,15 +625,6 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     }
   }, [open])
 
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, saving, onClose])
-
   if (!open) return null
 
   const activeServer = serverProviders.find((p) => p.id === activeTab)
@@ -755,15 +747,15 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-dialog-title"
-        className="flex h-[min(720px,calc(100vh-2rem))] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-      >
+    <Modal
+      open
+      onClose={onClose}
+      dismissible={!saving}
+      closeOnBackdrop={false}
+      className="flex h-[min(720px,calc(100dvh-2rem))] max-w-4xl flex-col overflow-hidden"
+    >
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 id="settings-dialog-title" className="text-lg font-bold text-gray-900">设置</h2>
+          <ModalTitle className="text-lg font-bold text-gray-900">设置</ModalTitle>
           <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-gray-100">
             <X className="h-5 w-5 text-gray-500" />
           </button>
@@ -917,7 +909,6 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             {saving ? '保存中...' : '保存'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

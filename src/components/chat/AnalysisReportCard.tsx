@@ -109,7 +109,8 @@ export const AnalysisReportCard = memo(function AnalysisReportCard({ report, res
                 <button
                   key={i}
                   onClick={() => onQueryClick(q)}
-                  className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors cursor-pointer"
+                  title="填入输入框，可修改后发送"
+                  className="inline-block px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
                 >
                   {q}
                 </button>

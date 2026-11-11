@@ -2,6 +2,7 @@ import { type ReactNode, isValidElement } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
+import { CopyButton } from '@/components/ui/copy-button'
 
 interface MarkdownContentProps {
   content: string
@@ -40,7 +41,17 @@ function looksLikeDiagram(text: string): boolean {
 function BlockPre({ text, variant }: { text: string; variant: 'diagram' | 'code' }) {
   const isDiagram = variant === 'diagram'
   return (
-    <div className="not-prose my-2 w-full max-w-full min-w-0 overflow-x-auto">
+    <div className="group/code not-prose relative my-2 w-full max-w-full min-w-0">
+      <CopyButton
+        text={text}
+        label="复制代码"
+        className={
+          isDiagram
+            ? 'absolute right-1.5 top-1.5 z-10 bg-white/90 opacity-0 shadow-sm ring-1 ring-gray-200 transition-opacity focus-visible:opacity-100 group-hover/code:opacity-100'
+            : 'absolute right-1.5 top-1.5 z-10 bg-gray-800/90 text-gray-300 opacity-0 transition-opacity hover:bg-gray-700 hover:text-white focus-visible:opacity-100 group-hover/code:opacity-100'
+        }
+      />
+      <div className="w-full max-w-full overflow-x-auto">
       <pre
         className={
           isDiagram
@@ -50,6 +61,7 @@ function BlockPre({ text, variant }: { text: string; variant: 'diagram' | 'code'
       >
         {text}
       </pre>
+      </div>
     </div>
   )
 }

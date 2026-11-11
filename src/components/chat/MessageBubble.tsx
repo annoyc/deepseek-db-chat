@@ -7,6 +7,29 @@ import { SqlConfirmBlock } from './SqlConfirmBlock'
 import { SmartFilterConfirmBlock } from './SmartFilterConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
 import { useSettings } from '@/hooks/useSettings'
+import { CopyButton } from '@/components/ui/copy-button'
+
+/** The answer as the user reads it: prose only, without thinking or tool output. */
+function getAnswerText(message: ChatMessage): string {
+  if (message.parts && message.parts.length > 0) {
+    return message.parts
+      .flatMap((part) => (part.type === 'text' && part.content.trim() ? [part.content.trim()] : []))
+      .join('\n\n')
+  }
+  return message.content.trim()
+}
+
+function AnswerActions({ message, isStreaming }: { message: ChatMessage; isStreaming?: boolean }) {
+  // Short lead-ins before a SQL or filter card are not answers worth copying.
+  if (isStreaming || message.sqlConfirm || message.smartFilterConfirm) return null
+  const text = getAnswerText(message)
+  if (!text) return null
+  return (
+    <div className="px-1">
+      <CopyButton text={text} label="复制回答" className="hover:bg-white/80" />
+    </div>
+  )
+}
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -84,6 +107,8 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
+      <AnswerActions message={message} isStreaming={isStreaming} />
+
       {message.sqlConfirm && (
         <SqlConfirmBlock
           info={message.sqlConfirm}
@@ -145,6 +170,8 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
+      <AnswerActions message={message} isStreaming={isStreaming} />
+
       {hasSqlConfirm && (
         <SqlConfirmBlock
           info={message.sqlConfirm!}
@@ -170,7 +197,8 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
 
   if (message.role === 'user') {
     return (
-      <div className="flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
+      <div className="group flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
+        <CopyButton text={message.content} label="复制问题" className="mt-2 self-start opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
         <div className="max-w-[min(72%,760px)]">
           <div className="rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
             <p className="whitespace-pre-wrap">{message.content}</p>

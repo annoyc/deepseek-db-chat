@@ -15,7 +15,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: ChatPanelProps) {
-  const { activeSession, sendMessage, isStreaming, persistenceState, retrySave } = useChatStore()
+  const { activeSession, draftMessage, isStreaming, persistenceState, retrySave } = useChatStore()
   const { activeConnectionId, getFullConnection, connectionStatus } = useDatabaseStore()
   const [showSettings, setShowSettings] = useState(false)
   const messages = activeSession?.messages ?? []
@@ -84,7 +84,7 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, hasVisualization }: Ch
             connectionName={sessionConnection?.name}
             onSuggestionClick={(text) => {
               if (!canUseSuggestions) return
-              void sendMessage(text)
+              draftMessage(text)
             }}
           />
         ) : (

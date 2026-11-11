@@ -8,6 +8,7 @@ import { APP_NAME } from '@/lib/constants'
 import { ToolChainTimeline } from './ToolChainTimeline'
 import { isSubmitKey } from '@/lib/keyboard'
 import { PersistenceNotice } from '@/components/layout/PersistenceNotice'
+import { CopyButton } from '@/components/ui/copy-button'
 
 interface KnowledgePanelProps {
   contextOpen: boolean
@@ -106,7 +107,8 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
 
 function UserMessage({ content }: { content: string }) {
   return (
-    <div className="flex justify-end">
+    <div className="group flex items-center justify-end gap-1.5">
+      <CopyButton text={content} label="复制问题" className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
       <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
@@ -147,6 +149,12 @@ function AssistantMessage({
             {message.statusText || '正在生成...'}
           </div>
         )
+      )}
+
+      {message.content && !isStreaming && (
+        <div className="-mt-2 px-1">
+          <CopyButton text={message.content} label="复制回答" className="hover:bg-white/80" />
+        </div>
       )}
 
       {message.error && (
@@ -227,7 +235,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
         </section>
 
         <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
           <div className="grid gap-2 lg:grid-cols-2">
             {suggestions.map((item) => (
               <button
@@ -322,6 +330,18 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
     el.style.height = Math.min(el.scrollHeight, 180) + 'px'
   }
 
+  const draftSuggestion = useCallback((text: string) => {
+    setInput(text)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = Math.min(el.scrollHeight, 180) + 'px'
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
+  }, [])
+
   const openEvidence = (messageId: string) => {
     setSelectedEvidenceMessage(messageId)
     onOpenContext()
@@ -350,7 +370,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {messages.length === 0 ? (
-          <EmptyKnowledgeState onSuggestionClick={submit} disabled={isStreaming || historyUnavailable} />
+          <EmptyKnowledgeState onSuggestionClick={draftSuggestion} disabled={isStreaming || historyUnavailable} />
         ) : (
           <div
             ref={containerRef}

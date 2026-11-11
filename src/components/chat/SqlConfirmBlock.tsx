@@ -4,6 +4,7 @@ import type { SqlConfirmInfo, SqlResultInfo } from '@/lib/types'
 import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
 import { isSubmitKey } from '@/lib/keyboard'
+import { CopyButton } from '@/components/ui/copy-button'
 
 interface SqlConfirmBlockProps {
   info: SqlConfirmInfo
@@ -122,10 +123,11 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
         </div>
       )}
 
-      <div className="px-3 py-2.5">
-        <pre className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+      <div className="relative px-3 py-2.5">
+        <pre className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 pr-9 overflow-x-auto whitespace-pre-wrap leading-relaxed">
           {info.sql}
         </pre>
+        <CopyButton text={info.sql} label="复制 SQL" className="absolute right-4.5 top-4 hover:bg-gray-200/70" />
       </div>
 
       {isError && info.error && (

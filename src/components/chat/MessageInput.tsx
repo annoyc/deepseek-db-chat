@@ -5,13 +5,14 @@ import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
 import { modelLabel } from '@/lib/providers'
 import { isSubmitKey } from '@/lib/keyboard'
+import { Modal, ModalTitle } from '@/components/ui/modal'
 
 export function MessageInput() {
   const [input, setInput] = useState('')
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showSqlWarning, setShowSqlWarning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState } = useChatStore()
+  const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState, inputDraft } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
   const { provider, providers, activeProvider, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
   const prevSessionIdRef = useRef(activeSessionId)
@@ -22,6 +23,22 @@ export function MessageInput() {
       setTimeout(() => textareaRef.current?.focus(), 50)
     }
   }, [activeSessionId])
+
+  // A picked suggestion lands in the composer so it can be edited before sending.
+  const appliedDraftRef = useRef(inputDraft?.nonce ?? 0)
+  useEffect(() => {
+    if (!inputDraft || inputDraft.nonce === appliedDraftRef.current) return
+    appliedDraftRef.current = inputDraft.nonce
+    setInput(inputDraft.text)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
+  }, [inputDraft])
 
   const providerModels = activeProvider?.models ?? []
   const currentModel = providerModels.find((m) => m.id === model)
@@ -74,7 +91,7 @@ export function MessageInput() {
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={historyUnavailable ? historyHint : activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
-            disabled={!activeConnectionId || isStreaming || historyUnavailable}
+            disabled={!activeConnectionId || historyUnavailable}
             rows={2}
             className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
           />
@@ -215,15 +232,13 @@ export function MessageInput() {
         </p>
       </div>
 
-      {showSqlWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowSqlWarning(false)}>
-          <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <Modal open={showSqlWarning} onClose={() => setShowSqlWarning(false)}>
             <div className="px-6 pt-6 pb-4">
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
                   <AlertTriangle className="h-5 w-5 text-amber-600" />
                 </div>
-                <h3 className="text-base font-semibold text-gray-900">开启写入模式</h3>
+                <ModalTitle className="text-base font-semibold text-gray-900">开启写入模式</ModalTitle>
               </div>
 
               <div className="space-y-3 text-sm text-gray-600">
@@ -256,6 +271,7 @@ export function MessageInput() {
 
             <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-3">
               <button
+                autoFocus
                 onClick={() => setShowSqlWarning(false)}
                 className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
               >
@@ -268,9 +284,7 @@ export function MessageInput() {
                 确认开启
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }

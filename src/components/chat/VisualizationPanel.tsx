@@ -5,6 +5,7 @@ import { ResultTable } from './ResultTable'
 import { ResultChart, analyzeChartData } from './ResultChart'
 import { AnalysisReportCard } from './AnalysisReportCard'
 import { useChatStore } from '@/hooks/useChat'
+import { CopyButton } from '@/components/ui/copy-button'
 
 interface VisualizationPanelProps {
   messages: ChatMessage[]
@@ -51,7 +52,7 @@ function extractVizItems(messages: ChatMessage[]): VizItem[] {
 
 export function VisualizationPanel({ messages, onCollapse }: VisualizationPanelProps) {
   const items = useMemo(() => extractVizItems(messages), [messages])
-  const { sendMessage } = useChatStore()
+  const { draftMessage } = useChatStore()
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevLenRef = useRef(items.length)
 
@@ -83,7 +84,7 @@ export function VisualizationPanel({ messages, onCollapse }: VisualizationPanelP
       <div className="flex-1 overflow-y-auto">
         <div className="space-y-0">
           {items.map((item, idx) => (
-            <VizItemCard key={item.id} item={item} index={idx + 1} isLast={idx === items.length - 1} onQueryClick={sendMessage} />
+            <VizItemCard key={item.id} item={item} index={idx + 1} isLast={idx === items.length - 1} onQueryClick={draftMessage} />
           ))}
         </div>
         <div ref={bottomRef} />
@@ -146,9 +147,12 @@ function VizItemCard({ item, index, isLast, onQueryClick }: { item: VizItem; ind
       </div>
 
       {showSql && item.sql && (
-        <pre className="mt-2 text-[11px] font-mono text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2 overflow-x-auto whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
-          {item.sql}
-        </pre>
+        <div className="relative mt-2">
+          <pre className="text-[11px] font-mono text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2 pr-9 overflow-x-auto whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed">
+            {item.sql}
+          </pre>
+          <CopyButton text={item.sql} label="复制 SQL" className="absolute right-1.5 top-1.5 hover:bg-gray-200/70" />
+        </div>
       )}
 
       {showTable && (

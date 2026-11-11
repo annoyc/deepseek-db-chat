@@ -88,7 +88,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
 
         <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
             {hasConnection && connectionName && (
               <span className="truncate rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                 {connectionName}
