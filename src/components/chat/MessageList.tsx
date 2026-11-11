@@ -10,7 +10,6 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { isStreaming } = useChatStore()
   const shouldAutoScrollRef = useRef(true)
@@ -29,7 +28,8 @@ export function MessageList({ messages }: MessageListProps) {
   const scrollToBottom = useCallback(() => {
     shouldAutoScrollRef.current = true
     setShowScrollToBottom(false)
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = containerRef.current
+    el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [])
 
   useEffect(() => {
@@ -42,11 +42,9 @@ export function MessageList({ messages }: MessageListProps) {
     const el = containerRef.current
     if (!el) return
 
-    if (isStreaming) {
-      el.scrollTop = el.scrollHeight
-    } else {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
+    // Scroll the list itself: scrollIntoView would also scroll every scrollable ancestor,
+    // overflow-hidden ones included, and push the list out of view.
+    el.scrollTo({ top: el.scrollHeight, behavior: isStreaming ? 'auto' : 'smooth' })
   }, [messages, isStreaming])
 
   if (messages.length === 0) {
@@ -62,7 +60,7 @@ export function MessageList({ messages }: MessageListProps) {
 
   return (
     <div className="relative h-full">
-    <div ref={containerRef} onScroll={handleScroll} className="subtle-scrollbar h-full overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6 lg:px-[6%] 2xl:px-[12%]">
+    <div ref={containerRef} onScroll={handleScroll} className="subtle-scrollbar relative h-full overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6 lg:px-[6%] 2xl:px-[12%]">
       <div className="mx-auto max-w-4xl space-y-4 2xl:max-w-5xl">
         {messages.map((message) => (
           <Fragment key={message.id}>
@@ -79,7 +77,6 @@ export function MessageList({ messages }: MessageListProps) {
             )}
           </Fragment>
         ))}
-        <div ref={bottomRef} />
       </div>
     </div>
     {showScrollToBottom && (

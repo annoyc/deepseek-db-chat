@@ -274,7 +274,6 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
     retrySave,
   } = useKnowledgeChatStore()
   const [input, setInput] = useState('')
-  const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -299,7 +298,8 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
   const scrollToBottom = useCallback(() => {
     shouldAutoScrollRef.current = true
     setShowScrollToBottom(false)
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = containerRef.current
+    container?.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
   }, [])
 
   const handleScroll = useCallback(() => {
@@ -312,7 +312,9 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
 
   useEffect(() => {
     if (!shouldAutoScrollRef.current) return
-    bottomRef.current?.scrollIntoView({ behavior: activeSessionIsStreaming ? 'auto' : 'smooth' })
+    // Scroll the list itself; scrollIntoView would also scroll overflow-hidden ancestors.
+    const container = containerRef.current
+    container?.scrollTo({ top: container.scrollHeight, behavior: activeSessionIsStreaming ? 'auto' : 'smooth' })
   }, [messages, activeSessionIsStreaming, activeSession?.id])
 
   const submit = useCallback((value?: string) => {
@@ -389,7 +391,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
           <div
             ref={containerRef}
             onScroll={handleScroll}
-            className="subtle-scrollbar h-full overflow-y-auto px-4 py-5 md:px-[8%] xl:px-[12%]"
+            className="subtle-scrollbar relative h-full overflow-y-auto px-4 py-5 md:px-[8%] xl:px-[12%]"
           >
             <div className="mx-auto max-w-3xl space-y-8">
               {messages.map((message) => (
@@ -405,7 +407,6 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                   )}
                 </div>
               ))}
-              <div ref={bottomRef} />
             </div>
           </div>
         )}
