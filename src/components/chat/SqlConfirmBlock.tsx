@@ -4,6 +4,8 @@ import type { SqlConfirmInfo, SqlResultInfo } from '@/lib/types'
 import { useChatStore } from '@/hooks/useChat'
 import { Button } from '@/components/ui/button'
 import { isSubmitKey } from '@/lib/keyboard'
+import { CopyButton } from '@/components/ui/copy-button'
+import { useVizFocus } from './VisualizationPanel'
 
 interface SqlConfirmBlockProps {
   info: SqlConfirmInfo
@@ -14,6 +16,7 @@ interface SqlConfirmBlockProps {
 export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProps) {
   const { confirmSql, cancelSql, reviseSql, isStreaming } = useChatStore()
   const [feedback, setFeedback] = useState('')
+  const focusVizItem = useVizFocus()
   const feedbackRef = useRef<HTMLTextAreaElement>(null)
   const actionSubmittedRef = useRef(false)
 
@@ -61,14 +64,14 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
   if (isLoading) {
     return (
-      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100">
+      <div className="border border-stone-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-stone-100">
           <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
-          <span className="text-xs text-gray-400 ml-0.5">准备中...</span>
+          <span className="text-[13px] font-semibold text-stone-800">SQL 查询</span>
+          <span className="text-xs text-stone-400 ml-0.5">准备中...</span>
         </div>
         <div className="px-3 py-2.5">
-          <div className="h-10 bg-gray-50 border border-gray-200 rounded-lg animate-pulse" />
+          <div className="h-10 bg-stone-50 border border-stone-200 rounded-lg animate-pulse" />
         </div>
       </div>
     )
@@ -76,9 +79,9 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
   return (
     <div
-      className={`border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300 ${isError ? 'border-red-200' : 'border-gray-200'}`}
+      className={`border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300 ${isError ? 'border-red-200' : 'border-stone-200'}`}
     >
-      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : 'border-gray-100'}`}>
+      <div className={`flex items-center gap-1.5 px-3 py-2 border-b ${isError ? 'border-red-100' : 'border-stone-100'}`}>
         {isExecuted ? (
           <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
         ) : isError ? (
@@ -88,9 +91,9 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
         ) : (
           <Loader2 className={`w-3.5 h-3.5 flex-shrink-0 ${isConfirmed ? 'text-primary animate-spin' : 'text-amber-500'}`} />
         )}
-        <span className="text-[13px] font-semibold text-gray-800">SQL 查询</span>
+        <span className="text-[13px] font-semibold text-stone-800">SQL 查询</span>
         {isPending && (
-          <span className="text-xs ml-0.5 text-gray-400">
+          <span className="text-xs ml-0.5 text-stone-400">
             等待确认，不会自动执行
           </span>
         )}
@@ -105,7 +108,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
             失败
           </span>
         )}
-        {isCancelled && <span className="text-xs text-gray-400 ml-0.5">已取消</span>}
+        {isCancelled && <span className="text-xs text-stone-400 ml-0.5">已取消</span>}
         {isRevised && (
           <span className="text-xs bg-primary text-white px-1.5 py-px rounded-full font-medium ml-0.5">
             已修改
@@ -115,17 +118,18 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
 
       {info.intent_summary && (
         <div className="px-3 pt-2">
-          <div className="text-xs text-gray-600 bg-primary/5 border border-primary/15 rounded-lg px-3 py-1.5 leading-relaxed">
+          <div className="text-xs text-stone-600 bg-primary/5 border border-primary/15 rounded-lg px-3 py-1.5 leading-relaxed">
             <span className="font-medium text-primary">查询意图：</span>{info.intent_summary}
-            {info.expected_shape && <span className="text-gray-400 ml-1.5">· 预期结果: {info.expected_shape}</span>}
+            {info.expected_shape && <span className="text-stone-400 ml-1.5">· 预期结果: {info.expected_shape}</span>}
           </div>
         </div>
       )}
 
-      <div className="px-3 py-2.5">
-        <pre className="text-xs font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+      <div className="relative px-3 py-2.5">
+        <pre className="text-xs font-mono text-stone-800 bg-stone-50 border border-stone-200 rounded-lg p-3 pr-9 overflow-x-auto whitespace-pre-wrap leading-relaxed">
           {info.sql}
         </pre>
+        <CopyButton text={info.sql} label="复制 SQL" className="absolute right-4.5 top-4 hover:bg-stone-200/70" />
       </div>
 
       {isError && info.error && (
@@ -145,7 +149,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
       )}
 
       {isPending && (
-        <div className="border-t border-gray-100">
+        <div className="border-t border-stone-100">
           <div className="px-3 pt-2.5 pb-2">
             <div className="relative">
               <textarea
@@ -154,7 +158,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
                 onChange={(e) => setFeedback(e.target.value)}
                 onKeyDown={handleFeedbackKeyDown}
                 placeholder="对结果不满意？输入修改建议，如：加上时间条件、改为 LEFT JOIN、只查前10条..."
-                className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 pr-9 resize-none bg-gray-50/50 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
+                className="w-full text-xs border border-stone-200 rounded-lg px-3 py-2 pr-9 resize-none bg-stone-50/50 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
                 rows={1}
               />
               {feedback.trim() && (
@@ -163,6 +167,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
                   disabled={isStreaming}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-primary hover:bg-primary/10 transition-colors"
                   title="提交修改建议 (Enter)"
+                  aria-label="提交修改建议 (Enter)"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -170,7 +175,7 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 border-t border-gray-50">
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-stone-50">
             {feedback.trim() ? (
               <Button onClick={handleSubmitFeedback} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <RotateCcw className="size-3 mr-1" />
@@ -186,20 +191,28 @@ export function SqlConfirmBlock({ info, messageId, result }: SqlConfirmBlockProp
               <X className="size-3 mr-1" />
               取消
             </Button>
-            {isStreaming && <span className="text-[11px] text-gray-400">请等待当前任务结束后确认</span>}
+            {isStreaming && <span className="text-xs text-stone-400">请等待当前任务结束后确认</span>}
           </div>
         </div>
       )}
 
       {isExecuted && result && (
-        <div className="flex items-center gap-1.5 px-3 py-2 border-t border-gray-100 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-t border-stone-100 text-xs text-stone-500">
           <CheckCircle2 className="w-3 h-3 text-green-500" />
           <span>{result.rowCount} 行结果</span>
-          <span className="text-gray-300">·</span>
-          <span className="text-primary inline-flex items-center gap-0.5">
-            已在右侧面板展示
-            <ArrowRight className="w-3 h-3" />
-          </span>
+          <span className="text-stone-300">·</span>
+          {focusVizItem ? (
+            <button
+              type="button"
+              onClick={() => focusVizItem(messageId)}
+              className="inline-flex items-center gap-0.5 rounded text-primary underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              在数据面板中查看
+              <ArrowRight className="w-3 h-3" />
+            </button>
+          ) : (
+            <span className="text-primary">结果已保存到数据面板</span>
+          )}
         </div>
       )}
     </div>

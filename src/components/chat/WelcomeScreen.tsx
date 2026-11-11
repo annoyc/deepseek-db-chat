@@ -55,7 +55,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 <DatabaseZap className="h-3.5 w-3.5" />
                 SQL Copilot
               </div>
@@ -88,7 +88,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
 
         <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
             {hasConnection && connectionName && (
               <span className="truncate rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                 {connectionName}

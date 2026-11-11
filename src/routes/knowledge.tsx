@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { KnowledgeWorkbench } from '@/components/knowledge/KnowledgeWorkbench'
 import type { AppMode } from '@/components/layout/AppModeSwitch'
+import { useLayout } from '@/hooks/useLayout'
 
 export const Route = createFileRoute('/knowledge')({
   component: KnowledgePage,
@@ -9,7 +10,7 @@ export const Route = createFileRoute('/knowledge')({
 
 function KnowledgePage() {
   const navigate = useNavigate()
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   const handleAppChange = useCallback((app: AppMode) => {
     navigate({ to: app === 'knowledge' ? '/knowledge' : '/dbpilot' })
@@ -20,7 +21,7 @@ function KnowledgePage() {
       activeApp="knowledge"
       onAppChange={handleAppChange}
       sidebarCollapsed={sidebarCollapsed}
-      onToggleSidebar={() => setSidebarCollapsed((collapsed) => !collapsed)}
+      onToggleSidebar={toggleSidebar}
     />
   )
 }

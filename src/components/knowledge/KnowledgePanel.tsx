@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, PanelRightOpen, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, Menu, PanelRightOpen, Sparkles, Square } from 'lucide-react'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { cn } from '@/lib/utils'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
@@ -8,10 +8,13 @@ import { APP_NAME } from '@/lib/constants'
 import { ToolChainTimeline } from './ToolChainTimeline'
 import { isSubmitKey } from '@/lib/keyboard'
 import { PersistenceNotice } from '@/components/layout/PersistenceNotice'
+import { CopyButton } from '@/components/ui/copy-button'
 
 interface KnowledgePanelProps {
   contextOpen: boolean
   onOpenContext: () => void
+  /** Set on phones, where the sidebar is a drawer opened from the header. */
+  onOpenSidebar?: () => void
 }
 
 const suggestions = [
@@ -106,8 +109,9 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
 
 function UserMessage({ content }: { content: string }) {
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+    <div className="group flex items-center justify-end gap-1.5">
+      <CopyButton text={content} label="复制问题" className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
+      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
@@ -147,6 +151,12 @@ function AssistantMessage({
             {message.statusText || '正在生成...'}
           </div>
         )
+      )}
+
+      {message.content && !isStreaming && (
+        <div className="-mt-2 px-1">
+          <CopyButton text={message.content} label="复制回答" className="hover:bg-white/80" />
+        </div>
       )}
 
       {message.error && (
@@ -195,7 +205,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 <Brain className="h-3.5 w-3.5" />
                 Knowledge Copilot
               </div>
@@ -227,7 +237,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
         </section>
 
         <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
           <div className="grid gap-2 lg:grid-cols-2">
             {suggestions.map((item) => (
               <button
@@ -246,7 +256,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
   )
 }
 
-export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelProps) {
+export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: KnowledgePanelProps) {
   const {
     activeSession,
     isStreaming,
@@ -322,22 +332,46 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
     el.style.height = Math.min(el.scrollHeight, 180) + 'px'
   }
 
+  const draftSuggestion = useCallback((text: string) => {
+    setInput(text)
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.style.height = 'auto'
+      el.style.height = Math.min(el.scrollHeight, 180) + 'px'
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    })
+  }, [])
+
   const openEvidence = (messageId: string) => {
     setSelectedEvidenceMessage(messageId)
     onOpenContext()
   }
 
   return (
-    <div className="app-canvas relative flex h-screen min-w-0 flex-1 flex-col">
-      <header className="app-header flex flex-shrink-0 items-center justify-between border-b px-5 py-3 backdrop-blur-sm">
-        <div>
-          <div className="text-sm font-semibold text-stone-950">知识库问答</div>
-          <div className="text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
+    <div className="app-canvas relative flex h-full min-w-0 flex-1 flex-col">
+      <header className="app-header flex flex-shrink-0 items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm sm:px-5">
+        <div className="flex min-w-0 items-center gap-2">
+          {onOpenSidebar && (
+            <button
+              onClick={onOpenSidebar}
+              aria-label="打开侧边栏"
+              title="打开侧边栏"
+              className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-white/80 hover:text-stone-800"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold text-stone-950">知识库问答</div>
+            <div className="truncate text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
+          </div>
         </div>
         <button
           onClick={onOpenContext}
           className={cn(
-            'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
+            'flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors',
             contextOpen
               ? 'border-primary/20 bg-primary/10 text-primary'
               : 'border-stone-200 bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800',
@@ -350,7 +384,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {messages.length === 0 ? (
-          <EmptyKnowledgeState onSuggestionClick={submit} disabled={isStreaming || historyUnavailable} />
+          <EmptyKnowledgeState onSuggestionClick={draftSuggestion} disabled={isStreaming || historyUnavailable} />
         ) : (
           <div
             ref={containerRef}
@@ -398,9 +432,9 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
                 }
               }}
               disabled={isStreaming || historyUnavailable}
-              rows={2}
+              rows={1}
               placeholder={historyUnavailable ? historyHint : '输入关于电力市场、省电、售电、交易规则的问题...'}
-              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
+              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
             />
 
             <div className="flex items-center justify-between gap-3 p-3 pt-0">
@@ -449,6 +483,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
                   onClick={stopStreaming}
                   className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
                   title="停止生成"
+                  aria-label="停止生成"
                 >
                   <Square className="h-4 w-4" fill="currentColor" />
                 </button>
@@ -463,6 +498,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext }: KnowledgePanelPro
                       : 'bg-stone-200 text-stone-400',
                   )}
                   title="发送"
+                  aria-label="发送"
                 >
                   <ArrowUp className="h-5 w-5" />
                 </button>

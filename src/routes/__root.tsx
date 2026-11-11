@@ -5,6 +5,7 @@ import { ChatProvider } from '@/hooks/useChat'
 import { KnowledgeChatProvider } from '@/hooks/useKnowledgeChat'
 import { KnowledgeDocumentsProvider } from '@/hooks/useKnowledgeDocuments'
 import { SettingsProvider } from '@/hooks/useSettings'
+import { LayoutProvider } from '@/hooks/useLayout'
 import { APP_TAGLINE, APP_TITLE } from '@/lib/constants'
 import '@/styles/globals.css'
 
@@ -31,7 +32,9 @@ function RootComponent() {
           <ChatProvider>
             <KnowledgeDocumentsProvider>
               <KnowledgeChatProvider>
-                <Outlet />
+                <LayoutProvider>
+                  <Outlet />
+                </LayoutProvider>
               </KnowledgeChatProvider>
             </KnowledgeDocumentsProvider>
           </ChatProvider>
@@ -47,7 +50,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="h-screen overflow-hidden bg-white text-gray-900 antialiased">
+      <body className="h-dvh overflow-hidden bg-white text-gray-900 antialiased">
         {children}
         <Scripts />
       </body>

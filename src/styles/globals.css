@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --color-primary: #0f766e;
@@ -321,6 +322,11 @@ select:disabled,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-out {
+    animation: none;
+  }
+
   .session-loading-indicator::before,
   .session-loading-indicator::after,
   .streaming-markdown > :nth-last-child(2),

@@ -3,6 +3,7 @@ import { X, Database, Loader2, Eye, EyeOff } from 'lucide-react'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { MAX_DATABASE_CA_BYTES, requiresDatabaseTls, validateDatabaseCa } from '@/lib/database-tls'
 import type { DbEnv } from '@/lib/types'
+import { Modal, ModalTitle } from '@/components/ui/modal'
 
 const envOptions: { value: DbEnv; label: string; description: string }[] = [
   { value: 'dev', label: '开发环境 DEV', description: '日常开发和调试使用' },
@@ -39,7 +40,6 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const caFileRef = useRef<HTMLInputElement>(null)
-  const dialogTitleId = useId()
   const tlsInputId = useId()
   const caInputId = useId()
   const caHelpId = useId()
@@ -143,17 +143,16 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" role="dialog" aria-modal="true" aria-labelledby={dialogTitleId}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[calc(100dvh-2rem)] flex flex-col">
-        <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-gray-200">
+    <Modal open onClose={handleClose} dismissible={!loading} closeOnBackdrop={false} className="flex max-h-[calc(100dvh-2rem)] flex-col">
+        <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-stone-200">
           <div className="flex items-center gap-2">
             <Database className="w-5 h-5 text-primary" />
-            <h2 id={dialogTitleId} className="font-semibold text-gray-900">
+            <ModalTitle className="font-semibold text-stone-900">
               {isEdit ? '编辑数据库连接' : '添加数据库连接'}
-            </h2>
+            </ModalTitle>
           </div>
-          <button onClick={handleClose} aria-label="关闭数据库连接窗口" className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-gray-400" />
+          <button onClick={handleClose} aria-label="关闭数据库连接窗口" className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-stone-400" />
           </button>
         </div>
 
@@ -161,7 +160,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
           <Field label="连接名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="My Database" required />
           {/* Environment selector */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">连接环境 <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-medium text-stone-500 mb-1">连接环境 <span className="text-red-500">*</span></label>
             <div className="grid grid-cols-4 gap-2">
               {envOptions.map(opt => (
                 <button
@@ -175,7 +174,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">
+            <p className="text-[11px] text-stone-400 mt-1">
               {envOptions.find(o => o.value === form.env)?.description}
             </p>
           </div>
@@ -191,8 +190,8 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
           </div>
           <Field label="数据库名" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="my_database" required />
 
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-3 space-y-2.5">
-            <label htmlFor={tlsInputId} className="flex items-center gap-2 text-xs font-medium text-gray-700">
+          <div className="rounded-xl border border-stone-200 bg-stone-50/60 p-3 space-y-2.5">
+            <label htmlFor={tlsInputId} className="flex items-center gap-2 text-xs font-medium text-stone-700">
               <input
                 id={tlsInputId}
                 type="checkbox"
@@ -202,12 +201,12 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
                 className="accent-primary"
               />
               安全连接（SSL/TLS）
-              {tlsRequired && <span className="ml-auto text-[10px] font-normal text-primary">Aiven 已自动启用</span>}
+              {tlsRequired && <span className="ml-auto text-[11px] font-normal text-primary">Aiven 已自动启用</span>}
             </label>
             {tlsEnabled && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
-                  <label htmlFor={caInputId} className="text-xs font-medium text-gray-600">
+                  <label htmlFor={caInputId} className="text-xs font-medium text-stone-600">
                     CA 证书（可选）
                   </label>
                   <button type="button" onClick={() => caFileRef.current?.click()} className="text-xs font-medium text-primary hover:underline">
@@ -223,9 +222,9 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
                   spellCheck={false}
                   aria-describedby={caHelpId}
                   placeholder={'-----BEGIN CERTIFICATE-----\n粘贴 PEM 格式的 CA 证书\n-----END CERTIFICATE-----'}
-                  className="w-full resize-y rounded-lg border border-gray-200 bg-white px-2.5 py-2 font-mono text-[11px] outline-none focus:border-gray-400"
+                  className="w-full resize-y rounded-lg border border-stone-200 bg-white px-2.5 py-2 font-mono text-xs outline-none focus:border-stone-400"
                 />
-                <p id={caHelpId} className="text-[10px] leading-relaxed text-gray-400">
+                <p id={caHelpId} className="text-[11px] leading-relaxed text-stone-400">
                   {tlsRequired ? '服务端已统一配置 CA 时可留空，也可从 Aiven 服务 Overview 下载后导入。' : '使用自签名 CA 的数据库需导入证书；使用受信任证书的数据库可留空。'}
                   连接时将校验证书和主机名。
                 </p>
@@ -241,7 +240,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
             <button
               type="button"
               onClick={handleClose}
-              className="px-6 py-2.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-6 py-2.5 border border-stone-300 text-sm text-stone-700 hover:bg-stone-100 rounded-lg transition-colors"
             >
               关闭
             </button>
@@ -259,8 +258,7 @@ export function AddConnectionDialog({ open, onClose }: AddConnectionDialogProps)
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -282,7 +280,7 @@ function Field({
   const inputId = useId()
   return (
     <div>
-      <label htmlFor={inputId} className="block text-xs font-medium text-gray-500 mb-1">
+      <label htmlFor={inputId} className="block text-xs font-medium text-stone-500 mb-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <input
@@ -292,7 +290,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:border-gray-400 focus:bg-white outline-none transition-colors"
+        className="w-full px-3 py-2 text-sm border border-stone-200 rounded-lg bg-stone-50 focus:border-stone-400 focus:bg-white outline-none transition-colors"
       />
     </div>
   )
@@ -326,7 +324,7 @@ function PasswordField({
 
   return (
     <div>
-      <label htmlFor={inputId} className="block text-xs font-medium text-gray-500 mb-1">
+      <label htmlFor={inputId} className="block text-xs font-medium text-stone-500 mb-1">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       <div className="relative">
@@ -338,13 +336,13 @@ function PasswordField({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          className="w-full px-3 py-2 pr-9 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:border-gray-400 focus:bg-white outline-none transition-colors"
+          className="w-full px-3 py-2 pr-9 text-sm border border-stone-200 rounded-lg bg-stone-50 focus:border-stone-400 focus:bg-white outline-none transition-colors"
         />
         <button
           type="button"
           onClick={onTogglePassword}
           aria-label={showPassword ? '隐藏数据库密码' : '显示数据库密码'}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-stone-400 hover:text-stone-600 transition-colors"
         >
           {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
         </button>
@@ -357,19 +355,19 @@ function cnEnvButton(selected: boolean, env: DbEnv): string {
   const colorMap: Record<DbEnv, { active: string; inactive: string }> = {
     dev: {
       active: 'bg-green-50 border-green-400 text-green-700 ring-1 ring-green-400/30',
-      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-green-50/40 hover:border-green-300 hover:text-primary',
+      inactive: 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-green-50/40 hover:border-green-300 hover:text-primary',
     },
     test: {
       active: 'bg-blue-50 border-blue-400 text-blue-700 ring-1 ring-blue-400/30',
-      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-blue-50/40 hover:border-blue-300 hover:text-blue-600',
+      inactive: 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-blue-50/40 hover:border-blue-300 hover:text-blue-600',
     },
     staging: {
       active: 'bg-yellow-50 border-yellow-400 text-yellow-700 ring-1 ring-yellow-400/30',
-      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-yellow-50/40 hover:border-yellow-300 hover:text-yellow-600',
+      inactive: 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-yellow-50/40 hover:border-yellow-300 hover:text-yellow-600',
     },
     prod: {
       active: 'bg-red-50 border-red-400 text-red-700 ring-1 ring-red-400/30',
-      inactive: 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-red-50/40 hover:border-red-300 hover:text-red-600',
+      inactive: 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-red-50/40 hover:border-red-300 hover:text-red-600',
     },
   }
   const base = 'px-2 py-1.5 text-xs font-medium rounded-lg border transition-all cursor-pointer'

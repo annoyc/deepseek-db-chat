@@ -79,62 +79,62 @@ export function DataSummary({ result }: DataSummaryProps) {
 
   if (rows.length === 0) {
     return (
-      <div className="text-center text-xs text-gray-400 py-4">无数据</div>
+      <div className="text-center text-xs text-stone-400 py-4">无数据</div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <div className="text-xs text-gray-500 px-1">
-        基于已返回的 <span className="font-semibold text-gray-700">{rows.length}</span> 行 ×{' '}
-        <span className="font-semibold text-gray-700">{columns.length}</span> 列
+      <div className="text-xs text-stone-500 px-1">
+        基于已返回的 <span className="font-semibold text-stone-700">{rows.length}</span> 行 ×{' '}
+        <span className="font-semibold text-stone-700">{columns.length}</span> 列
       </div>
 
       <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
         {summaries.map((s) => (
           <div
             key={s.col}
-            className="border border-gray-200 rounded-lg px-3 py-2.5 bg-white"
+            className="border border-stone-200 rounded-lg px-3 py-2.5 bg-white"
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs font-semibold text-gray-800 truncate">{s.col}</span>
-              <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
+              <span className="text-xs font-semibold text-stone-800 truncate">{s.col}</span>
+              <span className="text-[11px] text-stone-400 flex-shrink-0 ml-2">
                 {s.isNumeric ? '数值' : '文本'}
                 {s.nullCount > 0 && ` · ${s.nullCount} 空`}
               </span>
             </div>
 
             {s.isNumeric ? (
-              <div className="grid grid-cols-4 gap-1 text-[11px]">
+              <div className="grid grid-cols-4 gap-1 text-xs">
                 <div>
-                  <div className="text-gray-400">最小</div>
-                  <div className="font-medium text-gray-700">{s.min !== undefined ? formatNum(s.min) : '-'}</div>
+                  <div className="text-stone-400">最小</div>
+                  <div className="font-medium text-stone-700">{s.min !== undefined ? formatNum(s.min) : '-'}</div>
                 </div>
                 <div>
-                  <div className="text-gray-400">最大</div>
-                  <div className="font-medium text-gray-700">{s.max !== undefined ? formatNum(s.max) : '-'}</div>
+                  <div className="text-stone-400">最大</div>
+                  <div className="font-medium text-stone-700">{s.max !== undefined ? formatNum(s.max) : '-'}</div>
                 </div>
                 <div>
-                  <div className="text-gray-400">平均</div>
-                  <div className="font-medium text-gray-700">{s.avg !== undefined ? formatNum(s.avg) : '-'}</div>
+                  <div className="text-stone-400">平均</div>
+                  <div className="font-medium text-stone-700">{s.avg !== undefined ? formatNum(s.avg) : '-'}</div>
                 </div>
                 <div>
-                  <div className="text-gray-400">总和</div>
-                  <div className="font-medium text-gray-700">{s.sum !== undefined ? formatNum(s.sum) : '-'}</div>
+                  <div className="text-stone-400">总和</div>
+                  <div className="font-medium text-stone-700">{s.sum !== undefined ? formatNum(s.sum) : '-'}</div>
                 </div>
               </div>
             ) : (
-              <div className="text-[11px]">
-                <div className="text-gray-400 mb-0.5">{s.distinctCount} 种不同值</div>
+              <div className="text-xs">
+                <div className="text-stone-400 mb-0.5">{s.distinctCount} 种不同值</div>
                 {s.topValues && s.topValues.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {s.topValues.map((tv) => (
                       <span
                         key={tv.value}
-                        className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px]"
+                        className="inline-flex items-center px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 text-[11px]"
                       >
                         {tv.value.length > 20 ? tv.value.slice(0, 20) + '…' : tv.value}
-                        <span className="ml-1 text-gray-400">{tv.count}</span>
+                        <span className="ml-1 text-stone-400">{tv.count}</span>
                       </span>
                     ))}
                   </div>

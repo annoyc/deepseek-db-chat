@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
+import { Modal, ModalTitle } from '@/components/ui/modal'
 import type { ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
 import type { ConnectionTestResult } from '@/server/providers'
@@ -47,16 +48,16 @@ const ADD_TAB = '__add__'
 
 type SettingsSection = 'models' | 'display' | 'sql'
 
-const inputClass = 'w-full px-3.5 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
-const labelClass = 'block text-sm font-medium text-gray-700 mb-1.5'
-const hintClass = 'text-xs text-gray-500 mt-1.5'
+const inputClass = 'w-full px-3.5 py-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
+const labelClass = 'block text-sm font-medium text-stone-700 mb-1.5'
+const hintClass = 'text-xs text-stone-500 mt-1.5'
 
 function SectionHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-        {description && <p className="mt-0.5 text-xs text-gray-500">{description}</p>}
+        <h3 className="text-base font-semibold text-stone-900">{title}</h3>
+        {description && <p className="mt-0.5 text-xs text-stone-500">{description}</p>}
       </div>
       {action}
     </div>
@@ -66,7 +67,7 @@ function SectionHeader({ title, description, action }: { title: string; descript
 function CollapseToggle({ value, onChange, label }: { value: 'expanded' | 'collapsed'; onChange: (v: 'expanded' | 'collapsed') => void; label: string }) {
   const options = [['expanded', '展开'], ['collapsed', '折叠']] as const
   return (
-    <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-gray-100 p-0.5">
+    <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-stone-100 p-0.5">
       {options.map(([v, text]) => (
         <button
           key={v}
@@ -74,7 +75,7 @@ function CollapseToggle({ value, onChange, label }: { value: 'expanded' | 'colla
           aria-checked={value === v}
           onClick={() => onChange(v)}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            value === v ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700'
+            value === v ? 'bg-white text-primary shadow-sm' : 'text-stone-500 hover:text-stone-700'
           }`}
         >
           {text}
@@ -121,7 +122,7 @@ function ApiKeyInput({ value, onChange, placeholder }: { value: string; onChange
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600"
         aria-label={show ? '隐藏密钥' : '显示密钥'}
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -140,7 +141,7 @@ function SavedKeyNotice({ onClear }: { onClear: () => void }) {
       <button
         type="button"
         onClick={onClear}
-        className="rounded px-1.5 py-0.5 text-xs text-gray-500 underline-offset-2 transition-colors hover:text-red-600 hover:underline"
+        className="rounded px-1.5 py-0.5 text-xs text-stone-500 underline-offset-2 transition-colors hover:text-red-600 hover:underline"
       >
         清除已保存的 Key
       </button>
@@ -210,15 +211,15 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-gray-200 p-3">
+    <div className="space-y-2 rounded-xl border border-stone-200 p-3">
       <div className="flex items-center gap-2">
-        <span className="shrink-0 text-sm font-medium text-gray-700">连接测试</span>
+        <span className="shrink-0 text-sm font-medium text-stone-700">连接测试</span>
         <select
           value={model}
           onChange={(e) => { setSelected(e.target.value); setResult(null) }}
           disabled={running || models.length === 0}
           aria-label="测试使用的模型"
-          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
+          className="min-w-0 flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
         >
           {models.length === 0 && <option value="">尚未添加模型</option>}
           {models.map((m) => (
@@ -235,7 +236,7 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
           {running ? '测试中…' : '测试连接'}
         </button>
       </div>
-      <p className="text-xs text-gray-500">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
+      <p className="text-xs text-stone-500">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {result && (
         <ul className="space-y-1.5" aria-label="连接测试结果">
@@ -243,11 +244,11 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
             <li key={check.key} className="flex items-start gap-1.5 text-xs">
               {check.status === 'pass' && <CircleCheck className="mt-px h-3.5 w-3.5 shrink-0 text-green-600" />}
               {check.status === 'fail' && <CircleX className="mt-px h-3.5 w-3.5 shrink-0 text-red-500" />}
-              {check.status === 'skip' && <CircleMinus className="mt-px h-3.5 w-3.5 shrink-0 text-gray-400" />}
+              {check.status === 'skip' && <CircleMinus className="mt-px h-3.5 w-3.5 shrink-0 text-stone-400" />}
               <div className="min-w-0">
-                <span className={check.status === 'fail' ? 'text-red-700' : 'text-gray-700'}>{check.label}</span>
-                {check.latencyMs !== undefined && <span className="ml-1 text-gray-400 tabular-nums">{(check.latencyMs / 1000).toFixed(1)}s</span>}
-                {check.detail && <div className="break-words text-gray-500">{check.detail}</div>}
+                <span className={check.status === 'fail' ? 'text-red-700' : 'text-stone-700'}>{check.label}</span>
+                {check.latencyMs !== undefined && <span className="ml-1 text-stone-400 tabular-nums">{(check.latencyMs / 1000).toFixed(1)}s</span>}
+                {check.detail && <div className="break-words text-stone-500">{check.detail}</div>}
               </div>
             </li>
           ))}
@@ -256,7 +257,7 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
               {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
             </span>
             {result.ok && onUseModel && usableModelIds && !usableModelIds.has(result.model) ? (
-              <span className="shrink-0 text-xs text-gray-500" title="内置服务的模型列表由服务器配置">未配置，需管理员添加后使用</span>
+              <span className="shrink-0 text-xs text-stone-500" title="内置服务的模型列表由服务器配置">未配置，需管理员添加后使用</span>
             ) : result.ok && onUseModel && (currentModel === result.model ? (
               <span className="flex shrink-0 items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700">
                 <CircleCheck className="h-3.5 w-3.5" />
@@ -268,6 +269,7 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
                 onClick={() => handleUseModel(result.model)}
                 disabled={switching}
                 title="保存设置，并在对话中切换到此模型"
+                aria-label="保存设置，并在对话中切换到此模型"
                 className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
               >
                 {switching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
@@ -374,25 +376,26 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">模型</label>
+          <label className="text-sm font-medium text-stone-700">模型</label>
           <button
             type="button"
             onClick={handleFetchModels}
             disabled={fetching}
             title="调用服务的 /models 接口，与服务器配置的模型列表对比"
+            aria-label="调用服务的 /models 接口，与服务器配置的模型列表对比"
             className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50"
           >
             {fetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             从服务获取
           </button>
         </div>
-        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200" aria-label="已配置的模型">
+        <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200" aria-label="已配置的模型">
           {provider.models.map((m) => {
             const notReturned = comparison?.missing.some((x) => x.id === m.id)
             return (
               <li key={m.id} className="flex items-center gap-2 px-3 py-2 text-xs">
-                <span className="font-mono text-gray-800">{m.id}</span>
-                {m.name && m.name !== m.id && <span className="text-gray-500">{m.name}</span>}
+                <span className="font-mono text-stone-800">{m.id}</span>
+                {m.name && m.name !== m.id && <span className="text-stone-500">{m.name}</span>}
                 {m.id === provider.defaultModel && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">默认</span>}
                 {comparison && (notReturned ? (
                   <span className="ml-auto shrink-0 text-amber-700" title="服务的模型列表中没有此 ID，可能已更名或下线">服务未返回</span>
@@ -406,7 +409,7 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
         <p className={hintClass}>内置服务的模型列表由服务器配置，此处只能查看，不能修改。</p>
         {fetchError && <p role="alert" className="mt-1 text-xs text-red-600">{fetchError}</p>}
         {comparison && (
-          <div className="mt-2 space-y-1.5 rounded-xl bg-gray-50 p-3 text-xs text-gray-700" aria-live="polite">
+          <div className="mt-2 space-y-1.5 rounded-xl bg-stone-50 p-3 text-xs text-stone-700" aria-live="polite">
             <p>
               服务返回 {fetchedIds?.length ?? 0} 个模型：{comparison.configured.length} 个已配置
               {comparison.unconfigured.length > 0 && `，${comparison.unconfigured.length} 个未配置`}
@@ -416,10 +419,10 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
               <>
                 <ul className="flex flex-wrap gap-1.5" aria-label="服务提供但未配置的模型">
                   {comparison.unconfigured.map((id) => (
-                    <li key={id} className="rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono">{id}</li>
+                    <li key={id} className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono">{id}</li>
                   ))}
                 </ul>
-                <p className="text-gray-500">未配置的模型可在下方连接测试；如需在对话中使用，请联系管理员加入服务器配置。</p>
+                <p className="text-stone-500">未配置的模型可在下方连接测试；如需在对话中使用，请联系管理员加入服务器配置。</p>
               </>
             )}
           </div>
@@ -478,7 +481,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
           <button
             type="button"
             onClick={onRemove}
-            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-stone-500 transition-colors hover:bg-red-50 hover:text-red-600"
           >
             <Trash2 className="h-3.5 w-3.5" />
             删除服务
@@ -531,7 +534,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-700">模型</label>
+          <label className="text-sm font-medium text-stone-700">模型</label>
           <button
             type="button"
             onClick={handleFetchModels}
@@ -550,7 +553,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
           className={`${inputClass} font-mono leading-relaxed resize-none`}
         />
         <p className={hintClass}>每行一个，第一个为默认模型。本应用依赖工具调用（function calling），请选择支持工具调用的模型。</p>
-        {fetchMessage && <p className="mt-1 text-xs text-gray-700">{fetchMessage}</p>}
+        {fetchMessage && <p className="mt-1 text-xs text-stone-700">{fetchMessage}</p>}
       </div>
 
       <ConnectionTester
@@ -623,15 +626,6 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       setCustomDrafts(customProviders.map(toCustomDraft))
     }
   }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !saving) onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, saving, onClose])
 
   if (!open) return null
 
@@ -747,7 +741,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
   const navItemClass = (selected: boolean, indent = false) => `flex w-auto shrink-0 items-center gap-2 whitespace-nowrap rounded-lg py-2 text-sm transition-colors sm:w-full ${
     indent ? 'px-3 sm:pl-9' : 'px-3'
-  } ${selected ? 'bg-white font-medium text-primary shadow-sm ring-1 ring-gray-200' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
+  } ${selected ? 'bg-white font-medium text-primary shadow-sm ring-1 ring-stone-200' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`
 
   const providerNavItems = [
     ...serverProviders.map((p) => ({ id: p.id, name: p.name, configured: p.hasEnvKey || !!serverDrafts[p.id]?.hasSavedKey })),
@@ -755,25 +749,25 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-dialog-title"
-        className="flex h-[min(720px,calc(100vh-2rem))] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 id="settings-dialog-title" className="text-lg font-bold text-gray-900">设置</h2>
-          <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-500" />
+    <Modal
+      open
+      onClose={onClose}
+      dismissible={!saving}
+      closeOnBackdrop={false}
+      className="flex h-[min(720px,calc(100dvh-2rem))] max-w-4xl flex-col overflow-hidden"
+    >
+        <div className="flex shrink-0 items-center justify-between border-b border-stone-200 px-6 py-4">
+          <ModalTitle className="text-lg font-bold text-stone-900">设置</ModalTitle>
+          <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-stone-100">
+            <X className="h-5 w-5 text-stone-500" />
           </button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           {/* Section navigation: a column on wide screens, a scrolling strip on phones */}
-          <nav aria-label="设置分类" className="flex shrink-0 gap-1 overflow-x-auto border-b border-gray-200 bg-gray-50 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3">
-            <div className="hidden items-center gap-2 px-3 py-2 text-sm font-medium text-gray-900 sm:flex">
-              <Cpu className="h-4 w-4 text-gray-500" />
+          <nav aria-label="设置分类" className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-200 bg-stone-50 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3">
+            <div className="hidden items-center gap-2 px-3 py-2 text-sm font-medium text-stone-900 sm:flex">
+              <Cpu className="h-4 w-4 text-stone-500" />
               模型服务
             </div>
             {providerNavItems.map((item) => (
@@ -787,7 +781,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 <span
                   title={item.configured ? '已配置 API Key' : '未配置 API Key'}
                   aria-label={item.configured ? '已配置 API Key' : '未配置 API Key'}
-                  className={`h-2 w-2 shrink-0 rounded-full ${item.configured ? 'bg-green-500' : 'border border-gray-400'}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${item.configured ? 'bg-green-500' : 'border border-stone-400'}`}
                 />
               </button>
             ))}
@@ -800,7 +794,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               添加服务
             </button>
 
-            <div className="my-2 hidden border-t border-gray-200 sm:block" />
+            <div className="my-2 hidden border-t border-stone-200 sm:block" />
 
             <button onClick={() => setSection('display')} aria-current={section === 'display' ? 'page' : undefined} className={navItemClass(section === 'display')}>
               <PanelsTopLeft className="h-4 w-4" />
@@ -845,10 +839,10 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                     <button
                       key={t.key}
                       onClick={() => addFromTemplate(t)}
-                      className="rounded-xl border border-gray-200 px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      className="rounded-xl border border-stone-200 px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
                     >
-                      <div className="font-medium text-gray-800">{t.name}</div>
-                      <div className="truncate font-mono text-xs text-gray-500">{t.baseURL || '手动填写地址'}</div>
+                      <div className="font-medium text-stone-800">{t.name}</div>
+                      <div className="truncate font-mono text-xs text-stone-500">{t.baseURL || '手动填写地址'}</div>
                     </button>
                   ))}
                 </div>
@@ -858,13 +852,13 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             {section === 'display' && (
               <div className="space-y-5">
                 <SectionHeader title="默认折叠状态" description="控制聊天中对应模块的初始展开/折叠状态。" />
-                <div className="divide-y divide-gray-100 rounded-xl border border-gray-200">
+                <div className="divide-y divide-stone-100 rounded-xl border border-stone-200">
                   <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-gray-700">思考过程</span>
+                    <span className="text-sm text-stone-700">思考过程</span>
                     <CollapseToggle value={localThinkingCollapse} onChange={setLocalThinkingCollapse} label="思考过程默认状态" />
                   </div>
                   <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-gray-700">工具调用</span>
+                    <span className="text-sm text-stone-700">工具调用</span>
                     <CollapseToggle value={localToolCallCollapse} onChange={setLocalToolCallCollapse} label="工具调用默认状态" />
                   </div>
                 </div>
@@ -878,8 +872,8 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                   <ShieldCheck className="mt-px h-4 w-4 shrink-0" />
                   <p>请使用 MySQL 只读账号连接生产库。默认仅允许查询；写入须由管理员在服务器为指定的非生产数据库显式开启。</p>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
-                  <label htmlFor="max-sql-executions" className="text-sm text-gray-700">最大执行次数</label>
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 px-4 py-3">
+                  <label htmlFor="max-sql-executions" className="text-sm text-stone-700">最大执行次数</label>
                   <input
                     id="max-sql-executions"
                     type="number"
@@ -892,7 +886,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                         setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
                       }
                     }}
-                    className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-center text-sm tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="w-20 rounded-lg border border-stone-300 px-3 py-1.5 text-center text-sm tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
@@ -900,11 +894,11 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-3">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-stone-200 bg-white px-6 py-3">
           {saveError && <p ref={saveErrorRef} role="alert" className="mr-auto min-w-0 text-xs text-red-600">{saveError}</p>}
           <button
             onClick={onClose}
-            className="rounded-xl border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="rounded-xl border border-stone-300 px-5 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50"
           >
             关闭
           </button>
@@ -917,7 +911,6 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             {saving ? '保存中...' : '保存'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

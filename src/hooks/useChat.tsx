@@ -151,6 +151,10 @@ interface ChatState {
   sendMessage: (content: string) => Promise<void>
   stopStreaming: () => void
   clearMessages: () => void
+  /** Text a suggestion asked to place in the composer; `nonce` makes repeated picks distinct. */
+  inputDraft: { text: string; nonce: number } | null
+  /** Put text into the composer for the user to review and send, instead of sending it directly. */
+  draftMessage: (text: string) => void
   confirmSql: (messageId: string) => Promise<void>
   cancelSql: (messageId: string) => void
   reviseSql: (messageId: string, feedback: string) => Promise<void>
@@ -1159,8 +1163,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     updateSession(activeSessionId, (s) => ({ ...s, messages: [], taskStartTime: undefined, taskEndTime: undefined }))
   }, [activeSessionId, updateSession])
 
+  const [inputDraft, setInputDraft] = useState<ChatState['inputDraft']>(null)
+  const draftMessage = useCallback((text: string) => {
+    setInputDraft((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))
+  }, [])
+
   const value = useMemo<ChatState>(() => ({
     persistenceState, retrySave,
+    inputDraft, draftMessage,
     sessions,
     activeSessionId,
     activeSession,
@@ -1181,6 +1191,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     reviseSmartFilter,
   }), [
     persistenceState, retrySave,
+    inputDraft, draftMessage,
     sessions,
     activeSessionId,
     activeSession,

@@ -16,7 +16,7 @@ function renderInlineCode(text: string): ReactNode[] {
       return (
         <code
           key={i}
-          className="bg-gray-200/60 text-gray-700 px-1 py-0.5 rounded text-[12px] font-mono"
+          className="bg-stone-200/60 text-stone-700 px-1 py-0.5 rounded text-[12px] font-mono"
         >
           {part.slice(1, -1)}
         </code>
@@ -57,18 +57,18 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
     : (index && index > 1) ? `思考过程 #${index}` : '思考过程'
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-gray-50 transition-colors border-b border-gray-100"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-stone-50 transition-colors border-b border-stone-100"
       >
         {isStreaming && <span className="streaming-thinking-dot flex-shrink-0" aria-hidden="true" />}
         {expanded ? (
-          <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
         )}
-        <span className="font-medium text-gray-500">{title}</span>
+        <span className="font-medium text-stone-500" aria-live="polite">{title}</span>
       </button>
       <div
         className={cn(
@@ -79,7 +79,7 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
         <div
           ref={scrollRef}
           onScroll={handleInnerScroll}
-          className="px-3 pb-3 text-[13px] text-gray-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto max-h-[500px]"
+          className="px-3 pb-3 text-[13px] text-stone-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto max-h-[500px]"
         >
           <div className="pt-2">
             {renderInlineCode(content)}

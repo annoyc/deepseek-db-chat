@@ -49,7 +49,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
     <>
       <aside
         className={cn(
-          'app-sidebar h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
+          'app-sidebar h-full flex flex-col border-r border-sidebar-border transition-all duration-300 cursor-default select-none',
           collapsed ? 'w-15' : 'w-[272px]',
         )}
       >
@@ -73,6 +73,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
               onClick={() => setShowAddDialog(true)}
               className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
               title="添加数据库连接"
+              aria-label="添加数据库连接"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -90,7 +91,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             {!collapsed && (
               <>
                 <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">数据库连接</span>
-                <span className="rounded-full bg-stone-200/70 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-stone-500">{connections.length}</span>
+                <span className="rounded-full bg-stone-200/70 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-stone-500">{connections.length}</span>
                 <div className={cn(
                   'transition-transform duration-200',
                   dbSectionCollapsed ? '-rotate-90' : ''
@@ -140,9 +141,11 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             </div>
             {!collapsed && (
               <button
+                data-drawer-close
                 onClick={(e) => { e.stopPropagation(); createNewSession() }}
                 className="rounded-md p-0.5 text-stone-500 transition-colors hover:bg-primary/10 hover:text-primary"
                 title="新对话"
+                aria-label="新对话"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -196,6 +199,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
                 onClick={() => setShowApiKeyDialog(true)}
                 className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
                 title="设置"
+                aria-label="设置"
               >
                 <Settings className="w-3.5 h-3.5" />
               </button>
@@ -203,6 +207,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
                 onClick={onToggleCollapse}
                 className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
                 title="展开侧边栏"
+                aria-label="展开侧边栏"
               >
                 <PanelLeftOpen className="w-3.5 h-3.5" />
               </button>

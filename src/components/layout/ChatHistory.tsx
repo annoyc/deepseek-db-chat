@@ -6,6 +6,7 @@ import { useDatabaseStore } from '@/hooks/useDatabase'
 import { getChatSessionActivity, getSessionActivityLabel } from '@/lib/session-activity'
 import type { DbEnv } from '@/lib/types'
 import { SessionLoadingIndicator } from './SessionLoadingIndicator'
+import { ConfirmDialog } from '@/components/ui/modal'
 
 export function ChatHistory() {
   const { sessions, activeSessionId, streamingSessionId, setActiveSession, deleteSession, renameSession } = useChatStore()
@@ -120,7 +121,7 @@ export function ChatHistory() {
         if (!groupSessions || groupSessions.length === 0) return null
         return (
           <div key={group}>
-            <div className="px-3 pt-2.5 pb-0.5 text-[10px] font-semibold text-stone-400 uppercase tracking-[0.14em]">
+            <div className="px-3 pt-2.5 pb-0.5 text-[11px] font-semibold text-stone-400 uppercase tracking-[0.14em]">
               {timeGroupLabels[group]}
             </div>
             <div className="space-y-0.5">
@@ -136,7 +137,7 @@ export function ChatHistory() {
                   <div
                     key={session.id}
                     className={cn(
-                      'group relative flex items-center rounded-xl border px-3 py-2 text-xs transition-all duration-200 cursor-pointer',
+                      'group relative flex items-center rounded-xl border px-3 py-2 text-xs transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
                       isActive
                         ? 'bg-white text-primary border-primary/25 shadow-sm'
                         : 'text-stone-600 hover:bg-white/70 hover:text-stone-900 border-transparent',
@@ -144,8 +145,19 @@ export function ChatHistory() {
                       activityState === 'waiting' && 'border-amber-300/70 text-amber-700 shadow-[0_8px_24px_rgba(245,158,11,0.08)]',
                     )}
                     title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
+                    role="button"
+                    tabIndex={0}
+                    data-drawer-close
+                    aria-current={isActive ? 'true' : undefined}
                     onClick={() => {
                       if (!isRenaming) setActiveSession(session.id)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget || isRenaming) return
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setActiveSession(session.id)
+                      }
                     }}
                   >
                     {/* Main content */}
@@ -194,7 +206,7 @@ export function ChatHistory() {
                         <div className="flex items-center gap-1.5 min-w-0">
                           {connInfo.name && (
                             <span className={cn(
-                              'inline-flex px-1 py-0 text-[10px] leading-[14px] rounded border font-semibold flex-shrink-0',
+                              'inline-flex px-1 py-0 text-[11px] leading-[14px] rounded border font-semibold flex-shrink-0',
                               envConfig[connInfo.env as DbEnv]?.color,
                               envConfig[connInfo.env as DbEnv]?.bg,
                             )}>
@@ -202,12 +214,12 @@ export function ChatHistory() {
                             </span>
                           )}
                           {connInfo.name && (
-                            <span className="text-[10px] text-stone-400 truncate min-w-0" title={connInfo.name}>
+                            <span className="text-[11px] text-stone-400 truncate min-w-0" title={connInfo.name}>
                               {connInfo.name}
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-stone-400 flex-shrink-0">
+                        <span className="text-[11px] text-stone-400 flex-shrink-0">
                           {getRelativeTime(session.updatedAt)}
                         </span>
                       </div>
@@ -215,18 +227,20 @@ export function ChatHistory() {
 
                     {/* Actions on hover — positioned absolutely to not occupy layout space */}
                     {!isRenaming && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-lg bg-white/95 p-0.5 opacity-0 shadow-sm ring-1 ring-stone-200/80 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <button
                           onClick={(e) => { e.stopPropagation(); startRename(session) }}
-                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-primary transition-colors"
+                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary"
                           title="重命名"
+                          aria-label={`重命名对话：${session.title}`}
                         >
                           <PencilLine className="w-3 h-3" />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id) }}
-                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-red-600 transition-colors"
+                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-red-600 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
                           title="删除对话"
+                          aria-label={`删除对话：${session.title}`}
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -241,37 +255,14 @@ export function ChatHistory() {
       })}
 
       {/* Delete confirmation dialog */}
-      {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
-            <div className="flex items-center justify-between p-5 pb-2">
-              <h2 className="text-lg font-bold text-gray-900">确认删除</h2>
-              <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="px-5 pb-5 space-y-4">
-              <p className="text-sm text-gray-600">
-                删除后该对话记录将无法恢复，确定要删除吗？
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  onClick={() => setConfirmDeleteId(null)}
-                  className="px-6 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={() => handleDelete(confirmDeleteId)}
-                  className="px-6 py-2.5 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors"
-                >
-                  删除
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="确认删除"
+        description="删除后该对话记录将无法恢复，确定要删除吗？"
+        confirmLabel="删除"
+        onConfirm={() => { if (confirmDeleteId) handleDelete(confirmDeleteId) }}
+        onClose={() => setConfirmDeleteId(null)}
+      />
     </div>
   )
 }
