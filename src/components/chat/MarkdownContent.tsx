@@ -47,16 +47,16 @@ function BlockPre({ text, variant }: { text: string; variant: 'diagram' | 'code'
         label="复制代码"
         className={
           isDiagram
-            ? 'absolute right-1.5 top-1.5 z-10 bg-white/90 opacity-0 shadow-sm ring-1 ring-gray-200 transition-opacity focus-visible:opacity-100 group-hover/code:opacity-100'
-            : 'absolute right-1.5 top-1.5 z-10 bg-gray-800/90 text-gray-300 opacity-0 transition-opacity hover:bg-gray-700 hover:text-white focus-visible:opacity-100 group-hover/code:opacity-100'
+            ? 'absolute right-1.5 top-1.5 z-10 bg-white/90 opacity-0 shadow-sm ring-1 ring-stone-200 transition-opacity focus-visible:opacity-100 group-hover/code:opacity-100'
+            : 'absolute right-1.5 top-1.5 z-10 bg-stone-800/90 text-stone-300 opacity-0 transition-opacity hover:bg-stone-700 hover:text-white focus-visible:opacity-100 group-hover/code:opacity-100'
         }
       />
       <div className="w-full max-w-full overflow-x-auto">
       <pre
         className={
           isDiagram
-            ? 'text-[10px] font-mono text-gray-800 bg-gray-50 border border-gray-200 rounded-lg p-3 whitespace-pre leading-relaxed inline-block min-w-full'
-            : 'bg-gray-900 text-gray-100 rounded-lg p-3 text-xs whitespace-pre inline-block min-w-full'
+            ? 'text-[11px] font-mono text-stone-800 bg-stone-50 border border-stone-200 rounded-lg p-3 whitespace-pre leading-relaxed inline-block min-w-full'
+            : 'bg-stone-900 text-stone-100 rounded-lg p-3 text-xs whitespace-pre inline-block min-w-full'
         }
       >
         {text}
@@ -81,9 +81,8 @@ function renderWithTrend(children: ReactNode): ReactNode {
       parts.push(children.slice(lastIdx, match.index))
     }
     const text = match[0]
-    const isUp = text.includes('↑')
     parts.push(
-      <span key={match.index} className={isUp ? 'text-primary font-medium' : 'text-red-500 font-medium'}>
+      <span key={match.index} className="font-semibold text-stone-900 tabular-nums">
         {text}
       </span>
     )
@@ -97,18 +96,18 @@ function renderWithTrend(children: ReactNode): ReactNode {
 
 export function MarkdownContent({ content, isStreaming = false }: MarkdownContentProps) {
   return (
-    <div className={`px-2 min-w-0 w-full max-w-full text-gray-800 animate-in fade-in duration-300 ${isStreaming ? 'streaming-markdown' : ''}`}>
+    <div className={`px-2 min-w-0 w-full max-w-full text-stone-800 animate-in fade-in duration-300 ${isStreaming ? 'streaming-markdown' : ''}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           h1: ({ children }) => (
-            <h1 className="text-lg font-bold text-gray-900 mt-4 mb-2">{children}</h1>
+            <h1 className="text-lg font-bold text-stone-900 mt-4 mb-2">{children}</h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-base font-bold text-gray-900 mt-3 mb-2">{children}</h2>
+            <h2 className="text-base font-bold text-stone-900 mt-3 mb-2">{children}</h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-sm font-bold text-gray-900 mt-3 mb-1.5">{children}</h3>
+            <h3 className="text-sm font-bold text-stone-900 mt-3 mb-1.5">{children}</h3>
           ),
           p: ({ children }) => (
             <p className="text-sm leading-relaxed mb-2 last:mb-0">{renderWithTrend(children)}</p>
@@ -117,25 +116,25 @@ export function MarkdownContent({ content, isStreaming = false }: MarkdownConten
             const text = extractText(children)
             const isMetric = /^[\d,.%¥$€↑↓+\-\s]+$/.test(text.trim())
             return (
-              <strong className={isMetric ? 'font-bold text-primary' : 'font-bold text-gray-900'}>
+              <strong className={isMetric ? 'font-bold text-primary' : 'font-bold text-stone-900'}>
                 {children}
               </strong>
             )
           },
           ul: ({ children }) => (
-            <ul className="list-disc list-inside text-sm space-y-1 mb-2">{children}</ul>
+            <ul className="list-disc list-outside pl-5 text-sm space-y-1 mb-2 marker:text-stone-400">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-inside text-sm space-y-1 mb-2">{children}</ol>
+            <ol className="list-decimal list-outside pl-5 text-sm space-y-1 mb-2 marker:text-stone-500">{children}</ol>
           ),
           li: ({ children }) => (
-            <li className="text-sm text-gray-700">{children}</li>
+            <li className="text-sm leading-relaxed text-stone-700 pl-0.5">{children}</li>
           ),
           code: ({ className, children, node }) => {
             const text = extractCodeText(node, children)
             if (!isBlockCode(className, text)) {
               return (
-                <code className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-xs font-mono">
+                <code className="bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded text-xs font-mono">
                   {children}
                 </code>
               )
@@ -146,32 +145,24 @@ export function MarkdownContent({ content, isStreaming = false }: MarkdownConten
           pre: ({ children }) => <>{children}</>,
           table: ({ children }) => (
             <div className="not-prose overflow-x-auto my-2 w-full max-w-full min-w-0">
-              <table className="w-full text-xs border border-gray-400">{children}</table>
+              <table className="w-full text-xs border border-stone-200 [&_tbody_tr:nth-child(even)]:bg-stone-50/60">{children}</table>
             </div>
           ),
-          thead: ({ children }) => <thead className="bg-gray-50/60">{children}</thead>,
-          tr: ({ children, ...props }) => {
-            const node = (props as { node?: { position?: { start?: { line?: number } } } }).node
-            const line = node?.position?.start?.line ?? 0
-            return (
-              <tr className={line % 2 === 0 ? 'bg-gray-50/30' : ''}>
-                {children}
-              </tr>
-            )
-          },
+          thead: ({ children }) => <thead className="bg-stone-100/70">{children}</thead>,
+          tr: ({ children }) => <tr>{children}</tr>,
           th: ({ children }) => (
-            <th className="px-3 py-2 text-left font-semibold text-gray-700 border border-gray-400 bg-transparent whitespace-nowrap">
+            <th className="px-3 py-2 text-left font-semibold text-stone-700 border border-stone-200 bg-transparent whitespace-nowrap">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-3 py-1.5 text-gray-700 border border-gray-400 bg-transparent whitespace-nowrap">
+            <td className="px-3 py-1.5 text-stone-700 border border-stone-200 bg-transparent whitespace-nowrap">
               {children}
             </td>
           ),
-          hr: () => <hr className="my-3 border-gray-200" />,
+          hr: () => <hr className="my-3 border-stone-200" />,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-3 border-primary pl-3 my-2 text-sm text-gray-600 italic">
+            <blockquote className="border-l-3 border-primary pl-3 my-2 text-sm text-stone-600 italic">
               {children}
             </blockquote>
           ),

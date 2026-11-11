@@ -60,18 +60,18 @@ export function ConfirmDialog({ open, title, description, confirmLabel, cancelLa
   return (
     <Modal open={open} onClose={onClose}>
       <div className="flex items-center justify-between p-5 pb-2">
-        <ModalTitle className="text-lg font-bold text-gray-900">{title}</ModalTitle>
-        <button onClick={onClose} aria-label="关闭" className="rounded-lg p-1.5 transition-colors hover:bg-gray-100">
-          <X className="h-5 w-5 text-gray-500" />
+        <ModalTitle className="text-lg font-bold text-stone-900">{title}</ModalTitle>
+        <button onClick={onClose} aria-label="关闭" className="rounded-lg p-1.5 transition-colors hover:bg-stone-100">
+          <X className="h-5 w-5 text-stone-500" />
         </button>
       </div>
       <div className="space-y-4 px-5 pb-5">
-        <div className="text-sm text-gray-600">{description}</div>
+        <div className="text-sm text-stone-600">{description}</div>
         <div className="flex justify-end gap-3 pt-2">
           <button
             autoFocus
             onClick={onClose}
-            className="rounded-xl border border-gray-300 px-6 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="rounded-xl border border-stone-300 px-6 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {cancelLabel}
           </button>

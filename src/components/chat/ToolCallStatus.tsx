@@ -39,11 +39,11 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
 
   const borderClass = toolCall.status === 'calling'
     ? 'border border-amber-200'
-    : toolCall.status === 'error' ? 'border border-red-200' : 'border border-gray-200'
+    : toolCall.status === 'error' ? 'border border-red-200' : 'border border-stone-200'
 
   const headerBorderClass = toolCall.status === 'calling'
     ? 'border-b border-b-amber-100 bg-amber-50/50'
-    : 'border-b border-b-gray-100'
+    : 'border-b border-b-stone-100'
 
   return (
     <div className={`${borderClass} rounded-xl overflow-hidden bg-white`}>
@@ -52,17 +52,17 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
         className={cn(
           'w-full flex items-center gap-1.5 px-3 py-2 transition-colors',
           headerBorderClass,
-          showCollapse && 'hover:bg-gray-50',
+          showCollapse && 'hover:bg-stone-50',
         )}
       >
         {showCollapse && (
           expanded
-            ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            : <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            ? <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+            : <ChevronRight className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
         )}
         <StatusIcon status={toolCall.status} />
-        <span className="text-[13px] font-semibold text-gray-800">{label}</span>
-        <StatusBadge status={toolCall.status} />
+        <span className="text-[13px] font-semibold text-stone-800">{label}</span>
+        <span role="status" className="inline-flex"><StatusBadge status={toolCall.status} /></span>
       </button>
 
       <div
@@ -76,8 +76,8 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {Object.entries(toolCall.args).map(([key, value]) => (
                 <div key={key} className="flex items-center gap-1.5 text-[13px]">
-                  <span className="text-gray-500">{paramLabels[key] ?? key}:</span>
-                  <span className="border border-gray-200 rounded px-2 py-0.5 text-gray-700 font-mono text-xs bg-gray-50">
+                  <span className="text-stone-500">{paramLabels[key] ?? key}:</span>
+                  <span className="border border-stone-200 rounded px-2 py-0.5 text-stone-700 font-mono text-xs bg-stone-50">
                     {formatValue(value)}
                   </span>
                 </div>
@@ -86,20 +86,20 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
           )}
 
           {toolCall.status === 'calling' && (
-            <div className="border-t border-gray-100 pt-2 mt-2 space-y-1.5">
-              <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
-              <div className="h-3 w-1/2 bg-gray-200 rounded animate-pulse" />
+            <div className="border-t border-stone-100 pt-2 mt-2 space-y-1.5">
+              <div className="h-3 w-3/4 bg-stone-200 rounded animate-pulse" />
+              <div className="h-3 w-1/2 bg-stone-200 rounded animate-pulse" />
             </div>
           )}
 
           {hasError && toolCall.error && (
-            <div className="text-[13px] text-red-600 border-t border-gray-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
+            <div className="text-[13px] text-red-600 border-t border-stone-100 pt-2 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed">
               {toolCall.error}
             </div>
           )}
 
           {hasResult && (
-            <div className={cn('text-[13px] text-gray-500 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed', Object.entries(toolCall.args).length > 0 && 'border-t border-gray-100 pt-2')}>
+            <div className={cn('text-[13px] text-stone-500 mt-2 whitespace-pre-wrap break-all max-h-40 overflow-y-auto leading-relaxed', Object.entries(toolCall.args).length > 0 && 'border-t border-stone-100 pt-2')}>
               {isEmptyResult ? '无数据' : truncateResult(toolCall.result!)}
             </div>
           )}

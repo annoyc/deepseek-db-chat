@@ -79,7 +79,7 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
             >
               <PanelRight className="w-4 h-4" />
               <span>数据面板</span>
-              <span className="rounded-full bg-primary px-1.5 text-[11px] leading-4 text-white">{vizCount}</span>
+              <span className="rounded-full bg-primary px-1.5 text-xs leading-4 text-white">{vizCount}</span>
             </button>
           )}
           <button

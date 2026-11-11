@@ -111,7 +111,7 @@ function UserMessage({ content }: { content: string }) {
   return (
     <div className="group flex items-center justify-end gap-1.5">
       <CopyButton text={content} label="复制问题" className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
-      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
@@ -205,7 +205,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 <Brain className="h-3.5 w-3.5" />
                 Knowledge Copilot
               </div>
@@ -432,9 +432,9 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                 }
               }}
               disabled={isStreaming || historyUnavailable}
-              rows={2}
+              rows={1}
               placeholder={historyUnavailable ? historyHint : '输入关于电力市场、省电、售电、交易规则的问题...'}
-              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
+              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
             />
 
             <div className="flex items-center justify-between gap-3 p-3 pt-0">
@@ -483,6 +483,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                   onClick={stopStreaming}
                   className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
                   title="停止生成"
+                  aria-label="停止生成"
                 >
                   <Square className="h-4 w-4" fill="currentColor" />
                 </button>
@@ -497,6 +498,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                       : 'bg-stone-200 text-stone-400',
                   )}
                   title="发送"
+                  aria-label="发送"
                 >
                   <ArrowUp className="h-5 w-5" />
                 </button>

@@ -55,7 +55,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
                 <DatabaseZap className="h-3.5 w-3.5" />
                 SQL Copilot
               </div>

@@ -18,8 +18,8 @@ export function DatabaseList() {
         ? 'bg-yellow-500 animate-pulse-dot'
         : connectionStatus === 'success'
           ? 'bg-green-500'
-          : 'bg-gray-300'
-    : 'bg-gray-300'
+          : 'bg-stone-300'
+    : 'bg-stone-300'
 
   if (connections.length === 0) {
     return (
@@ -72,23 +72,23 @@ export function DatabaseList() {
               <div className="flex items-center gap-1.5 mb-0.5">
                 <div className={cn(
                   'w-2 h-2 rounded-full flex-shrink-0',
-                  isActive ? dotColor : 'bg-gray-300'
+                  isActive ? dotColor : 'bg-stone-300'
                 )} />
                   <span className="truncate font-semibold">{conn.name}</span>
                 {isDemo && <LockKeyhole className="h-3 w-3 shrink-0 text-primary/70" aria-label="内置演示连接，不可编辑或删除" />}
                 {!isDemo && envInfo.label && (
                   <span className={cn(
-                    'inline-flex px-1 py-0 text-[10px] leading-[13px] rounded border font-medium flex-shrink-0',
+                    'inline-flex px-1 py-0 text-[11px] leading-[13px] rounded border font-medium flex-shrink-0',
                     envInfo.color, envInfo.bg
                   )}>
                     {envInfo.label}
                   </span>
                 )}
               </div>
-              <div className="text-[10px] text-stone-400 truncate ml-[14px]">
+              <div className="text-[11px] text-stone-400 truncate ml-[14px]">
                 {subInfo}
               </div>
-              {isDemo && <div className="ml-[14px] mt-1 text-[10px] font-medium text-primary/75">内置演示 · 只读</div>}
+              {isDemo && <div className="ml-[14px] mt-1 text-[11px] font-medium text-primary/75">内置演示 · 只读</div>}
             </div>
 
             {/* Actions on hover — positioned absolutely to not occupy layout space */}
@@ -114,8 +114,8 @@ export function DatabaseList() {
         )
       })}
 
-      {connectionsLoadError && <p role="alert" className="px-3 py-2 text-[10px] leading-relaxed text-amber-700">{connectionsLoadError}</p>}
-      {connectionStatus === 'error' && connectionError && <p role="alert" className="px-3 py-2 text-[10px] leading-relaxed text-red-600">{connectionError}</p>}
+      {connectionsLoadError && <p role="alert" className="px-3 py-2 text-[11px] leading-relaxed text-amber-700">{connectionsLoadError}</p>}
+      {connectionStatus === 'error' && connectionError && <p role="alert" className="px-3 py-2 text-[11px] leading-relaxed text-red-600">{connectionError}</p>}
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog

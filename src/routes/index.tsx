@@ -1,16 +1,8 @@
-import { useEffect } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
+// Redirect while routing, so the workbench renders directly instead of after a blank frame.
 export const Route = createFileRoute('/')({
-  component: WorkbenchIndexRedirect,
+  beforeLoad: () => {
+    throw redirect({ to: '/dbpilot', replace: true })
+  },
 })
-
-function WorkbenchIndexRedirect() {
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    navigate({ to: '/dbpilot', replace: true })
-  }, [navigate])
-
-  return null
-}

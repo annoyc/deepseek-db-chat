@@ -29,9 +29,9 @@ export function BrandHeader({ collapsed, onToggleCollapse }: BrandHeaderProps) {
           <div className="min-w-0">
             <div className="flex items-baseline gap-2 leading-none">
               <span className="text-[20px] font-bold tracking-[0.08em] text-[#153E38]">{APP_NAME}</span>
-              <span className="whitespace-nowrap text-[10px] font-medium tracking-wide text-stone-500">AI 工作台</span>
+              <span className="whitespace-nowrap text-[11px] font-medium tracking-wide text-stone-500">AI 工作台</span>
             </div>
-            <p className="mt-1.5 whitespace-nowrap text-[11px] leading-4 tracking-[0.025em] text-stone-500">{APP_TAGLINE}</p>
+            <p className="mt-1.5 whitespace-nowrap text-xs leading-4 tracking-[0.025em] text-stone-500">{APP_TAGLINE}</p>
           </div>
         )}
       </div>

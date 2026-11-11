@@ -109,3 +109,42 @@ export function formatResultAxisTick(value: unknown): string {
   // Ratios and other small values keep their decimals; only large numbers are abbreviated.
   return Math.abs(number) < 1000 ? String(Number(number.toFixed(2))) : axisTickFormat.format(number)
 }
+
+/** Identifiers, codes and years are numbers by type only; grouping or aligning them misreads them. */
+const CODE_COLUMN = /(^|_)(id|no|code|uuid|key|zip|phone|mobile|year)$|^(id|year)(_|$)|编号|编码|号码|电话|手机|邮编|年份|^年$/i
+const PLAIN_DECIMAL = /^-?(0|[1-9]\d*)(\.\d+)?$/
+
+function groupThousands(text: string): string {
+  const [integer, fraction] = text.split('.')
+  // Four-digit values (often years) read better ungrouped.
+  const grouped = integer.replace('-', '').length >= 5 ? integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : integer
+  return fraction === undefined ? grouped : `${grouped}.${fraction}`
+}
+
+/**
+ * Display form of a numeric cell, or null when the value should be shown as stored.
+ * Decimal strings keep every digit; only float artefacts such as 0.30000000000000004 are trimmed.
+ */
+export function formatResultCellNumber(value: unknown, column: string): string | null {
+  if (CODE_COLUMN.test(column)) return null
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return PLAIN_DECIMAL.test(text) ? groupThousands(text) : null
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null
+  const text = String(Number(value.toPrecision(15)))
+  return PLAIN_DECIMAL.test(text) ? groupThousands(text) : text
+}
+
+/** Measures are right-aligned so digits line up; identifiers and mixed columns are not. */
+export function isNumericResultColumn(rows: ResultRow[], column: string): boolean {
+  if (CODE_COLUMN.test(column)) return false
+  let seen = false
+  for (const row of rows) {
+    const value = row[column]
+    if (value === null || value === undefined) continue
+    if (formatResultCellNumber(value, column) === null) return false
+    seen = true
+  }
+  return seen
+}

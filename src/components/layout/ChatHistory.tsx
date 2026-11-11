@@ -121,7 +121,7 @@ export function ChatHistory() {
         if (!groupSessions || groupSessions.length === 0) return null
         return (
           <div key={group}>
-            <div className="px-3 pt-2.5 pb-0.5 text-[10px] font-semibold text-stone-400 uppercase tracking-[0.14em]">
+            <div className="px-3 pt-2.5 pb-0.5 text-[11px] font-semibold text-stone-400 uppercase tracking-[0.14em]">
               {timeGroupLabels[group]}
             </div>
             <div className="space-y-0.5">
@@ -206,7 +206,7 @@ export function ChatHistory() {
                         <div className="flex items-center gap-1.5 min-w-0">
                           {connInfo.name && (
                             <span className={cn(
-                              'inline-flex px-1 py-0 text-[10px] leading-[14px] rounded border font-semibold flex-shrink-0',
+                              'inline-flex px-1 py-0 text-[11px] leading-[14px] rounded border font-semibold flex-shrink-0',
                               envConfig[connInfo.env as DbEnv]?.color,
                               envConfig[connInfo.env as DbEnv]?.bg,
                             )}>
@@ -214,12 +214,12 @@ export function ChatHistory() {
                             </span>
                           )}
                           {connInfo.name && (
-                            <span className="text-[10px] text-stone-400 truncate min-w-0" title={connInfo.name}>
+                            <span className="text-[11px] text-stone-400 truncate min-w-0" title={connInfo.name}>
                               {connInfo.name}
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-stone-400 flex-shrink-0">
+                        <span className="text-[11px] text-stone-400 flex-shrink-0">
                           {getRelativeTime(session.updatedAt)}
                         </span>
                       </div>

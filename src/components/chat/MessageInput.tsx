@@ -92,8 +92,8 @@ export function MessageInput() {
             onKeyDown={handleKeyDown}
             placeholder={historyUnavailable ? historyHint : activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
             disabled={!activeConnectionId || historyUnavailable}
-            rows={2}
-            className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-4 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
+            rows={1}
+            className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-3 px-3 pb-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -207,6 +207,7 @@ export function MessageInput() {
                 onClick={stopStreaming}
                 className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
                 title="停止生成"
+                aria-label="停止生成"
               >
                 <Square className="w-4 h-4" fill="currentColor" />
               </button>
@@ -220,6 +221,7 @@ export function MessageInput() {
                     : 'bg-stone-200 text-stone-400 cursor-not-allowed'
                 }`}
                 title="发送"
+                aria-label="发送"
               >
                 <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
               </button>
@@ -238,10 +240,10 @@ export function MessageInput() {
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
                   <AlertTriangle className="h-5 w-5 text-amber-600" />
                 </div>
-                <ModalTitle className="text-base font-semibold text-gray-900">开启写入模式</ModalTitle>
+                <ModalTitle className="text-base font-semibold text-stone-900">开启写入模式</ModalTitle>
               </div>
 
-              <div className="space-y-3 text-sm text-gray-600">
+              <div className="space-y-3 text-sm text-stone-600">
                 <p>开启后，AI 将能够生成并执行以下写操作指令：</p>
                 <div className="flex flex-wrap gap-1.5">
                   {['INSERT', 'UPDATE', 'DELETE', 'REPLACE'].map((cmd) => (
@@ -269,11 +271,11 @@ export function MessageInput() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-6 py-3">
+            <div className="flex items-center justify-end gap-2 border-t border-stone-100 px-6 py-3">
               <button
                 autoFocus
                 onClick={() => setShowSqlWarning(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
               >
                 取消
               </button>

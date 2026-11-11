@@ -17,7 +17,7 @@ function RemoveButton({ confirming, onAsk, onConfirm, onCancel, title }: {
 }) {
   if (confirming) {
     return (
-      <span className="flex flex-shrink-0 items-center gap-1 text-[11px]">
+      <span className="flex flex-shrink-0 items-center gap-1 text-xs">
         <button type="button" onClick={onConfirm} className="rounded px-1.5 py-0.5 font-medium text-red-600 hover:bg-red-50">
           移除
         </button>
@@ -100,7 +100,7 @@ export function KnowledgeDocumentList({
           }}
         />
       </div>
-      <p className="px-2 text-[11px] leading-4 text-stone-400">
+      <p className="px-2 text-xs leading-4 text-stone-400">
         {`PDF、Word、Markdown、TXT，单个不超过 ${formatBytes(limits.maxBytes)}。文件在本浏览器解析和保存，提问时只发送相关片段`}
       </p>
 
@@ -122,7 +122,7 @@ export function KnowledgeDocumentList({
 
       {defaultDocuments.length > 0 && (
         <>
-          <div className="mt-3 flex items-center justify-between px-2 text-[11px] text-stone-500">
+          <div className="mt-3 flex items-center justify-between px-2 text-xs text-stone-500">
             <span className="font-medium">默认文档 · 电力市场规则</span>
             <span className="text-stone-400">{`${activeDefaults}/${defaultDocuments.length} 启用`}</span>
           </div>
@@ -140,7 +140,7 @@ export function KnowledgeDocumentList({
                       >
                         {doc.title}
                       </div>
-                      <div className="flex min-w-0 items-center gap-1 text-[11px] text-stone-400">
+                      <div className="flex min-w-0 items-center gap-1 text-xs text-stone-400">
                         {isRemoved ? (
                           <span>已移除，不参与检索</span>
                         ) : (
@@ -168,8 +168,9 @@ export function KnowledgeDocumentList({
                       <button
                         type="button"
                         onClick={() => onRestoreDefault(doc.id)}
-                        className="flex flex-shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] text-primary hover:bg-primary/10"
+                        className="flex flex-shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-primary hover:bg-primary/10"
                         title="恢复为默认文档"
+                        aria-label="恢复为默认文档"
                       >
                         <RotateCcw className="h-3 w-3" />
                         恢复
@@ -191,11 +192,11 @@ export function KnowledgeDocumentList({
         </>
       )}
 
-      <div className="mt-3 flex items-center justify-between px-2 text-[11px] text-stone-500">
+      <div className="mt-3 flex items-center justify-between px-2 text-xs text-stone-500">
         <span className="font-medium">我上传的</span>
         <span className="text-stone-400">{`${documents.length}/${limits.maxDocuments}`}</span>
       </div>
-      {documents.length === 0 && <p className="px-2 pt-1 text-[11px] text-stone-400">暂无上传的文档</p>}
+      {documents.length === 0 && <p className="px-2 pt-1 text-xs text-stone-400">暂无上传的文档</p>}
       {documents.length > 0 && (
         <ul className="subtle-scrollbar mt-1 max-h-48 space-y-1 overflow-y-auto">
           {documents.map((doc) => (
@@ -204,7 +205,7 @@ export function KnowledgeDocumentList({
                 <FileText className="h-3.5 w-3.5 flex-shrink-0 text-stone-400" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-medium text-stone-700" title={doc.name}>{doc.title}</div>
-                  <div className="text-[11px] text-stone-400">
+                  <div className="text-xs text-stone-400">
                     {`${KIND_LABEL[doc.kind]} · ${formatBytes(doc.size)} · ${doc.chunks.length} 段${doc.embeddingKey ? '' : ' · 关键词检索'}`}
                   </div>
                 </div>

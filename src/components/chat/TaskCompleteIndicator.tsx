@@ -11,16 +11,16 @@ export function TaskCompleteIndicator({ duration, queryCount, modelName }: TaskC
 
   return (
     <div className="flex items-center gap-1.5 pt-0 pb-1 px-1">
-      <Clock className="w-3.5 h-3.5 text-gray-400" />
-      <span className="text-xs text-gray-400">
+      <Clock className="w-3.5 h-3.5 text-stone-400" />
+      <span className="text-xs text-stone-400">
         总耗时 {formatted}
       </span>
-      <span className="text-gray-300">·</span>
-      <span className="text-xs text-gray-400">
+      <span className="text-stone-300">·</span>
+      <span className="text-xs text-stone-400">
         {queryCount}次查询
       </span>
-      <span className="text-gray-300">·</span>
-      <span className="text-xs text-gray-400">
+      <span className="text-stone-300">·</span>
+      <span className="text-xs text-stone-400">
         {modelName}
       </span>
     </div>

@@ -99,7 +99,7 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
           <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', accent)} />
           <span className="text-sm font-medium text-stone-800">{step.title}</span>
           {duration && (
-            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[10px] font-medium text-stone-400">
+            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-400">
               {duration}
             </span>
           )}
@@ -121,7 +121,7 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
           <div className="mt-2 space-y-2">
             {step.detail && (
               <div className="rounded-lg bg-stone-50 p-2.5">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
                   输入
                 </div>
                 <p className="whitespace-pre-wrap text-xs leading-5 text-stone-600">{step.detail}</p>
@@ -129,7 +129,7 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
             )}
             {step.output && (
               <div className="rounded-lg border border-stone-200/70 bg-white p-2.5">
-                <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
                   输出
                 </div>
                 <p className="whitespace-pre-wrap text-xs leading-5 text-stone-600">{step.output}</p>

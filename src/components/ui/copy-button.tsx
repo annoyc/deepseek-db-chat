@@ -36,7 +36,7 @@ export function CopyButton({ text, label = '复制', className, iconClassName = 
       title={currentLabel}
       aria-label={currentLabel}
       className={cn(
-        'inline-flex items-center justify-center rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
+        'inline-flex items-center justify-center rounded-md p-1 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
         className,
       )}
     >

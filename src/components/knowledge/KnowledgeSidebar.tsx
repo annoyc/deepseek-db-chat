@@ -100,6 +100,7 @@ export function KnowledgeSidebar({
               onClick={createNewSession}
               className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
               title="新建问答"
+              aria-label="新建问答"
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
@@ -161,6 +162,7 @@ export function KnowledgeSidebar({
                             onClick={() => setConfirmDeleteId(session.id)}
                             className="rounded-md p-1 text-stone-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
                             title="删除问答"
+                            aria-label="删除问答"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -189,6 +191,7 @@ export function KnowledgeSidebar({
                 onClick={onToggleCollapse}
                 className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800"
                 title="展开侧边栏"
+                aria-label="展开侧边栏"
               >
                 <PanelLeftOpen className="h-3.5 w-3.5" />
               </button>
@@ -200,6 +203,7 @@ export function KnowledgeSidebar({
                 disabled={checkingHealth}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900 disabled:opacity-50"
                 title="只检测知识库服务连接，不生成模型回答"
+                aria-label="只检测知识库服务连接，不生成模型回答"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
                 {checkingHealth ? '正在检测服务...' : '重新检测服务'}
@@ -234,6 +238,7 @@ export function KnowledgeSidebar({
                 onClick={() => setConfirmDeleteId(null)}
                 className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
                 title="关闭"
+                aria-label="关闭"
               >
                 <X className="h-4 w-4" />
               </button>

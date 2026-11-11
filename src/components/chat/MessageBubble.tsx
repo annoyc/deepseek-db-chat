@@ -200,7 +200,7 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
       <div className="group flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
         <CopyButton text={message.content} label="复制问题" className="mt-2 self-start opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
         <div className="max-w-[min(72%,760px)]">
-          <div className="rounded-2xl rounded-tr-md bg-stone-950 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+          <div className="rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
         </div>

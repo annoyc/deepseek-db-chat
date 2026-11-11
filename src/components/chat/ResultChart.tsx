@@ -6,6 +6,7 @@ import {
 import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon } from 'lucide-react'
 import type { SqlResultInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { InfoHint } from '@/components/ui/info-hint'
 import { buildResultChartRows, canUseResultPie, formatResultAxisTick, recommendResultChartType, splitResultChartAxes, toResultNumber } from '@/lib/result-data'
 
 export type ChartType = 'bar' | 'line' | 'pie' | 'area'
@@ -267,7 +268,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     })
   }, [])
 
-  if (!chartData) return <p className="py-4 text-center text-xs text-gray-400">当前结果没有可绘制的数值指标，请查看表格。</p>
+  if (!chartData) return <p className="py-4 text-center text-xs text-stone-400">当前结果没有可绘制的数值指标，请查看表格。</p>
 
   const { data, valueCols, recommended, title } = chartData
   const requestedType = chartType ?? defaultChartType ?? recommended
@@ -302,7 +303,12 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-gray-500 truncate">{title}</span>
+        <div className="flex min-w-0 items-center gap-0.5">
+          <span className="text-xs text-stone-500 truncate">{title}</span>
+          <InfoHint label="图表数据范围">
+            图表覆盖全部已返回的 {data.length} 行，缺失值留空不补零。点击图例可隐藏或显示对应指标。
+          </InfoHint>
+        </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {CHART_TYPE_OPTIONS.map(({ type, icon: Icon, label }) => {
             const disabled = type === 'pie' && pieDisabled
@@ -316,10 +322,10 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
                 className={cn(
                   'p-1.5 rounded transition-colors',
                   activeType === type
-                    ? 'bg-gray-800 text-white'
+                    ? 'bg-stone-800 text-white'
                     : disabled
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                      ? 'text-stone-300 cursor-not-allowed'
+                      : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -329,11 +335,12 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
         </div>
       </div>
 
-      <p className="mb-2 text-[11px] text-gray-400">
-        图表覆盖全部已返回的 {data.length} 行，缺失值留空。
-        {result.truncated && ' 查询结果已达到行数上限，不能代表完整数据。'}
-        {dualAxis && activeType !== 'pie' && ` 指标量级相差较大，已分轴显示：左轴 ${axes.left.join('、')}；右轴 ${axes.right.join('、')}。`}
-      </p>
+      {(result.truncated || (dualAxis && activeType !== 'pie')) && (
+        <p className="mb-2 text-xs text-stone-400">
+          {result.truncated && '查询结果已达到行数上限，图表不能代表完整数据。'}
+          {dualAxis && activeType !== 'pie' && `指标量级相差较大，已分轴显示：左轴 ${axes.left.join('、')}；右轴 ${axes.right.join('、')}。`}
+        </p>
+      )}
 
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
@@ -347,7 +354,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
                 cy="50%"
                 outerRadius={80}
                 label={({ name, percent, x, y, textAnchor }) => (
-                  <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fontSize={10} fill="#666">
+                  <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fontSize={11} fill="#57534e">
                     {String(name).length > 8 ? String(name).slice(0, 7) + '…' : name} {((percent ?? 0) * 100).toFixed(0)}%
                   </text>
                 )}

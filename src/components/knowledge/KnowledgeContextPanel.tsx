@@ -18,7 +18,7 @@ function CitationCard({ citation }: { citation: KnowledgeCitation }) {
           )}
         </div>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span
           className={cn(
             'rounded-full px-1.5 py-0.5',
