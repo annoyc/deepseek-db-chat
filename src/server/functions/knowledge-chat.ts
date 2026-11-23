@@ -7,6 +7,7 @@ import { readKnowledgeStream, requestKnowledgeBackend } from '@/core/client/know
 import { readResponseJson } from '@/core/client/response-body'
 import type { KnowledgeChatInput, KnowledgeHealth, KnowledgeStreamChunk } from '@/lib/knowledge-types'
 import { createRequestModel, resolveAiTarget } from '@/server/ai-credentials'
+import { getActiveTraceId } from '@langfuse/tracing'
 import { withTrace } from '@/server/langfuse'
 import { createServerEmbedder } from '@/server/knowledge/embedding'
 import { loadKnowledgeBase } from '@/server/knowledge/knowledge-base'
@@ -247,6 +248,8 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
           metadata: { provider: data.provider || 'deepseek', model: data.model, stream: true, messageCount: (data.history?.length ?? 0) + 1 },
           tags: ['knowledge', data.answerMode],
         }, async () => {
+          const traceId = getActiveTraceId()
+          if (traceId) emit({ enqueue }, encoder, { type: 'trace', traceId })
           const pipeline = runKnowledgePipeline({
             message: data.message,
             history: data.history ?? [],

@@ -118,6 +118,12 @@ export interface Usage {
    */
   prompt_cache_miss_tokens?: number
   /**
+   * Breakdown of tokens used in the prompt (OpenAI-compatible providers).
+   */
+  prompt_tokens_details?: {
+    cached_tokens?: number
+  }
+  /**
    * Total number of tokens used in the request (prompt + completion).
    */
   total_tokens: number
@@ -130,6 +136,11 @@ export interface Usage {
      */
     reasoning_tokens: number
   }
+  /**
+   * Optional provider-reported monetary cost (e.g. OpenRouter returns USD cost).
+   */
+  cost?: number
+  cost_currency?: string
 }
 
 export interface ChatCompletionChoice {

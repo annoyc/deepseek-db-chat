@@ -1,28 +1,60 @@
 import { Clock } from 'lucide-react'
+import type { TokenUsage } from '@/lib/types'
+import { formatTokenCount, formatUsageCost, formatUsageTooltip } from '@/lib/usage'
 
 interface TaskCompleteIndicatorProps {
   duration: number
   queryCount: number
   modelName: string
+  usage?: TokenUsage
 }
 
-export function TaskCompleteIndicator({ duration, queryCount, modelName }: TaskCompleteIndicatorProps) {
+export function TaskCompleteIndicator({ duration, queryCount, modelName, usage }: TaskCompleteIndicatorProps) {
   const formatted = formatDuration(duration)
+  const hasTokens = Boolean(usage && usage.totalTokens > 0)
+  const hasCost = Boolean(usage && typeof usage.cost === 'number' && Number.isFinite(usage.cost))
+  const usageTooltip = usage && (hasTokens || hasCost) ? formatUsageTooltip(usage) : undefined
 
   return (
-    <div className="flex items-center gap-1.5 pt-0 pb-1 px-1">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0 pb-1 px-1">
       <Clock className="w-3.5 h-3.5 text-stone-400" />
-      <span className="text-xs text-stone-400">
+      <span className="text-xs text-stone-400 tabular-nums">
         总耗时 {formatted}
       </span>
       <span className="text-stone-300">·</span>
-      <span className="text-xs text-stone-400">
+      <span className="text-xs text-stone-400 tabular-nums">
         {queryCount}次查询
       </span>
-      <span className="text-stone-300">·</span>
-      <span className="text-xs text-stone-400">
-        {modelName}
-      </span>
+      {hasTokens && usage && (
+        <>
+          <span className="text-stone-300">·</span>
+          <span
+            className="text-xs text-stone-400 tabular-nums cursor-help decoration-stone-300 hover:text-stone-600"
+            title={usageTooltip}
+          >
+            {formatTokenCount(usage.totalTokens)} tokens
+          </span>
+        </>
+      )}
+      {hasCost && usage && usage.cost !== undefined && (
+        <>
+          <span className="text-stone-300">·</span>
+          <span
+            className="text-xs text-stone-400 tabular-nums cursor-help hover:text-stone-600"
+            title={usageTooltip}
+          >
+            {formatUsageCost(usage.cost, usage.costCurrency)}
+          </span>
+        </>
+      )}
+      {modelName && (
+        <>
+          <span className="text-stone-300">·</span>
+          <span className="text-xs text-stone-400">
+            {modelName}
+          </span>
+        </>
+      )}
     </div>
   )
 }

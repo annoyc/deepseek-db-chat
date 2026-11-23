@@ -162,6 +162,7 @@ export interface SuspendStreamEvent {
   type: 'suspend'
   step: number
   state: AgentSuspendedState
+  usage?: Usage
 }
 
 export interface StepStreamEvent {

@@ -21,16 +21,30 @@ export function lastAssistantMsg(messages: ChatMessage[]) {
 }
 
 export function mergeUsage(target: Usage, source: Usage): void {
-  target.completion_tokens += source.completion_tokens
-  target.prompt_tokens += source.prompt_tokens
+  const prompt = source.prompt_tokens ?? 0
+  const completion = source.completion_tokens ?? 0
+  target.completion_tokens += completion
+  target.prompt_tokens += prompt
   target.prompt_cache_hit_tokens = (target.prompt_cache_hit_tokens ?? 0) + (source.prompt_cache_hit_tokens ?? 0)
   target.prompt_cache_miss_tokens = (target.prompt_cache_miss_tokens ?? 0) + (source.prompt_cache_miss_tokens ?? 0)
-  target.total_tokens += source.total_tokens
+  if (source.prompt_tokens_details?.cached_tokens !== undefined) {
+    if (!target.prompt_tokens_details) {
+      target.prompt_tokens_details = { cached_tokens: 0 }
+    }
+    target.prompt_tokens_details.cached_tokens = (target.prompt_tokens_details.cached_tokens ?? 0) + source.prompt_tokens_details.cached_tokens
+  }
+  target.total_tokens += source.total_tokens ?? (prompt + completion)
   if (source.completion_tokens_details) {
     if (!target.completion_tokens_details) {
       target.completion_tokens_details = { reasoning_tokens: 0 }
     }
     target.completion_tokens_details.reasoning_tokens += source.completion_tokens_details.reasoning_tokens ?? 0
+  }
+  if (typeof source.cost === 'number' && Number.isFinite(source.cost) && source.cost >= 0) {
+    target.cost = (target.cost ?? 0) + source.cost
+    if (source.cost_currency && !target.cost_currency) {
+      target.cost_currency = source.cost_currency
+    }
   }
 }
 

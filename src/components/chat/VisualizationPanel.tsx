@@ -54,11 +54,22 @@ function extractVizItems(messages: ChatMessage[]): VizItem[] {
   return items
 }
 
-/** Opens the data panel at one message's query result. Null when no panel is available. */
-export const VizFocusContext = createContext<((messageId: string) => void) | null>(null)
+export interface VizPanelControls {
+  isOpen: boolean
+  activeMessageId: string | null
+  focus: (messageId: string) => void
+  close: () => void
+}
+
+/** Coordinates the data panel's open state and focused query result. Null when no panel is available. */
+export const VizPanelContext = createContext<VizPanelControls | null>(null)
+
+export function useVizPanel() {
+  return useContext(VizPanelContext)
+}
 
 export function useVizFocus() {
-  return useContext(VizFocusContext)
+  return useContext(VizPanelContext)?.focus ?? null
 }
 
 export function VisualizationPanel({ messages, onCollapse, focusRequest, onFocusHandled }: VisualizationPanelProps) {

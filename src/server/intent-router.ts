@@ -9,6 +9,8 @@ import { z } from 'zod'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import type { DeepSeekModel } from '@/core'
 import { parseAndValidate } from '@/core/utils/json-parse'
+import type { TokenUsage } from '@/lib/types'
+import { normalizeModelUsage } from '@/lib/usage'
 
 export type QueryIntent =
   | 'explore_schema'
@@ -26,6 +28,7 @@ export interface IntentClassification {
   routingHint: string
   suggestedTables?: string[]
   skipOverview?: boolean
+  usage?: TokenUsage
 }
 
 const IntentSchema = z.object({
@@ -185,9 +188,10 @@ export async function classifyIntentWithLLM(
       response_format: { type: 'json_object' },
       signal,
     })
+    const usage = normalizeModelUsage(response.usage) ?? undefined
     const result = await parseAndValidate(response.choices[0]?.message.content ?? '', IntentSchema)
     if (!result.success) {
-      return fallbackClassification('classifier returned no structured output')
+      return { ...fallbackClassification('classifier returned no structured output'), ...(usage ? { usage } : {}) }
     }
     const parsed = result.data
 
@@ -200,6 +204,7 @@ export async function classifyIntentWithLLM(
       routingHint: ROUTING_HINTS[parsed.intent as QueryIntent],
       suggestedTables: parsed.suggestedTables ?? [],
       skipOverview: SKIP_OVERVIEW_INTENTS.has(parsed.intent as QueryIntent),
+      ...(usage ? { usage } : {}),
     }
   } catch (err) {
     signal?.throwIfAborted()

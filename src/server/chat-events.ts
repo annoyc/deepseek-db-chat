@@ -1,6 +1,7 @@
 import { parseSuspendedState } from '@/core'
-import type { AgentSuspendedState, ResumeParams, StreamEvent } from '@/core'
+import type { AgentSuspendedState, ResumeParams, StreamEvent, Usage } from '@/core'
 import type { AnalysisReport, StreamChunk, SuggestedFilter } from '@/lib/types'
+import { normalizeModelUsage } from '@/lib/usage'
 
 export interface ChatResumeInput {
   state: unknown
@@ -41,12 +42,15 @@ function parseArgs(raw: string | undefined): Record<string, unknown> {
 export function createChatEventMapper() {
   const argsById = new Map<string, Record<string, unknown>>()
 
-  function onSuspend(state: AgentSuspendedState): StreamChunk[] {
+  function onSuspend(state: AgentSuspendedState, rawUsage?: Usage): StreamChunk[] {
+    const usage = normalizeModelUsage(rawUsage)
+    const usageChunks: StreamChunk[] = usage ? [{ type: 'usage', usage }] : []
     // One confirmation at a time; SQL confirmation takes precedence, as before.
     const call = state.pending.find(c => c.name === 'execute_sql') ?? state.pending.find(c => c.name === 'smart_filter')
     const payload = (call?.payload ?? {}) as Record<string, unknown>
     if (call?.name === 'execute_sql') {
       return [
+        ...usageChunks,
         { type: 'agent-suspended', state, toolCallId: call.toolCallId },
         {
           type: 'sql-confirm',
@@ -60,11 +64,12 @@ export function createChatEventMapper() {
     const filters = Array.isArray(payload.filters) ? payload.filters as SuggestedFilter[] : []
     if (call?.name === 'smart_filter' && filters.length > 0) {
       return [
+        ...usageChunks,
         { type: 'agent-suspended', state, toolCallId: call.toolCallId },
         { type: 'smart-filter-confirm', suggestedFilters: filters },
       ]
     }
-    return [{ type: 'error', message: '筛选参数生成失败，请重试或换一种描述。' }]
+    return [...usageChunks, { type: 'error', message: '筛选参数生成失败，请重试或换一种描述。' }]
   }
 
   return function map(event: StreamEvent): StreamChunk[] {
@@ -97,12 +102,19 @@ export function createChatEventMapper() {
         return chunks
       }
       case 'suspend':
-        return onSuspend(event.state)
-      case 'finish':
+        return onSuspend(event.state, event.usage)
+      case 'finish': {
+        const chunks: StreamChunk[] = []
+        if (!event.suspended) {
+          const usage = normalizeModelUsage(event.usage)
+          if (usage) chunks.push({ type: 'usage', usage })
+        }
         // Tell the user instead of presenting a cut-off answer as complete.
-        return event.finishReason === 'length'
-          ? [{ type: 'error', message: '回复达到模型输出长度上限，内容可能不完整。可以让我继续，或缩小问题范围。' }]
-          : []
+        if (event.finishReason === 'length') {
+          chunks.push({ type: 'error', message: '回复达到模型输出长度上限，内容可能不完整。可以让我继续，或缩小问题范围。' })
+        }
+        return chunks
+      }
       default:
         return []
     }

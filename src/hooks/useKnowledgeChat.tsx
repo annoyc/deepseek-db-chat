@@ -13,6 +13,8 @@ import type {
   KnowledgeToolStep,
 } from '@/lib/knowledge-types'
 import { knowledgeChatStream } from '@/server/functions/knowledge-chat'
+import { submitFeedbackFn } from '@/server/functions/feedback'
+import { findTurnContext, type AnswerFeedback } from '@/lib/message-actions'
 import { useSettings } from './useSettings'
 import { useKnowledgeDocuments } from './useKnowledgeDocuments'
 
@@ -37,6 +39,8 @@ interface KnowledgeChatState {
   createNewSession: () => void
   deleteSession: (id: string) => void
   sendMessage: (content: string) => Promise<void>
+  regenerateMessage: (assistantMessageId: string) => Promise<void>
+  setMessageFeedback: (messageId: string, feedback: AnswerFeedback | null) => void
   stopStreaming: () => void
   clearMessages: () => void
 }
@@ -269,17 +273,15 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     setUseWebSearchState(value)
   }, [useBaseModel])
 
-  const sendMessage = useCallback(async (content: string) => {
-    const trimmed = content.trim()
-    if (!storageLoaded || !trimmed || isStreaming) return
-
-    const sessionId = getOrCreateSession()
+  const streamAssistantReply = useCallback(async (
+    sessionId: string,
+    question: string,
+    priorMessages: KnowledgeMessage[],
+    assistantMessage: KnowledgeMessage,
+    applySessionMessages: (session: KnowledgeSession, now: string) => KnowledgeSession,
+  ) => {
     const now = new Date().toISOString()
 
-    // Prior turns (oldest first) so the backend can resolve references like
-    // "它/那家/第二个" in follow-up questions. Captured before we append the new
-    // user turn + assistant placeholder below.
-    const priorMessages = sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? []
     // Uploaded chunks the previous answer cited keep a follow-up on the same document.
     const carriedUploads = ([...priorMessages].reverse().find((m) => m.role === 'assistant')?.evidence?.citations ?? [])
       .filter((c) => c.source === 'upload' && c.cited)
@@ -289,35 +291,20 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
       .slice(-10)
       .map((m) => ({ role: m.role, content: m.content }))
 
-    const userMessage: KnowledgeMessage = {
-      id: generateId(),
-      role: 'user',
-      content: trimmed,
-      timestamp: now,
-    }
-    const assistantMessage = createAssistantMessage()
-
     setIsStreaming(true)
     const controller = new AbortController()
     abortControllerRef.current = controller
     setSelectedEvidenceMessageId(assistantMessage.id)
 
-    updateSession(sessionId, (s) => ({
-      ...s,
-      title: s.messages.length === 0 ? getTitle(trimmed) : s.title,
-      messages: [...s.messages, userMessage, assistantMessage],
-      updatedAt: now,
-      taskStartTime: Date.now(),
-      taskEndTime: undefined,
-    }))
+    updateSession(sessionId, (s) => applySessionMessages(s, now))
 
     const input: KnowledgeChatInput = {
-      message: trimmed,
+      message: question,
       useWebSearch,
       useBaseModel,
       answerMode,
       history,
-      userChunks: selectCandidates(trimmed, history, carriedUploads),
+      userChunks: selectCandidates(question, history, carriedUploads),
       excludedDefaultIds: removedDefaultIds.length ? removedDefaultIds : undefined,
       ...aiRequest,
     }
@@ -331,6 +318,10 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
           const messages = [...s.messages]
           const last = { ...messages[messages.length - 1] }
           const evidence = last.evidence ?? createEmptyEvidence()
+
+          if (chunk.type === 'trace') {
+            last.traceId = chunk.traceId
+          }
 
           if (chunk.type === 'status') {
             last.statusText = chunk.message
@@ -409,7 +400,69 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         updateSession(sessionId, (s) => ({ ...s, taskEndTime: Date.now() }))
       }
     }
-  }, [storageLoaded, answerMode, getOrCreateSession, isStreaming, updateSession, useBaseModel, useWebSearch, aiRequest, selectCandidates, removedDefaultIds])
+  }, [answerMode, updateSession, useBaseModel, useWebSearch, aiRequest, selectCandidates, removedDefaultIds])
+
+  const sendMessage = useCallback(async (content: string) => {
+    const trimmed = content.trim()
+    if (!storageLoaded || !trimmed || isStreaming) return
+
+    const sessionId = getOrCreateSession()
+    const priorMessages = sessionsRef.current.find((s) => s.id === sessionId)?.messages ?? []
+    const assistantMessage = createAssistantMessage()
+
+    await streamAssistantReply(sessionId, trimmed, priorMessages, assistantMessage, (s, now) => {
+      const userMessage: KnowledgeMessage = {
+        id: generateId(),
+        role: 'user',
+        content: trimmed,
+        timestamp: now,
+      }
+      return {
+        ...s,
+        title: s.messages.length === 0 ? getTitle(trimmed) : s.title,
+        messages: [...s.messages, userMessage, assistantMessage],
+        updatedAt: now,
+        taskStartTime: Date.now(),
+        taskEndTime: undefined,
+      }
+    })
+  }, [storageLoaded, isStreaming, getOrCreateSession, streamAssistantReply])
+
+  const regenerateMessage = useCallback(async (assistantMessageId: string) => {
+    if (!storageLoaded || !activeSessionId || isStreaming) return
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    if (!session) return
+    const turn = findTurnContext(session.messages, assistantMessageId)
+    if (!turn?.userMessage) return
+
+    const priorMessages = session.messages.slice(0, turn.userMessageIndex)
+    const keptPrefix = session.messages.slice(0, turn.userMessageIndex + 1)
+    const assistantMessage = createAssistantMessage()
+
+    await streamAssistantReply(activeSessionId, turn.userMessage.content, priorMessages, assistantMessage, (s, now) => ({
+      ...s,
+      messages: [...keptPrefix, assistantMessage],
+      updatedAt: now,
+      taskStartTime: Date.now(),
+      taskEndTime: undefined,
+    }))
+  }, [storageLoaded, activeSessionId, isStreaming, streamAssistantReply])
+
+  const setMessageFeedback = useCallback((messageId: string, feedback: AnswerFeedback | null) => {
+    if (!activeSessionId) return
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    const target = session?.messages.find((m) => m.id === messageId)
+    if (!target || target.role !== 'assistant') return
+
+    updateSession(activeSessionId, (s) => ({
+      ...s,
+      messages: s.messages.map((m) => (m.id === messageId ? { ...m, feedback: feedback ?? undefined } : m)),
+    }))
+
+    if (target.traceId) {
+      void submitFeedbackFn({ data: { traceId: target.traceId, rating: feedback, source: 'knowledge' } }).catch(() => {})
+    }
+  }, [activeSessionId, updateSession])
 
   const stopStreaming = useCallback(() => {
     abortControllerRef.current?.abort()
@@ -463,6 +516,8 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
     createNewSession,
     deleteSession,
     sendMessage,
+    regenerateMessage,
+    setMessageFeedback,
     stopStreaming,
     clearMessages,
   }

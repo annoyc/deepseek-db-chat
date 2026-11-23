@@ -6,8 +6,13 @@ import { QueryPlanBlock } from './QueryPlanBlock'
 import { SqlConfirmBlock } from './SqlConfirmBlock'
 import { SmartFilterConfirmBlock } from './SmartFilterConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
+import { useVizPanel } from './VisualizationPanel'
 import { useSettings } from '@/hooks/useSettings'
+import { useChatStore } from '@/hooks/useChat'
+import { useDatabaseStore } from '@/hooks/useDatabase'
 import { CopyButton } from '@/components/ui/copy-button'
+import { AnswerActionsBar } from '@/components/ui/answer-actions'
+import { buildExportFilename, buildMarkdownExport, downloadMarkdownFile } from '@/lib/message-actions'
 
 /** The answer as the user reads it: prose only, without thinking or tool output. */
 function getAnswerText(message: ChatMessage): string {
@@ -19,15 +24,56 @@ function getAnswerText(message: ChatMessage): string {
   return message.content.trim()
 }
 
-function AnswerActions({ message, isStreaming }: { message: ChatMessage; isStreaming?: boolean }) {
-  // Short lead-ins before a SQL or filter card are not answers worth copying.
+function AnswerActions({
+  message,
+  isStreaming,
+  questionText,
+  isLatestTurn,
+  vizMessageIds,
+}: {
+  message: ChatMessage
+  isStreaming?: boolean
+  questionText?: string
+  isLatestTurn?: boolean
+  vizMessageIds?: string[]
+}) {
+  const { regenerateMessage, setMessageFeedback, isStreaming: anyStreaming } = useChatStore()
+  const { activeConnectionId } = useDatabaseStore()
+  const vizPanel = useVizPanel()
+
+  // Short lead-ins before a SQL or filter card are not answers worth acting on.
   if (isStreaming || message.sqlConfirm || message.smartFilterConfirm) return null
   const text = getAnswerText(message)
   if (!text) return null
+
+  const latestVizMessageId = vizMessageIds?.[vizMessageIds.length - 1]
+  const vizActive = Boolean(
+    vizPanel?.isOpen && vizPanel.activeMessageId && vizMessageIds?.includes(vizPanel.activeMessageId),
+  )
+
+  const handleExport = () => {
+    const markdown = buildMarkdownExport({
+      question: questionText,
+      answer: text,
+      modelName: message.answerModel,
+      durationMs: message.answerDuration,
+      queryCount: message.answerQueryCount,
+    })
+    downloadMarkdownFile(buildExportFilename(questionText, '数据分析报告'), markdown)
+  }
+
   return (
-    <div className="px-1">
-      <CopyButton text={text} label="复制回答" className="hover:bg-white/80" />
-    </div>
+    <AnswerActionsBar
+      copyText={text}
+      onRegenerate={questionText ? () => void regenerateMessage(message.id) : undefined}
+      regenerateDisabled={anyStreaming || !activeConnectionId}
+      regenerateLabel={isLatestTurn === false ? '从此问题重新生成' : '重新生成'}
+      onExportMarkdown={handleExport}
+      onOpenViz={vizPanel && latestVizMessageId ? () => (vizActive ? vizPanel.close() : vizPanel.focus(latestVizMessageId)) : undefined}
+      vizActive={vizActive}
+      feedback={message.feedback}
+      onFeedback={(rating) => setMessageFeedback(message.id, rating)}
+    />
   )
 }
 
@@ -36,6 +82,9 @@ interface MessageBubbleProps {
   isStreaming?: boolean
   thinkingExpanded?: boolean
   toolCallExpanded?: boolean
+  questionText?: string
+  isLatestTurn?: boolean
+  vizMessageIds?: string[]
 }
 
 function formatStreamingStatus(text?: string) {
@@ -59,7 +108,7 @@ function StreamingIndicator({ text }: { text?: string }) {
 }
 
 
-function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
+function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
@@ -107,7 +156,13 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
-      <AnswerActions message={message} isStreaming={isStreaming} />
+      <AnswerActions
+        message={message}
+        isStreaming={isStreaming}
+        questionText={questionText}
+        isLatestTurn={isLatestTurn}
+        vizMessageIds={vizMessageIds}
+      />
 
       {message.sqlConfirm && (
         <SqlConfirmBlock
@@ -127,7 +182,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
   )
 }
 
-function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded }: MessageBubbleProps) {
+function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query' && tc.name !== 'report_analysis') ?? []
   const planToolCalls = message.toolCalls?.filter((tc) => tc.name === 'plan_query') ?? []
   const hasThinking = Boolean(message.thinking)
@@ -170,7 +225,13 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
-      <AnswerActions message={message} isStreaming={isStreaming} />
+      <AnswerActions
+        message={message}
+        isStreaming={isStreaming}
+        questionText={questionText}
+        isLatestTurn={isLatestTurn}
+        vizMessageIds={vizMessageIds}
+      />
 
       {hasSqlConfirm && (
         <SqlConfirmBlock
@@ -190,7 +251,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
   )
 }
 
-export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const { thinkingCollapseMode, toolCallCollapseMode } = useSettings()
   const thinkingExpanded = thinkingCollapseMode === 'expanded'
   const toolCallExpanded = toolCallCollapseMode === 'expanded'
@@ -220,8 +281,28 @@ export function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
   }
 
   if (message.parts && message.parts.length > 0) {
-    return <AssistantPartsView message={message} isStreaming={isStreaming} thinkingExpanded={thinkingExpanded} toolCallExpanded={toolCallExpanded} />
+    return (
+      <AssistantPartsView
+        message={message}
+        isStreaming={isStreaming}
+        thinkingExpanded={thinkingExpanded}
+        toolCallExpanded={toolCallExpanded}
+        questionText={questionText}
+        isLatestTurn={isLatestTurn}
+        vizMessageIds={vizMessageIds}
+      />
+    )
   }
 
-  return <AssistantLegacyView message={message} isStreaming={isStreaming} thinkingExpanded={thinkingExpanded} toolCallExpanded={toolCallExpanded} />
+  return (
+    <AssistantLegacyView
+      message={message}
+      isStreaming={isStreaming}
+      thinkingExpanded={thinkingExpanded}
+      toolCallExpanded={toolCallExpanded}
+      questionText={questionText}
+      isLatestTurn={isLatestTurn}
+      vizMessageIds={vizMessageIds}
+    />
+  )
 }

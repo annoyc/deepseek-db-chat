@@ -1,8 +1,9 @@
-import type { ToolCallInfo } from './types'
+import type { TokenUsage, ToolCallInfo } from './types'
 
 export interface AnswerCheck {
   hasFakeResult: boolean | null
   status: 'suspected' | 'not_detected' | 'unavailable'
+  usage?: TokenUsage
 }
 
 const METADATA_TOOLS = new Set(['list_tables', 'get_database_overview', 'get_table_schema'])

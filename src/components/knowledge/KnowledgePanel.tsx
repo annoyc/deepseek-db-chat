@@ -9,6 +9,8 @@ import { ToolChainTimeline } from './ToolChainTimeline'
 import { isSubmitKey } from '@/lib/keyboard'
 import { PersistenceNotice } from '@/components/layout/PersistenceNotice'
 import { CopyButton } from '@/components/ui/copy-button'
+import { AnswerActionsBar } from '@/components/ui/answer-actions'
+import { buildExportFilename, buildMarkdownExport, downloadMarkdownFile, findTurnContext, type AnswerFeedback } from '@/lib/message-actions'
 
 interface KnowledgePanelProps {
   contextOpen: boolean
@@ -121,10 +123,20 @@ function UserMessage({ content }: { content: string }) {
 function AssistantMessage({
   message,
   isStreaming,
+  questionText,
+  isLatestTurn,
+  regenerateDisabled,
+  onRegenerate,
+  onFeedback,
   onOpenContext,
 }: {
   message: KnowledgeMessage
   isStreaming: boolean
+  questionText?: string
+  isLatestTurn: boolean
+  regenerateDisabled: boolean
+  onRegenerate?: () => void
+  onFeedback: (rating: AnswerFeedback | null) => void
   onOpenContext: () => void
 }) {
   const evidence = message.evidence
@@ -135,6 +147,15 @@ function AssistantMessage({
   const hasProcessCard =
     (evidence?.toolSteps.length ?? 0) > 0 ||
     (evidence?.progress.length ?? 0) > 0
+
+  const handleExport = () => {
+    const markdown = buildMarkdownExport({
+      question: questionText,
+      answer: message.content,
+      citations: evidence?.citations,
+    })
+    downloadMarkdownFile(buildExportFilename(questionText, '知识问答报告'), markdown)
+  }
 
   return (
     <div className="max-w-[760px] space-y-4">
@@ -154,9 +175,16 @@ function AssistantMessage({
       )}
 
       {message.content && !isStreaming && (
-        <div className="-mt-2 px-1">
-          <CopyButton text={message.content} label="复制回答" className="hover:bg-white/80" />
-        </div>
+        <AnswerActionsBar
+          className="-mt-2"
+          copyText={message.content}
+          onRegenerate={onRegenerate}
+          regenerateDisabled={regenerateDisabled}
+          regenerateLabel={isLatestTurn ? '重新生成' : '从此问题重新生成'}
+          onExportMarkdown={handleExport}
+          feedback={message.feedback}
+          onFeedback={onFeedback}
+        />
       )}
 
       {message.error && (
@@ -262,6 +290,8 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
     isStreaming,
     streamingSessionId,
     sendMessage,
+    regenerateMessage,
+    setMessageFeedback,
     stopStreaming,
     useBaseModel,
     setUseBaseModel,
@@ -394,19 +424,27 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
             className="subtle-scrollbar relative h-full overflow-y-auto px-4 py-5 md:px-[8%] xl:px-[12%]"
           >
             <div className="mx-auto max-w-3xl space-y-8">
-              {messages.map((message) => (
-                <div key={message.id}>
-                  {message.role === 'user' ? (
-                    <UserMessage content={message.content} />
-                  ) : (
-                    <AssistantMessage
-                      message={message}
-                      isStreaming={activeSessionIsStreaming && message.id === lastAssistantId}
-                      onOpenContext={() => openEvidence(message.id)}
-                    />
-                  )}
-                </div>
-              ))}
+              {messages.map((message) => {
+                const turn = message.role === 'assistant' ? findTurnContext(messages, message.id) : null
+                return (
+                  <div key={message.id}>
+                    {message.role === 'user' ? (
+                      <UserMessage content={message.content} />
+                    ) : (
+                      <AssistantMessage
+                        message={message}
+                        isStreaming={activeSessionIsStreaming && message.id === lastAssistantId}
+                        questionText={turn?.userMessage?.content}
+                        isLatestTurn={turn?.isLatestTurn ?? true}
+                        regenerateDisabled={isStreaming || historyUnavailable}
+                        onRegenerate={turn?.userMessage ? () => void regenerateMessage(message.id) : undefined}
+                        onFeedback={(rating) => setMessageFeedback(message.id, rating)}
+                        onOpenContext={() => openEvidence(message.id)}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

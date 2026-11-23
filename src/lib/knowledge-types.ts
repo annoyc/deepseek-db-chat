@@ -79,6 +79,8 @@ export interface KnowledgeMessage {
   statusText?: string
   evidence?: KnowledgeEvidence
   error?: string
+  feedback?: 'up' | 'down'
+  traceId?: string
 }
 
 export interface KnowledgeSession {
@@ -111,6 +113,7 @@ export type KnowledgeStreamChunk =
       webResults?: KnowledgeWebResult[]
       citations?: KnowledgeCitation[]
     }
+  | { type: 'trace'; traceId: string }
   | { type: 'error'; message: string }
   | { type: 'finish' }
 

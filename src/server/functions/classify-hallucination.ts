@@ -3,6 +3,7 @@ import { getRequest } from '@tanstack/react-start/server'
 import { generateText } from '@/core'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
 import { parseAnswerCheck, type AnswerCheck } from '@/lib/answer-check'
+import { normalizeModelUsage } from '@/lib/usage'
 import { withTrace } from '@/server/langfuse'
 
 interface ClassifyInput extends AiRequestConfig {
@@ -53,7 +54,9 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
             signal,
           })
 
-          return parseAnswerCheck(result.text)
+          const check = parseAnswerCheck(result.text)
+          const usage = normalizeModelUsage(result.usage) ?? undefined
+          return usage ? { ...check, usage } : check
         } catch (err) {
           signal.throwIfAborted()
           console.error('[classify] Hallucination classification failed:', err)

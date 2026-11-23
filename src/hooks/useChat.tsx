@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from 'react'
-import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry, FilterValue, SuggestedFilter } from '@/lib/types'
+import type { ChatMessage, ChatSession, StreamChunk, ToolCallInfo, SqlResultInfo, MessagePart, ExecutionLogEntry, FilterValue, SuggestedFilter, TokenUsage } from '@/lib/types'
+import { sumTokenUsage } from '@/lib/usage'
 import { generateId } from '@/lib/utils'
 import { sanitizeModelData } from '@/lib/masking'
 import { formatSqlResultForAI } from '@/lib/analysis-result'
@@ -11,6 +12,8 @@ import { confirmAndExecuteSql } from '@/server/functions/confirm-sql'
 import { classifyHallucination } from '@/server/functions/classify-hallucination'
 import { classifyChartColumns } from '@/server/functions/classify-chart-columns'
 import { generateAiTitle } from '@/server/functions/generate-title'
+import { submitFeedbackFn } from '@/server/functions/feedback'
+import { findTurnContext, trimExecutionLogForPrefix, type AnswerFeedback } from '@/lib/message-actions'
 import { db } from '@/lib/db'
 import { modelLabel } from '@/lib/providers'
 import { useDatabaseStore } from './useDatabase'
@@ -26,6 +29,8 @@ interface StreamingBuffer {
   analysisReport?: unknown
   statusText: string
   errorText: string
+  usage?: TokenUsage
+  traceId?: string
   finished: boolean
 }
 
@@ -105,6 +110,12 @@ function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
     case 'status':
       buffer.statusText = chunk.message
       break
+    case 'usage':
+      buffer.usage = sumTokenUsage([buffer.usage, chunk.usage])
+      break
+    case 'trace':
+      buffer.traceId = chunk.traceId
+      break
     case 'error':
       buffer.errorText += `\n\n错误: ${chunk.message}`
       const lastPart2 = buffer.parts[buffer.parts.length - 1]
@@ -120,13 +131,16 @@ function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
   }
 }
 
-function flushBufferToMessage(msg: ChatMessage, buffer: StreamingBuffer): ChatMessage {
+function flushBufferToMessage(msg: ChatMessage, buffer: StreamingBuffer, priorUsage?: TokenUsage): ChatMessage {
   const updated = { ...msg }
   updated.thinking = buffer.thinking || undefined
   updated.content = buffer.text + buffer.errorText
   updated.toolCalls = buffer.toolCalls.length > 0 ? [...buffer.toolCalls] : updated.toolCalls
   updated.parts = buffer.parts.length > 0 ? [...buffer.parts] : updated.parts
   if (buffer.analysisReport) updated.analysisReport = buffer.analysisReport as ChatMessage['analysisReport']
+  const combinedUsage = sumTokenUsage([priorUsage, buffer.usage])
+  if (combinedUsage) updated.usage = combinedUsage
+  if (buffer.traceId) updated.traceId = buffer.traceId
   updated.statusText = buffer.statusText || undefined
   if (buffer.finished && updated.toolCalls) {
     updated.toolCalls = updated.toolCalls.map((tc) =>
@@ -149,6 +163,8 @@ interface ChatState {
   deleteSession: (id: string) => void
   renameSession: (id: string, title: string) => void
   sendMessage: (content: string) => Promise<void>
+  regenerateMessage: (assistantMessageId: string) => Promise<void>
+  setMessageFeedback: (messageId: string, feedback: AnswerFeedback | null) => void
   stopStreaming: () => void
   clearMessages: () => void
   /** Text a suggestion asked to place in the composer; `nonce` makes repeated picks distinct. */
@@ -428,7 +444,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     setActiveSessionId(newSession.id)
   }, [activeConnectionId, sessions, activeSessionId, storageLoaded])
 
-  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0, isContinuation: boolean = false, resumeFrom?: AgentResumePoint): Promise<boolean> => {
+  const processStream = useCallback(async (sessionId: string, connectionId: string, message: string, history: any[], retryCount: number = 0, isContinuation: boolean = false, resumeFrom?: AgentResumePoint, executionLogOverride?: ExecutionLogEntry[], priorUsage?: TokenUsage): Promise<boolean> => {
     const controller = abortControllerRef.current
     if (!controller || controller.signal.aborted) throw new DOMException('已停止生成', 'AbortError')
     const updateStreamSession = (id: string, updater: (session: ChatSession) => ChatSession) => {
@@ -446,7 +462,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (!connection) throw new Error('数据库连接不存在')
 
     const currentSession = sessionsRef.current.find((s) => s.id === sessionId)
-    const executionLog = currentSession?.executionLog
+    const executionLog = executionLogOverride ?? currentSession?.executionLog
 
     const response = await chatStream({
       signal: controller.signal,
@@ -476,7 +492,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         flushScheduled = false
         updateStreamSession(sessionId, (s) => {
           const messages = [...s.messages]
-          messages[messages.length - 1] = flushBufferToMessage(messages[messages.length - 1], buffer)
+          messages[messages.length - 1] = flushBufferToMessage(messages[messages.length - 1], buffer, priorUsage)
           return { ...s, messages }
         })
       })
@@ -533,7 +549,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     // Final flush: ensure all buffered content is committed
     updateStreamSession(sessionId, (s) => {
       const messages = [...s.messages]
-      const lastMsg = flushBufferToMessage(messages[messages.length - 1], buffer)
+      const lastMsg = flushBufferToMessage(messages[messages.length - 1], buffer, priorUsage)
       // Clean up any tool calls still in 'calling' state
       if (lastMsg.toolCalls) {
         lastMsg.toolCalls = lastMsg.toolCalls.map((tc) =>
@@ -598,6 +614,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         })
 
         controller.signal.throwIfAborted()
+        const accumulatedUsage = sumTokenUsage([priorUsage, buffer.usage, classification.usage])
+        if (classification.usage) {
+          updateStreamSession(sessionId, (s) => {
+            const messages = [...s.messages]
+            const lastMsg = { ...messages[messages.length - 1] }
+            if (accumulatedUsage) lastMsg.usage = accumulatedUsage
+            messages[messages.length - 1] = lastMsg
+            return { ...s, messages }
+          })
+        }
         if (classification.hasFakeResult) {
           updateStreamSession(sessionId, (s) => {
             const messages = [...s.messages]
@@ -605,6 +631,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             lastMsg.content = ''
             lastMsg.parts = []
             lastMsg.toolCalls = []
+            if (accumulatedUsage) lastMsg.usage = accumulatedUsage
             messages[messages.length - 1] = lastMsg
             return { ...s, messages }
           })
@@ -615,7 +642,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             { role: 'assistant' as const, content: assistantContent },
             { role: 'user' as const, content: correctiveMessage },
           ]
-          return await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1, true)
+          return await processStreamRef.current!(sessionId, connectionId, correctiveMessage, newHistory, retryCount + 1, true, undefined, executionLogOverride, accumulatedUsage)
         }
       } catch (err) {
         console.warn('[useChat] SQL classification failed, skipping retry:', err)
@@ -676,11 +703,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
 
       let queryCount = 0
+      const turnUsages: Array<TokenUsage | undefined> = []
       for (let i = lastUserIdx + 1; i < messages.length; i++) {
         if (messages[i].role === 'assistant') {
           queryCount += messages[i].toolCalls?.length ?? 0
+          turnUsages.push(messages[i].usage)
         }
       }
+      const answerUsage = sumTokenUsage(turnUsages)
 
       for (let i = messages.length - 1; i >= 0; i--) {
         if (messages[i].role === 'assistant') {
@@ -689,6 +719,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             answerDuration: duration,
             answerQueryCount: queryCount,
             answerModel: answerModelLabel,
+            ...(answerUsage ? { answerUsage } : {}),
           }
           break
         }
@@ -754,6 +785,86 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [storageLoaded, activeConnectionId, isStreaming, getOrCreateSession, updateSession, processStream, markTaskComplete, generateAiTitleForSession, getFullConnection])
+
+  const regenerateMessage = useCallback(async (assistantMessageId: string) => {
+    if (!storageLoaded || !activeConnectionId || !activeSessionId || isStreaming) return
+
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    if (!session) return
+    const turn = findTurnContext(session.messages, assistantMessageId)
+    if (!turn?.userMessage) return
+
+    const keptPrefix = session.messages.slice(0, turn.userMessageIndex + 1).map(dropAgentState)
+    const priorHistory = buildApiHistory(session.messages.slice(0, turn.userMessageIndex))
+    const trimmedLog = trimExecutionLogForPrefix(session.executionLog, keptPrefix)
+    const assistantMessage = createAssistantMessage()
+
+    lastConfirmedSqlRef.current = null
+    setIsStreaming(true)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    const sessionId = activeSessionId
+    setStreamingSessionId(sessionId)
+
+    updateSession(sessionId, (s) => ({
+      ...s,
+      messages: [...keptPrefix, assistantMessage],
+      executionLog: trimmedLog,
+      updatedAt: new Date().toISOString(),
+      taskStartTime: Date.now(),
+      taskEndTime: undefined,
+    }))
+
+    try {
+      const connection = getFullConnection(activeConnectionId)
+      if (!connection) return
+
+      const hasSqlConfirm = await processStream(
+        sessionId,
+        activeConnectionId,
+        turn.userMessage.content,
+        priorHistory,
+        0,
+        false,
+        undefined,
+        trimmedLog,
+      )
+
+      if (!hasSqlConfirm && !controller.signal.aborted && abortControllerRef.current === controller) {
+        markTaskComplete(sessionId)
+      }
+    } catch (err) {
+      if (controller.signal.aborted || abortControllerRef.current !== controller) return
+      updateSession(sessionId, (s) => {
+        const messages = [...s.messages]
+        const lastMsg = { ...messages[messages.length - 1] }
+        lastMsg.content = `请求失败: ${err instanceof Error ? err.message : '未知错误'}`
+        messages[messages.length - 1] = lastMsg
+        return { ...s, messages }
+      })
+    } finally {
+      if (abortControllerRef.current === controller) {
+        setIsStreaming(false)
+        setStreamingSessionId((current) => (current === sessionId ? null : current))
+      }
+    }
+  }, [storageLoaded, activeConnectionId, activeSessionId, isStreaming, updateSession, processStream, markTaskComplete, getFullConnection])
+
+  const setMessageFeedback = useCallback((messageId: string, feedback: AnswerFeedback | null) => {
+    if (!activeSessionId) return
+    const session = sessionsRef.current.find((s) => s.id === activeSessionId)
+    const target = session?.messages.find((m) => m.id === messageId)
+    if (!target || target.role !== 'assistant') return
+
+    updateSession(activeSessionId, (s) => ({
+      ...s,
+      messages: s.messages.map((m) => (m.id === messageId ? { ...m, feedback: feedback ?? undefined } : m)),
+    }))
+
+    if (target.traceId) {
+      void submitFeedbackFn({ data: { traceId: target.traceId, rating: feedback, source: 'chat' } }).catch(() => {})
+    }
+  }, [activeSessionId, updateSession])
 
   const appendAssistantAndProcess = useCallback(async (
     sessionId: string,
@@ -1181,6 +1292,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     deleteSession,
     renameSession,
     sendMessage,
+    regenerateMessage,
+    setMessageFeedback,
     stopStreaming,
     clearMessages,
     confirmSql,
@@ -1202,6 +1315,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     deleteSession,
     renameSession,
     sendMessage,
+    regenerateMessage,
+    setMessageFeedback,
     stopStreaming,
     clearMessages,
     confirmSql,

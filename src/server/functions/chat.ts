@@ -64,6 +64,9 @@ export const chatStream = createServerFn({ method: 'POST' })
                 baseURL: data.baseURL,
                 thinkingStyle: data.thinkingStyle,
               }, signal)
+              if (intent?.usage) {
+                controller.enqueue(encoder.encode(formatSSE({ type: 'usage', usage: intent.usage })))
+              }
             }
 
             controller.enqueue(encoder.encode(formatSSE({
@@ -118,6 +121,9 @@ export const chatStream = createServerFn({ method: 'POST' })
         if (langfuseSpanProcessor) {
           const userId = resolveUserId()
           await startActiveObservation('chat', async (span) => {
+            if (span.traceId) {
+              controller.enqueue(encoder.encode(formatSSE({ type: 'trace', traceId: span.traceId })))
+            }
             span.update({
               input: traceContent({ message: data.message.slice(0, 500) }),
               metadata: traceMetadata({ provider: data.provider, model: data.model }),

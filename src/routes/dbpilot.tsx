@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { VisualizationPanel, VizFocusContext } from '@/components/chat/VisualizationPanel'
+import { VisualizationPanel, VizPanelContext } from '@/components/chat/VisualizationPanel'
 import { ResizeHandle } from '@/components/layout/ResizeHandle'
 import { SidebarFrame, SidePanelOverlay } from '@/components/layout/ResponsiveFrames'
 import type { AppMode } from '@/components/layout/AppModeSwitch'
@@ -30,21 +30,30 @@ function DbpilotPage() {
   // null follows the default: open beside the chat on wide screens, closed when it would cover the chat.
   const [vizOpenPref, setVizOpenPref] = useState<boolean | null>(null)
   const [focusRequest, setFocusRequest] = useState<{ id: string; nonce: number } | null>(null)
+  const [focusedVizId, setFocusedVizId] = useState<string | null>(null)
   const { activeSession } = useChatStore()
   const activeSessionId = activeSession?.id
 
-  const vizCount = useMemo(() => {
-    return (activeSession?.messages ?? []).filter((m) => m.role === 'assistant' && m.sqlResult).length
-  }, [activeSession?.messages])
+  const vizMessageIds = useMemo(
+    () => (activeSession?.messages ?? []).filter((m) => m.role === 'assistant' && m.sqlResult).map((m) => m.id),
+    [activeSession?.messages],
+  )
+  const vizCount = vizMessageIds.length
+  const latestVizId = vizCount > 0 ? vizMessageIds[vizCount - 1] : null
   const hasVisualization = vizCount > 0
   const showVizPanel = hasVisualization && (vizOpenPref ?? !isNarrow)
 
   useEffect(() => {
     setMobileNavOpen(false)
+    setFocusedVizId(null)
     if (isNarrow) setVizOpenPref(null)
     // Only a session switch should close the overlays, not crossing the breakpoint.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSessionId])
+
+  useEffect(() => {
+    setFocusedVizId(null)
+  }, [vizCount])
 
   const handleAppChange = useCallback((app: AppMode) => {
     navigate({ to: app === 'knowledge' ? '/knowledge' : '/dbpilot' })
@@ -52,11 +61,20 @@ function DbpilotPage() {
 
   const focusVizItem = useCallback((messageId: string) => {
     setVizOpenPref(true)
+    setFocusedVizId(messageId)
     setFocusRequest((prev) => ({ id: messageId, nonce: (prev?.nonce ?? 0) + 1 }))
   }, [])
   const clearFocusRequest = useCallback(() => setFocusRequest(null), [])
   const closeViz = useCallback(() => setVizOpenPref(false), [])
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), [])
+
+  const activeVizId = showVizPanel
+    ? (focusedVizId && vizMessageIds.includes(focusedVizId) ? focusedVizId : latestVizId)
+    : null
+  const vizPanelControls = useMemo(
+    () => ({ isOpen: showVizPanel, activeMessageId: activeVizId, focus: focusVizItem, close: closeViz }),
+    [showVizPanel, activeVizId, focusVizItem, closeViz],
+  )
 
   const sidebarWidth = isMobile ? 0 : sidebarCollapsed ? SIDEBAR_COLLAPSED_W : SIDEBAR_W
   const vizMaxWidth = Math.min(VIZ_MAX_W, Math.max(VIZ_MIN_W, viewportWidth - sidebarWidth - CHAT_MIN_W))
@@ -72,7 +90,7 @@ function DbpilotPage() {
   )
 
   return (
-    <VizFocusContext.Provider value={focusVizItem}>
+    <VizPanelContext.Provider value={vizPanelControls}>
       <div className="app-canvas flex h-dvh">
         <SidebarFrame isMobile={isMobile} open={mobileNavOpen} onClose={closeMobileNav}>
           <Sidebar
@@ -112,6 +130,6 @@ function DbpilotPage() {
           </SidePanelOverlay>
         )}
       </div>
-    </VizFocusContext.Provider>
+    </VizPanelContext.Provider>
   )
 }

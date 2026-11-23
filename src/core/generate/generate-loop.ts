@@ -245,7 +245,7 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
         if (pending.length > 0) {
           // Stop without another model call; the caller resumes with the real results.
           const suspended = { messages: conversationOf(currentMessages), pending }
-          yield { type: 'suspend', step: stepRef.value, state: suspended }
+          yield { type: 'suspend', step: stepRef.value, state: suspended, usage: totalUsage }
           return { text: lastAssistantMsg(currentMessages), output: undefined, usage: totalUsage, suspended }
         }
         continue

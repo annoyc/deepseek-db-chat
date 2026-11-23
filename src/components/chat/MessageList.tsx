@@ -4,6 +4,7 @@ import type { ChatMessage } from '@/lib/types'
 import { MessageBubble } from './MessageBubble'
 import { TaskCompleteIndicator } from './TaskCompleteIndicator'
 import { useChatStore } from '@/hooks/useChat'
+import { findTurnContext } from '@/lib/message-actions'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -62,21 +63,31 @@ export function MessageList({ messages }: MessageListProps) {
     <div className="relative h-full">
     <div ref={containerRef} onScroll={handleScroll} className="subtle-scrollbar relative h-full overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6 lg:px-[6%] 2xl:px-[12%]">
       <div className="mx-auto max-w-4xl space-y-4 2xl:max-w-5xl">
-        {messages.map((message) => (
-          <Fragment key={message.id}>
-            <MessageBubble
-              message={message}
-              isStreaming={isStreaming && message.id === lastAssistantId}
-            />
-            {message.role === 'assistant' && message.answerDuration != null && (
-              <TaskCompleteIndicator
-                duration={message.answerDuration}
-                queryCount={message.answerQueryCount ?? 0}
-                modelName={message.answerModel ?? ''}
+        {messages.map((message) => {
+          const turn = message.role === 'assistant' ? findTurnContext(messages, message.id) : null
+          const turnVizIds = turn
+            ? turn.turnMessages.filter((m) => m.role === 'assistant' && Boolean(m.sqlResult)).map((m) => m.id)
+            : []
+          return (
+            <Fragment key={message.id}>
+              <MessageBubble
+                message={message}
+                isStreaming={isStreaming && message.id === lastAssistantId}
+                questionText={turn?.userMessage?.content}
+                isLatestTurn={turn?.isLatestTurn ?? true}
+                vizMessageIds={turnVizIds.length > 0 ? turnVizIds : undefined}
               />
-            )}
-          </Fragment>
-        ))}
+              {message.role === 'assistant' && message.answerDuration != null && (
+                <TaskCompleteIndicator
+                  duration={message.answerDuration}
+                  queryCount={message.answerQueryCount ?? 0}
+                  modelName={message.answerModel ?? ''}
+                  usage={message.answerUsage}
+                />
+              )}
+            </Fragment>
+          )
+        })}
       </div>
     </div>
     {showScrollToBottom && (

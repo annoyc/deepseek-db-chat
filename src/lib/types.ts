@@ -41,6 +41,17 @@ export type MessagePart =
   | { type: 'tool-call'; toolCallIndex: number }
   | { type: 'text'; content: string }
 
+export interface TokenUsage {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  cachedTokens?: number
+  reasoningTokens?: number
+  /** Provider-reported monetary cost, set only when the API returns it directly. */
+  cost?: number
+  costCurrency?: 'USD' | 'CNY'
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -60,6 +71,12 @@ export interface ChatMessage {
   answerDuration?: number
   answerQueryCount?: number
   answerModel?: string
+  /** Token/cost usage for this single assistant message step. */
+  usage?: TokenUsage
+  /** Whole-turn aggregated token/cost usage stamped on the final assistant message. */
+  answerUsage?: TokenUsage
+  feedback?: 'up' | 'down'
+  traceId?: string
 }
 
 export interface ToolCallInfo {
@@ -165,5 +182,7 @@ export type StreamChunk =
   | { type: 'smart-filter-confirm'; suggestedFilters: SuggestedFilter[] }
   | { type: 'analysis-report'; report: AnalysisReport }
   | { type: 'status'; message: string }
+  | { type: 'usage'; usage: TokenUsage }
+  | { type: 'trace'; traceId: string }
   | { type: 'error'; message: string }
   | { type: 'finish' }
