@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import committedIndex from '../knowledge/kb-index.json'
 import { scoreAnswer, summarizeAnswers, type AnswerOutcome } from '../evals/knowledge/answer'
+import { parseFaithfulnessVerdict } from '../evals/knowledge/judge'
 import { chunkLocators, scoreRetrieval, summarizeRetrieval, unknownGold, type KbEvalCase } from '../evals/knowledge/scorer'
 import { VARIANTS } from '../evals/knowledge/variants'
 import type { KnowledgeCitation } from '../src/lib/knowledge-types'
@@ -76,6 +77,26 @@ test('answer scoring separates refusals, valid citations and citations of gold p
   assert.equal(m.answeredRate, 1)
   assert.equal(m.citedPrecision, 0.5)
   assert.equal(m.outOfScopeRefusalRate, 1)
+})
+
+test('faithfulness judge parsing and answer summary aggregation work on grounded and ungrounded verdicts', () => {
+  const grounded = parseFaithfulnessVerdict('```json\n{"faithful": true, "score": 1, "reason": "完全匹配原文", "unsupportedClaims": []}\n```')
+  assert.deepEqual(grounded, { faithful: true, score: 1, reason: '完全匹配原文', unsupportedClaims: [] })
+  const ungrounded = parseFaithfulnessVerdict('{"faithful": false, "score": 0.5, "reason": "额外推论期限", "unsupportedClaims": ["30日内办结"]}')
+  assert.deepEqual(ungrounded, { faithful: false, score: 0.5, reason: '额外推论期限', unsupportedClaims: ['30日内办结'] })
+
+  const evalCase: KbEvalCase = { id: 'x', category: 'lookup', question: 'q', gold: [['d:第一条']] }
+  const citation = (ref: string, chunkId: string): KnowledgeCitation => ({
+    ref, chunkId, docTitle: 't', locator: '', headings: [], text: '', status: 'active', statusLabel: '', retrievers: ['keyword'], cited: true,
+  })
+  const locate = () => ['d:第一条']
+  const o1: AnswerOutcome = { text: 'ok[1]', citations: [citation('1', 'c1')], citationCheck: { status: 'done' }, modelCalls: 2, latencyMs: 500, faithfulness: grounded }
+  const o2: AnswerOutcome = { text: 'extra[1]', citations: [citation('1', 'c1')], citationCheck: { status: 'done' }, modelCalls: 2, latencyMs: 600, faithfulness: ungrounded }
+  const m = summarizeAnswers([
+    { evalCase, outcome: o1, score: scoreAnswer(evalCase, o1, locate) },
+    { evalCase, outcome: o2, score: scoreAnswer(evalCase, o2, locate) },
+  ])
+  assert.deepEqual(m.faithfulness, { judged: 2, errors: 0, faithfulRate: 0.5, meanScore: 0.75 })
 })
 
 test('baseline retrieval quality does not regress (offline, keyword only)', async () => {

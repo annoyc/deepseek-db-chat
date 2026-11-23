@@ -5,6 +5,12 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 
+const deploySkipReason = process.platform === 'win32'
+  ? 'deploy.sh targets POSIX Linux hosts and requires a POSIX shell'
+  : spawnSync('bash', ['--version'], { stdio: 'ignore' }).error
+    ? 'bash is not available in PATH'
+    : false
+
 // Execute the real deployment script against a fake Docker CLI. Never contact Docker.
 function simulateDeployment(scenario: string) {
   const dir = mkdtempSync(join(tmpdir(), 'dbpilot-deploy-test-'))
@@ -27,11 +33,12 @@ esac
     env: { PATH: `${join(dir, 'bin')}:${process.env.PATH}`, DEPLOY_DIR: dir, SCENARIO: scenario },
   })
   try {
+    if (result.error) throw result.error
     return { status: result.status, calls: readFileSync(join(dir, 'calls.log'), 'utf8'), config: readFileSync(join(dir, '.env'), 'utf8') }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 }
 
-test('deployment builds before replacing the container and retains rollback images', () => {
+test('deployment builds before replacing the container and retains rollback images', { skip: deploySkipReason }, () => {
   const result = simulateDeployment('success')
   assert.equal(result.status, 0)
   assert.ok(result.calls.indexOf('compose build') < result.calls.indexOf('compose up -d --no-build'))
@@ -41,7 +48,7 @@ test('deployment builds before replacing the container and retains rollback imag
   assert.ok(result.config.includes('SQL_WRITE_ENABLED=false'))
 })
 
-test('failed image builds restore configuration without stopping or replacing the running container', () => {
+test('failed image builds restore configuration without stopping or replacing the running container', { skip: deploySkipReason }, () => {
   const result = simulateDeployment('build-failed')
   assert.equal(result.status, 1)
   assert.equal(result.calls.includes('compose up'), false)
@@ -49,7 +56,7 @@ test('failed image builds restore configuration without stopping or replacing th
   assert.equal(result.config, 'PREVIOUS_CONFIGURATION=keep\n')
 })
 
-test('failed health checks attempt rollback to the prior image and configuration', () => {
+test('failed health checks attempt rollback to the prior image and configuration', { skip: deploySkipReason }, () => {
   const result = simulateDeployment('health-failed')
   assert.equal(result.status, 1)
   assert.ok(result.calls.includes('tag sha256:previous db-pilot:latest'))

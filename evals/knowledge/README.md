@@ -8,9 +8,11 @@
 pnpm eval:kb                                        # 离线检索评测：全部离线配置，不需要 API Key
 pnpm eval:kb --variants baseline,rewrite            # 指定配置；rewrite 需要模型密钥
 pnpm eval:kb --variants hybrid                      # 需要先 pnpm kb:ingest --embed，且服务器有向量模型密钥
-pnpm eval:kb --mode answer --provider deepseek --model deepseek-flash   # 端到端回答评测
+pnpm eval:kb --mode answer --provider deepseek --model deepseek-flash --judge   # 端到端回答 + LLM-as-a-Judge 忠实度评测
 pnpm eval:kb --filter paraphrase,followup           # 只跑部分类别或题号前缀
 ```
+
+常用参数：`--concurrency N`（默认 4，控制模型请求并发）、`--judge`（开启忠实度评审，可用 `--judge-provider` / `--judge-model` 指定独立裁判模型）、`--now 2026-10-15`（固定规则有效期计算日期）。
 
 模型密钥从 `.env` 读取（与应用相同的服务器配置）。结果写入 `results/`，包括 JSON 明细和 Markdown 汇总；需要保留的基线命名为 `baseline-*`。
 
@@ -60,16 +62,33 @@ pnpm eval:kb --filter paraphrase,followup           # 只跑部分类别或题�
 | 引用准确率 | 被引用的条款中，属于标准答案的比例 |
 | 要点覆盖率 | 回答引用到的要点比例 |
 | 库外拒答率 | 库外问题被正确拒答 |
+| 忠实度通过率 / 均分 | 开启 `--judge` 时，由 LLM-as-a-Judge 对照相同上下文（含文号、章节路径与有效期标签）核查回答是否忠于原文 |
 | 延迟、模型调用次数 | 性能与成本参考 |
 
-目前还没有"用另一个模型判卷"的忠实度评分，引用准确率只能间接反映回答是否有依据。
+## 当前基线
 
-## 当前基线（离线，仅关键词检索）
+### 1. 检索消融与问题改写对比（89 题，Top 10）
 
-见 `results/baseline-retrieval.md`。主要结论：
+详细数据见 [baseline-retrieval.md](./results/baseline-retrieval.md) 与 [baseline-rewrite.md](./results/baseline-rewrite.md)。
 
-- **门槛**：相关性门槛改为"覆盖率 ≥ 0.2，或命中词 IDF 总和 ≥ 6"后，库内 Hit@5 从 79.7% 提升到 89.9%，库内空检索从 17.7% 降到 6.3%，库外空检索保持 90%。不设门槛时，库外问题只有 20% 能检索为空。
-- **短板**：口语化题 Hit@5 只有 66.7%，追问题只有 60%。这正是向量检索和问题改写要解决的，可以用 `hybrid`、`rewrite` 配置验证。
-- **其他消融**：只用 ICU 分词时，库外误检明显增多。去掉章节路径前缀后，Hit@1 和 MRR 下降。切块大小在这个语料上影响不大。
+| 配置 | Hit@1 | Hit@5 | Recall@10 | 完整@10 | MRR | 库内空检索 ↓ | 库外空检索 ↑ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `coverage-only`（旧门槛） | 68.4% | 79.7% | 79.1% | 78.5% | 0.729 | 17.7% | 90.0% |
+| `baseline`（BM25 + 覆盖率/IDF 联合门槛） | 73.4% | 89.9% | 89.2% | 88.6% | 0.803 | 6.3% | 90.0% |
+| `rewrite`（+ 问题改写与子问题拆解） | **84.8%** | **94.9%** | **98.1%** | **97.5%** | **0.897** | **0.0%** | 80.0% |
+
+核心结论：
+- **门槛调优**：联合门槛（覆盖率 ≥ 0.2 或命中词 IDF 总和 ≥ 6）将纯 BM25 的库内 Hit@5 从 **79.7% → 89.9%**，库内空检索从 **17.7% → 6.3%**，库外空检索保持 **90.0%**（无门槛时仅 20.0%）。
+- **问题改写收益**：开启 `query_rewrite` 后，整体 Hit@1 提升 **+11.4 pp**、Recall@10 达 **98.1%**、库内空检索降至 **0.0%**；其中短板类别 `paraphrase`（口语化提问）Hit@1 从 **22.2% → 72.2%**、Hit@5 从 **66.7% → 88.9%**，`followup`（多轮指代追问）Recall@10 从 **60.0% → 100.0%**。
+- **向量混合检索（`hybrid` / `hybrid-rewrite`）**：代码与评测变体已完整实现，在配置 `BAILIAN_API_KEY` 并执行 `pnpm kb:ingest --embed` 后可直接运行同口径对比。
+
+### 2. 端到端回答与忠实度评测（89 题，标准模式 + 仅知识库）
+
+详细数据与异常样例分析见 [baseline-answer-deepseek-flash.md](./results/baseline-answer-deepseek-flash.md)（固定日期 `2026-10-15`）：
+
+- **库内回答率**：**92.4%**（73/79），**库外拒答率**：**100.0%**（10/10，弥补了检索阶段 `rewrite` 偶尔命中边缘条款的 20% 误召回）。
+- **引用有效率**：**91.8%**，**要点覆盖率**：**88.6%**（`definition` / `validity` / `followup` 均达 100%）。
+- **LLM-as-a-Judge 忠实度**：**100.0%**（73/73，均分 1.000）。注：评审复用与生成完全一致的 `formatCitationBlock` 上下文（含文号与有效期）以避免元数据误判；当前基线使用同模型评审偏乐观，正式上线建议通过 `--judge-provider / --judge-model` 使用异构裁判模型交叉核验。
+- **性能与成本**：P50 延迟 **2.87s**，P90 延迟 **3.77s**，平均模型调用 **1.91 次/题**。
 
 **注意**：门槛是在这份评测集上调出来的，同一份数据上的数字偏乐观。要得到无偏的结论，需要另外准备一批没参与调参的新题。

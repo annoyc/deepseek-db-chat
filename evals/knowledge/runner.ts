@@ -22,8 +22,10 @@ import type { KnowledgeBase } from '../../src/server/knowledge/knowledge-base'
 import { runKnowledgePipeline, type KnowledgePipelineDeps } from '../../src/server/knowledge/pipeline'
 import { analyzeQuery, retrievalQueries, type KnowledgeChatModel } from '../../src/server/knowledge/query-analysis'
 import { retrieve } from '../../src/server/knowledge/retriever'
+import { beijingDate } from '../../src/server/knowledge/validity'
 import type { KbIndexFile } from '../../src/server/knowledge/types'
-import { scoreAnswer, summarizeAnswers, type AnswerOutcome } from './answer'
+import { scoreAnswer, summarizeAnswers, type AnswerMetrics, type AnswerOutcome, type AnswerScore } from './answer'
+import { judgeFaithfulness } from './judge'
 import { chunkLocators, KS, scoreRetrieval, summarizeRetrieval, unknownGold, type KbEvalCase, type RetrievalMetrics } from './scorer'
 import { OFFLINE_VARIANTS, VARIANTS, type RetrievalVariant } from './variants'
 
@@ -56,14 +58,32 @@ function modelFactory(provider: string, model: string | undefined): KnowledgePip
   })
 }
 
-async function runRetrievalVariant(variant: RetrievalVariant, inputs: Awaited<ReturnType<typeof loadInputs>>, model: { provider: string; model?: string }) {
+async function mapConcurrent<T, R>(items: T[], concurrency: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(Math.max(1, concurrency), Math.max(1, items.length)) }, async () => {
+    while (true) {
+      const index = next++
+      if (index >= items.length) break
+      results[index] = await fn(items[index], index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+async function runRetrievalVariant(
+  variant: RetrievalVariant,
+  inputs: Awaited<ReturnType<typeof loadInputs>>,
+  model: { provider: string; model?: string },
+  concurrency: number,
+) {
   const kb = await variant.build(inputs)
   const locate = locatorsById(kb)
   const embed = variant.vectors && kb.embedding ? createServerEmbedder(kb.embedding) : null
   if (variant.vectors && !embed) throw new Error('needs an index built with --embed and the server key for its embedding provider')
   const chat = variant.rewrite ? modelFactory(model.provider, model.model)({ purpose: 'analysis', thinking: false }) : undefined
-  const rows = []
-  for (const evalCase of inputs.cases) {
+  const rows = await mapConcurrent(inputs.cases, chat || embed ? concurrency : 1, async (evalCase) => {
     const started = performance.now()
     let queries = [evalCase.question]
     if (chat) {
@@ -74,14 +94,14 @@ async function runRetrievalVariant(variant: RetrievalVariant, inputs: Awaited<Re
     const queryVectors = embed ? await embed(queries) : undefined
     const hits = retrieve(kb, queries, { topK: TOP_K, queryVectors, minSimilarity: Number(process.env.KB_MIN_SIMILARITY) || 0.3, relevance: variant.relevance })
     const ranked = hits.map(hit => locate.get(hit.chunk.id) ?? [])
-    rows.push({
+    return {
       evalCase,
       score: scoreRetrieval(evalCase, ranked),
       retrieved: hits.map(hit => hit.chunk.id),
       queries,
       latencyMs: Math.round(performance.now() - started),
-    })
-  }
+    }
+  })
   return { metrics: summarizeRetrieval(rows), rows }
 }
 
@@ -126,13 +146,81 @@ function gateSweep(kb: KnowledgeBase, cases: KbEvalCase[]): string {
   ].join('\n')
 }
 
-async function runAnswers(inputs: Awaited<ReturnType<typeof loadInputs>>, options: { provider: string; model?: string; now?: Date }) {
+function answerMarkdown(
+  commit: string,
+  model: { provider: string; model?: string },
+  judgeModel: { provider: string; model?: string } | null,
+  metrics: AnswerMetrics,
+  rows: { evalCase: KbEvalCase; outcome: AnswerOutcome; score: AnswerScore }[],
+): string {
+  const summaryRows = [
+    `| 指标 | 数值 |`,
+    `|---|---|`,
+    `| 库内题数 / 库外题数 / 出错 | ${metrics.cases} / ${metrics.outOfScopeCases} / ${metrics.errors} |`,
+    `| 库内回答率 | ${pct(metrics.answeredRate)} |`,
+    `| 引用有效率（已回答题） | ${pct(metrics.citationValidRate)} |`,
+    `| 引用准确率（命中的标准条款占比） | ${pct(metrics.citedPrecision)} |`,
+    `| 要点覆盖率 | ${pct(metrics.goldCoverage)} |`,
+    `| 库外拒答率 | ${pct(metrics.outOfScopeRefusalRate)} |`,
+    ...(metrics.faithfulness ? [
+      `| 忠实度通过率（LLM-as-a-Judge，${metrics.faithfulness.judged} 题） | ${pct(metrics.faithfulness.faithfulRate)}（均分 ${metrics.faithfulness.meanScore.toFixed(3)}，判分出错 ${metrics.faithfulness.errors}） |`,
+    ] : []),
+    `| 延迟 P50 / P90 | ${Math.round(metrics.latencyMs.p50)} ms / ${Math.round(metrics.latencyMs.p90)} ms |`,
+    `| 平均模型调用次数 | ${metrics.meanModelCalls.toFixed(2)} |`,
+  ].join('\n')
+
+  const categories = [...new Set(rows.map(r => r.evalCase.category))].filter(c => c !== 'out_of_scope')
+  const catLines = categories.map((category) => {
+    const m = summarizeAnswers(rows.filter(r => r.evalCase.category === category))
+    const faith = m.faithfulness ? `${pct(m.faithfulness.faithfulRate)} (${m.faithfulness.meanScore.toFixed(2)})` : '—'
+    return `| ${category} | ${m.cases} | ${pct(m.answeredRate)} | ${pct(m.citationValidRate)} | ${pct(m.citedPrecision)} | ${pct(m.goldCoverage)} | ${faith} |`
+  })
+  const catTable = [
+    '| 类别 | 题数 | 回答率 | 引用有效率 | 引用准确率 | 要点覆盖率 | 忠实度 |',
+    '|---|---|---|---|---|---|---|',
+    ...catLines,
+  ].join('\n')
+
+  const notable = rows.filter(r =>
+    r.outcome.error
+    || (r.evalCase.gold.length > 0 && (r.score.refused || r.score.goldGroupsCited < r.score.goldGroups || r.score.faithful === false))
+    || (r.evalCase.gold.length === 0 && !r.score.refused),
+  )
+  const issueLines = notable.length
+    ? notable.map((r) => {
+      const tags: string[] = []
+      if (r.outcome.error) tags.push(`出错: ${r.outcome.error}`)
+      else if (r.evalCase.gold.length === 0) tags.push('库外未拒答')
+      else {
+        if (r.score.refused) tags.push('库内误拒答')
+        if (r.score.goldGroupsCited < r.score.goldGroups) tags.push(`要点覆盖 ${r.score.goldGroupsCited}/${r.score.goldGroups}`)
+        if (r.score.faithful === false) tags.push(`忠实度 ${r.score.faithfulnessScore}：${r.outcome.faithfulness?.reason ?? ''}`)
+      }
+      return `- \`${r.evalCase.id}\` (${r.evalCase.category}) ${r.evalCase.question} — ${tags.join('；')}`
+    }).join('\n')
+    : '无异常样例。'
+
+  const judgeNote = judgeModel ? `，忠实度评审模型：${judgeModel.provider}/${judgeModel.model ?? 'default'}` : ''
+  return [
+    `## 知识库端到端回答评测（${rows.length} 题，${model.provider}/${model.model ?? 'default'}${judgeNote}，commit ${commit}）`,
+    summaryRows,
+    '### 分类别表现',
+    catTable,
+    `### 需关注样例（${notable.length} 题）`,
+    issueLines,
+  ].join('\n\n')
+}
+
+async function runAnswers(
+  inputs: Awaited<ReturnType<typeof loadInputs>>,
+  options: { provider: string; model?: string; now?: Date; judge?: { provider: string; model?: string } | null; concurrency: number },
+) {
   const { createKnowledgeBase } = await import('../../src/server/knowledge/knowledge-base')
   const kb = createKnowledgeBase(inputs.index)
   const locate = locatorsById(kb)
   const factory = modelFactory(options.provider, options.model)
-  const rows = []
-  for (const evalCase of inputs.cases) {
+  const judgeModel = options.judge ? modelFactory(options.judge.provider, options.judge.model)({ purpose: 'analysis', thinking: false }) as KnowledgeChatModel : null
+  const rows = await mapConcurrent(inputs.cases, options.concurrency, async (evalCase) => {
     let modelCalls = 0
     const chatModel: KnowledgePipelineDeps['chatModel'] = (opts) => {
       const model = factory(opts)
@@ -167,10 +255,20 @@ async function runAnswers(inputs: Awaited<ReturnType<typeof loadInputs>>, option
     }
     outcome.modelCalls = modelCalls
     outcome.latencyMs = Math.round(performance.now() - started)
-    const score = scoreAnswer(evalCase, outcome, id => locate.get(id) ?? [])
-    console.log(`${evalCase.id} ${outcome.error ? `ERROR ${outcome.error}` : `${score.refused ? '拒答' : `引用 ${score.citedRelevant}/${score.cited} 相关`} · ${outcome.latencyMs}ms`}`)
-    rows.push({ evalCase, outcome, score })
-  }
+    let score = scoreAnswer(evalCase, outcome, id => locate.get(id) ?? [])
+    if (judgeModel && !outcome.error && !score.refused && outcome.citations.length > 0) {
+      try {
+        const today = beijingDate(options.now ?? new Date())
+        outcome.faithfulness = await judgeFaithfulness(judgeModel, evalCase.question, outcome.text, outcome.citations, today)
+        score = scoreAnswer(evalCase, outcome, id => locate.get(id) ?? [])
+      } catch (error) {
+        outcome.faithfulnessError = error instanceof Error ? error.message : String(error)
+      }
+    }
+    const faithTag = outcome.faithfulness ? ` · 忠实 ${outcome.faithfulness.score}` : outcome.faithfulnessError ? ' · 评审失败' : ''
+    console.log(`${evalCase.id} ${outcome.error ? `ERROR ${outcome.error}` : `${score.refused ? '拒答' : `引用 ${score.citedRelevant}/${score.cited} 相关`}${faithTag} · ${outcome.latencyMs}ms`}`)
+    return { evalCase, outcome, score }
+  })
   return { metrics: summarizeAnswers(rows), rows }
 }
 
@@ -181,6 +279,10 @@ async function main() {
       variants: { type: 'string' },
       provider: { type: 'string', default: 'deepseek' },
       model: { type: 'string' },
+      judge: { type: 'boolean', default: false },
+      'judge-provider': { type: 'string' },
+      'judge-model': { type: 'string' },
+      concurrency: { type: 'string', default: '4' },
       now: { type: 'string' },
       filter: { type: 'string' },
       out: { type: 'string' },
@@ -197,14 +299,20 @@ async function main() {
   const startedAt = new Date().toISOString()
   const stamp = startedAt.replace(/[:.]/g, '-').slice(0, 19)
   const model = { provider: values.provider!, model: values.model }
+  const concurrency = Math.max(1, Number(values.concurrency) || 4)
 
   if (values.mode === 'answer') {
-    const { metrics, rows } = await runAnswers(inputs, { ...model, now: values.now ? new Date(values.now) : undefined })
-    const report = { mode: 'answer', model, commit, startedAt, metrics, rows: rows.map(({ evalCase, outcome, score }) => ({ id: evalCase.id, category: evalCase.category, score, outcome })) }
+    const judgeModel = values.judge
+      ? { provider: values['judge-provider'] ?? model.provider, model: values['judge-model'] ?? model.model }
+      : null
+    const { metrics, rows } = await runAnswers(inputs, { ...model, now: values.now ? new Date(values.now) : undefined, judge: judgeModel, concurrency })
+    const report = { mode: 'answer', model, judgeModel, commit, startedAt, metrics, rows: rows.map(({ evalCase, outcome, score }) => ({ id: evalCase.id, category: evalCase.category, score, outcome })) }
     const outPath = values.out ? resolve(values.out) : resolve(evalDir, 'results', `${stamp}-answer-${model.provider}-${model.model ?? 'default'}.json`)
+    const markdown = answerMarkdown(commit, model, judgeModel, metrics, rows)
     await mkdir(resolve(outPath, '..'), { recursive: true })
     await writeFile(outPath, JSON.stringify(report, null, 2) + '\n')
-    console.log(`\n${JSON.stringify(metrics, null, 2)}\n\nSaved ${outPath}`)
+    await writeFile(outPath.replace(/\.json$/, '.md'), markdown + '\n')
+    console.log(`\n${markdown}\n\nSaved ${outPath}`)
     return
   }
 
@@ -214,7 +322,7 @@ async function main() {
     const variant = VARIANTS.find(v => v.name === name)
     if (!variant) throw new Error(`Unknown variant ${name}; available: ${VARIANTS.map(v => v.name).join(', ')}`)
     try {
-      const { metrics, rows } = await runRetrievalVariant(variant, inputs, model)
+      const { metrics, rows } = await runRetrievalVariant(variant, inputs, model, concurrency)
       results.push({ variant, metrics, rows })
       console.log(`${variant.name}: Hit@5 ${pct(metrics.hitAt[5])} · Recall@10 ${pct(metrics.recallAt[10])} · MRR ${metrics.mrr.toFixed(3)}`)
     } catch (error) {
@@ -222,12 +330,16 @@ async function main() {
     }
   }
   if (!results.length) throw new Error('No variant could run')
-  const baseline = results.find(r => r.variant.name === 'baseline') ?? results[0]
+  const categorySections = results.length <= 3
+    ? results.flatMap(r => [`### ${r.variant.name} 分类别`, categoryTable(r.rows)])
+    : (() => {
+      const baseline = results.find(r => r.variant.name === 'baseline') ?? results[0]
+      return [`### ${baseline.variant.name} 分类别`, categoryTable(baseline.rows)]
+    })()
   const markdown = [
     `## 检索评测（${inputs.cases.length} 题，Top ${TOP_K}，commit ${commit}）`,
     retrievalTable(results),
-    `### ${baseline.variant.name} 分类别`,
-    categoryTable(baseline.rows),
+    ...categorySections,
     '### 相关性门槛扫描（baseline 索引，仅原问题）',
     gateSweep(await VARIANTS[0].build(inputs), inputs.cases),
     '### 配置说明',

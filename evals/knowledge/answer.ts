@@ -1,5 +1,6 @@
 import type { KnowledgeCitation } from '../../src/lib/knowledge-types'
 import { NO_EVIDENCE_ANSWER } from '../../src/server/knowledge/pipeline'
+import type { FaithfulnessVerdict } from './judge'
 import type { KbEvalCase } from './scorer'
 
 /** What one end-to-end run of the knowledge pipeline produced. */
@@ -11,6 +12,8 @@ export interface AnswerOutcome {
   modelCalls: number
   latencyMs: number
   error?: string
+  faithfulness?: FaithfulnessVerdict
+  faithfulnessError?: string
 }
 
 export interface AnswerScore {
@@ -24,6 +27,9 @@ export interface AnswerScore {
   goldGroups: number
   /** Gold groups with at least one cited provision. */
   goldGroupsCited: number
+  /** LLM-as-a-Judge faithfulness verdict, when `--judge` is enabled. */
+  faithful?: boolean
+  faithfulnessScore?: number
 }
 
 const REFUSAL = /知识库中未找到/
@@ -39,6 +45,10 @@ export function scoreAnswer(evalCase: KbEvalCase, outcome: AnswerOutcome, locate
     citedRelevant: citedLocators.filter(isGold).length,
     goldGroups: evalCase.gold.length,
     goldGroupsCited: evalCase.gold.filter(group => citedLocators.some(locators => locators.some(l => group.includes(l)))).length,
+    ...(outcome.faithfulness ? {
+      faithful: outcome.faithfulness.faithful,
+      faithfulnessScore: outcome.faithfulness.score,
+    } : {}),
   }
 }
 
@@ -56,6 +66,13 @@ export interface AnswerMetrics {
   goldCoverage: number
   /** Out of scope: refused (higher is better). */
   outOfScopeRefusalRate: number
+  /** LLM-as-a-Judge faithfulness metrics over judged answered cases (present when `--judge` is used). */
+  faithfulness?: {
+    judged: number
+    errors: number
+    faithfulRate: number
+    meanScore: number
+  }
   latencyMs: { p50: number; p90: number }
   meanModelCalls: number
 }
@@ -74,6 +91,8 @@ export function summarizeAnswers(rows: { evalCase: KbEvalCase; outcome: AnswerOu
   const answered = inScope.filter(r => !r.score.refused)
   const withCitations = answered.filter(r => r.score.cited > 0)
   const outOfScope = ok.filter(r => !r.evalCase.gold.length)
+  const judged = answered.filter(r => r.score.faithful !== undefined)
+  const judgeErrors = answered.filter(r => r.outcome.faithfulnessError).length
   return {
     cases: inScope.length,
     outOfScopeCases: outOfScope.length,
@@ -83,6 +102,14 @@ export function summarizeAnswers(rows: { evalCase: KbEvalCase; outcome: AnswerOu
     citedPrecision: mean(withCitations.map(r => r.score.citedRelevant / r.score.cited)),
     goldCoverage: mean(inScope.map(r => r.score.goldGroupsCited / r.score.goldGroups)),
     outOfScopeRefusalRate: mean(outOfScope.map(r => Number(r.score.refused))),
+    ...(judged.length || judgeErrors ? {
+      faithfulness: {
+        judged: judged.length,
+        errors: judgeErrors,
+        faithfulRate: mean(judged.map(r => Number(r.score.faithful))),
+        meanScore: mean(judged.map(r => r.score.faithfulnessScore ?? 0)),
+      },
+    } : {}),
     latencyMs: { p50: percentile(ok.map(r => r.outcome.latencyMs), 0.5), p90: percentile(ok.map(r => r.outcome.latencyMs), 0.9) },
     meanModelCalls: mean(ok.map(r => r.outcome.modelCalls)),
   }

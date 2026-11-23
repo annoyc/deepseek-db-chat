@@ -10,6 +10,7 @@ import type { DatabaseConnection } from '@/lib/types'
 import { validateSql } from '@/lib/sql-guard'
 import { createDbAgent } from '@/server/agent'
 import { closePool } from '@/server/database'
+import { databaseConnectionOptions } from '@/server/database-connection'
 import { compareResults, scoreBehaviour, type AgentOutcome, type EvalCase, type Row } from './scorer'
 import { formatSummary, summarize, type CaseResult, type UsageTotals } from './summary'
 
@@ -85,15 +86,18 @@ globalThis.fetch = async (...args: Parameters<typeof fetch>) => {
 // ── Database ────────────────────────────────────────────────
 
 function evalConnection(): DatabaseConnection {
-  const env = (name: string) => {
+  const useDemoFallback = !process.env.EVAL_DB_HOST?.trim() && Boolean(process.env.DEMO_DB_HOST?.trim())
+  const prefix = useDemoFallback ? 'DEMO_DB' : 'EVAL_DB'
+  const env = (suffix: string) => {
+    const name = `${prefix}_${suffix}`
     const value = process.env[name]?.trim()
     if (!value) throw new Error(`Missing ${name}; see evals/README.md`)
     return value
   }
   return {
     id: 'eval', name: 'eval',
-    host: env('EVAL_DB_HOST'), port: Number(process.env.EVAL_DB_PORT ?? 3306),
-    user: env('EVAL_DB_USER'), password: env('EVAL_DB_PASSWORD'), database: env('EVAL_DB_DATABASE'),
+    host: env('HOST'), port: Number(process.env[`${prefix}_PORT`] ?? 3306),
+    user: env('USER'), password: env('PASSWORD'), database: env('DATABASE'),
     ssl: process.env.EVAL_DB_SSL === 'true' ? {} : undefined,
     env: 'test', readOnly: true, createdAt: new Date(0).toISOString(),
   }
@@ -101,9 +105,9 @@ function evalConnection(): DatabaseConnection {
 
 /** Runs read-only SQL with MySQL's clock pinned to the eval's frozen time, in Beijing time. */
 function createExecutor(connection: DatabaseConnection, now: Date) {
+  const options = databaseConnectionOptions(connection)
   const pool = mysql.createPool({
-    host: connection.host, port: connection.port, user: connection.user, password: connection.password,
-    database: connection.database, ssl: connection.ssl ? {} : undefined,
+    ...options,
     dateStrings: true, supportBigNumbers: true, bigNumberStrings: true, connectionLimit: 4,
   })
   const run = async (sql: string): Promise<Row[]> => {

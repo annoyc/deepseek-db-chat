@@ -1,0 +1,4129 @@
+{
+  "mode": "retrieval",
+  "commit": "cda3bcf",
+  "startedAt": "2026-11-23T14:36:31.340Z",
+  "topK": 10,
+  "ks": [
+    1,
+    3,
+    5,
+    10
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "description": "线上配置：词 + 二元组分词，条款路径前缀，相关性门槛（覆盖率 ≥ 0.2 或命中 IDF ≥ 6）",
+      "metrics": {
+        "cases": 79,
+        "hitAt": {
+          "1": 0.7341772151898734,
+          "3": 0.8860759493670886,
+          "5": 0.8987341772151899,
+          "10": 0.8987341772151899
+        },
+        "recallAt": {
+          "1": 0.6814345991561181,
+          "3": 0.8649789029535866,
+          "5": 0.8776371308016879,
+          "10": 0.8924050632911392
+        },
+        "completeAt": {
+          "1": 0.6329113924050633,
+          "3": 0.8481012658227848,
+          "5": 0.8607594936708861,
+          "10": 0.8860759493670886
+        },
+        "mrr": 0.8027426160337553,
+        "emptyRate": 0.06329113924050633,
+        "outOfScopeEmptyRate": 0.9,
+        "outOfScopeCases": 10,
+        "meanRetrieved": 8.518987341772151
+      },
+      "rows": [
+        {
+          "id": "lookup-01",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#54",
+            "mid-long-term-market-2025#32",
+            "spot-market-2023#69",
+            "mid-long-term-market-2025#55",
+            "spot-market-2023#79",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#73",
+            "mid-long-term-market-2025#4",
+            "spot-market-2023#78",
+            "spot-market-2023#76"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力中长期市场按什么周期结算？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "lookup-02",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#45",
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#48",
+            "mid-long-term-market-2025#42",
+            "mid-long-term-market-2025#44",
+            "retail-company-2021#8",
+            "ancillary-service-market-2025#35",
+            "spot-market-2023#105",
+            "retail-company-2021#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "月度交易的电网安全校核要在几个工作日内完成？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-03",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#12",
+            "spot-market-2023#25",
+            "ancillary-service-market-2025#11",
+            "retail-company-2021#10",
+            "retail-company-2021#6",
+            "retail-company-2021#15",
+            "retail-company-2021#25",
+            "retail-company-2021#7",
+            "retail-company-2021#8",
+            "retail-company-2021#11"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司注册信息发生变化后，多长时间内要申请变更？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-04",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#15",
+            "retail-company-2021#38",
+            "retail-company-2021#14",
+            "retail-company-2021#8",
+            "retail-company-2021#25",
+            "retail-company-2021#33",
+            "retail-company-2021#5",
+            "retail-company-2021#12",
+            "retail-company-2021#3",
+            "retail-company-2021#6"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司每年什么时候前要披露持续满足注册条件的信息？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-05",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#28",
+            "retail-company-2021#29",
+            "retail-company-2021#30",
+            "retail-company-2021#35",
+            "retail-company-2021#31",
+            "retail-company-2021#10",
+            "retail-company-2021#27",
+            "retail-company-2021#26",
+            "retail-company-2021#34",
+            "retail-company-2021#8"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司自愿退出售电市场需要提前多少个工作日申请？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-06",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#32",
+            "retail-company-2021#21",
+            "retail-company-2021#22",
+            "retail-company-2021#31",
+            "spot-market-2023#132",
+            "retail-company-2021#23",
+            "mid-long-term-market-2025#13",
+            "spot-market-2023#88",
+            "retail-company-2021#35",
+            "spot-market-2023#21"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司退出后，履约保函保留多长时间？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-07",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#24",
+            "retail-company-2021#38",
+            "retail-company-2021#23",
+            "retail-company-2021#6",
+            "retail-company-2021#19",
+            "retail-company-2021#20",
+            "retail-company-2021#5",
+            "retail-company-2021#22",
+            "retail-company-2021#4",
+            "spot-market-2023#22"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "连续多长时间没有实际交易的售电公司会被暂停交易资格？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-08",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#17",
+            "retail-company-2021#16",
+            "retail-company-2021#18",
+            "retail-company-2021#2",
+            "mid-long-term-market-2025#17",
+            "retail-company-2021#27",
+            "retail-company-2021#35",
+            "retail-company-2021#13",
+            "retail-company-2021#19",
+            "retail-company-2021#20"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "同一合同周期内，电力用户可以与几家售电公司确立零售服务关系？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-09",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#2",
+            "retail-company-2021#19",
+            "ancillary-service-market-2025#32",
+            "ancillary-service-market-2025#22",
+            "ancillary-service-market-2025#43"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务费用的追退补应在多长时间内完成？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-10",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#35",
+            "mid-long-term-market-2025#48",
+            "spot-market-2023#105",
+            "ancillary-service-market-2025#43",
+            "ancillary-service-market-2025#8",
+            "ancillary-service-market-2025#34",
+            "retail-company-2021#10",
+            "ancillary-service-market-2025#33",
+            "retail-company-2021#12",
+            "ancillary-service-market-2025#11"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "经营主体对辅助服务市场披露的信息有异议，应在多少个工作日内申请复核？"
+          ],
+          "latencyMs": 2
+        },
+        {
+          "id": "lookup-11",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#32",
+            "power-market-operation-2024#10",
+            "power-market-operation-2024#12",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#12",
+            "ancillary-service-market-2025#3",
+            "power-market-operation-2024#7",
+            "ancillary-service-market-2025#10",
+            "ancillary-service-market-2025#7"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务结算采用什么方式？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-12",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#21",
+            "ancillary-service-market-2025#18",
+            "ancillary-service-market-2025#22",
+            "ancillary-service-market-2025#4",
+            "ancillary-service-market-2025#38",
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#13"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务市场品种主要包括哪些？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "lookup-13",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#7",
+            "spot-market-2023#16",
+            "mid-long-term-market-2025#63",
+            "power-market-operation-2024#8",
+            "power-market-operation-2024#2",
+            "spot-market-2023#91",
+            "spot-market-2023#96",
+            "spot-market-2023#2",
+            "power-market-operation-2024#4",
+            "mid-long-term-market-2025#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场交易类型包括哪些？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "lookup-14",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#7",
+            "spot-market-2023#51",
+            "power-market-operation-2024#9",
+            "spot-market-2023#112",
+            "ancillary-service-market-2025#31",
+            "power-market-operation-2024#15",
+            "mid-long-term-market-2025#21",
+            "spot-market-2023#118",
+            "ancillary-service-market-2025#27",
+            "spot-market-2023#126"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电能量交易按交易周期分为哪几类？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-15",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#6",
+            "ancillary-service-market-2025#19",
+            "spot-market-2023#4",
+            "mid-long-term-market-2025#30",
+            "ancillary-service-market-2025#43",
+            "spot-market-2023#104",
+            "ancillary-service-market-2025#16",
+            "power-market-operation-2024#30",
+            "retail-company-2021#21",
+            "ancillary-service-market-2025#1"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场管理委员会的定位是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-16",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#25",
+            "ancillary-service-market-2025#34",
+            "mid-long-term-market-2025#60",
+            "power-market-operation-2024#26",
+            "spot-market-2023#4",
+            "mid-long-term-market-2025#6",
+            "mid-long-term-market-2025#18",
+            "spot-market-2023#19",
+            "mid-long-term-market-2025#16",
+            "mid-long-term-market-2025#13"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场信息披露应遵循哪些原则？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "lookup-17",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#27",
+            "spot-market-2023#120",
+            "spot-market-2023#34",
+            "spot-market-2023#2",
+            "spot-market-2023#41",
+            "spot-market-2023#81",
+            "spot-market-2023#85",
+            "spot-market-2023#133",
+            "spot-market-2023#112",
+            "spot-market-2023#68"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力现货市场一般包括哪些市场？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-18",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#29",
+            "spot-market-2023#119",
+            "spot-market-2023#79",
+            "spot-market-2023#118",
+            "spot-market-2023#77",
+            "mid-long-term-market-2025#25",
+            "spot-market-2023#78",
+            "spot-market-2023#76",
+            "spot-market-2023#69",
+            "mid-long-term-market-2025#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "现货市场可以选择哪些边际电价机制？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-19",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#30",
+            "spot-market-2023#28",
+            "spot-market-2023#77",
+            "spot-market-2023#31",
+            "spot-market-2023#76",
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#27",
+            "spot-market-2023#20",
+            "spot-market-2023#27",
+            "spot-market-2023#118"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "现货市场中发电侧价格由什么构成？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-20",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#31",
+            "mid-long-term-market-2025#28",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "mid-long-term-market-2025#8",
+            "spot-market-2023#30",
+            "spot-market-2023#7",
+            "spot-market-2023#33",
+            "spot-market-2023#53",
+            "mid-long-term-market-2025#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "直接参与交易的用户侧用电价格由哪些部分构成？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-21",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#23",
+            "spot-market-2023#21",
+            "spot-market-2023#26",
+            "spot-market-2023#22",
+            "spot-market-2023#20",
+            "spot-market-2023#8",
+            "spot-market-2023#42",
+            "retail-company-2021#29",
+            "spot-market-2023#24",
+            "retail-company-2021#35"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "无正当理由退出市场的经营主体多长时间内不得申请市场准入？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-22",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#53",
+            "spot-market-2023#7",
+            "mid-long-term-market-2025#56",
+            "mid-long-term-market-2025#20",
+            "spot-market-2023#17",
+            "spot-market-2023#69",
+            "mid-long-term-market-2025#55",
+            "spot-market-2023#2",
+            "spot-market-2023#63",
+            "retail-company-2021#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电网企业代理工商业用户购电的偏差电量按什么价格结算？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-23",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#48",
+            "ancillary-service-market-2025#35",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#45",
+            "ancillary-service-market-2025#24",
+            "mid-long-term-market-2025#49",
+            "mid-long-term-market-2025#44",
+            "spot-market-2023#26",
+            "spot-market-2023#52",
+            "mid-long-term-market-2025#75"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "经营主体对中长期交易成交结果有异议，应在多长时间内提出？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-24",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#60",
+            "mid-long-term-market-2025#19",
+            "mid-long-term-market-2025#17",
+            "spot-market-2023#105",
+            "mid-long-term-market-2025#20",
+            "mid-long-term-market-2025#15",
+            "mid-long-term-market-2025#76",
+            "spot-market-2023#75",
+            "retail-company-2021#31",
+            "retail-company-2021#13"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场披露的信息保留或可供查询的时间不少于多久？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-25",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#25",
+            "mid-long-term-market-2025#73",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#74",
+            "mid-long-term-market-2025#28",
+            "mid-long-term-market-2025#75",
+            "power-market-operation-2024#7",
+            "spot-market-2023#38",
+            "spot-market-2023#75",
+            "spot-market-2023#63"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "同一经营主体在同一交易序列同一时段能否既买入又卖出？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "lookup-26",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#31",
+            "mid-long-term-market-2025#5",
+            "mid-long-term-market-2025#69",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#34",
+            "mid-long-term-market-2025#33",
+            "mid-long-term-market-2025#72",
+            "mid-long-term-market-2025#19",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#49"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "跨电网经营区电力中长期交易由谁组织？"
+          ],
+          "latencyMs": 2
+        },
+        {
+          "id": "lookup-27",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "retail-company-2021#21",
+            "mid-long-term-market-2025#59",
+            "retail-company-2021#38",
+            "retail-company-2021#8",
+            "retail-company-2021#30",
+            "mid-long-term-market-2025#41",
+            "retail-company-2021#22",
+            "retail-company-2021#6"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司参与绿电交易有什么要求？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-01",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#29",
+            "spot-market-2023#118",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "spot-market-2023#76",
+            "spot-market-2023#77",
+            "spot-market-2023#119",
+            "spot-market-2023#32",
+            "spot-market-2023#69"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是节点边际电价？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-02",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#119",
+            "spot-market-2023#29",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "spot-market-2023#76",
+            "spot-market-2023#77",
+            "spot-market-2023#118",
+            "spot-market-2023#32",
+            "spot-market-2023#69",
+            "mid-long-term-market-2025#74"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "分区边际电价是什么意思？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-03",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#80",
+            "spot-market-2023#128",
+            "spot-market-2023#32",
+            "retail-company-2021#19",
+            "spot-market-2023#29",
+            "spot-market-2023#119",
+            "spot-market-2023#127",
+            "spot-market-2023#17"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "阻塞费用是怎么定义的？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-04",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#27",
+            "spot-market-2023#76",
+            "spot-market-2023#121",
+            "spot-market-2023#78",
+            "spot-market-2023#49",
+            "spot-market-2023#44",
+            "spot-market-2023#45",
+            "spot-market-2023#77",
+            "spot-market-2023#79",
+            "spot-market-2023#28"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "日前市场指的是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-05",
+          "category": "definition",
+          "retrieved": [
+            "retail-company-2021#21",
+            "retail-company-2021#32",
+            "retail-company-2021#22",
+            "spot-market-2023#88",
+            "spot-market-2023#73",
+            "spot-market-2023#132",
+            "mid-long-term-market-2025#13",
+            "spot-market-2023#74",
+            "retail-company-2021#23",
+            "mid-long-term-market-2025#17"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是履约保函？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-06",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#41",
+            "spot-market-2023#5"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "绿色电力指的是哪些电量？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-07",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#76",
+            "mid-long-term-market-2025#25"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是挂牌交易？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-08",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#75",
+            "mid-long-term-market-2025#25",
+            "spot-market-2023#53",
+            "mid-long-term-market-2025#74",
+            "spot-market-2023#122",
+            "spot-market-2023#93",
+            "spot-market-2023#46",
+            "ancillary-service-market-2025#39",
+            "spot-market-2023#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "滚动撮合交易是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-09",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#4",
+            "power-market-operation-2024#2",
+            "mid-long-term-market-2025#71",
+            "mid-long-term-market-2025#3",
+            "spot-market-2023#2",
+            "mid-long-term-market-2025#17",
+            "mid-long-term-market-2025#12",
+            "spot-market-2023#8",
+            "mid-long-term-market-2025#56",
+            "spot-market-2023#62"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "新型经营主体包括哪些？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-10",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#30",
+            "ancillary-service-market-2025#3",
+            "spot-market-2023#30"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "爬坡服务是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-11",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#27",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#31",
+            "ancillary-service-market-2025#3",
+            "power-market-operation-2024#7",
+            "spot-market-2023#7"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "调峰服务是指什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-12",
+          "category": "definition",
+          "retrieved": [
+            "power-market-operation-2024#8",
+            "power-market-operation-2024#7",
+            "power-market-operation-2024#15",
+            "power-market-operation-2024#9",
+            "spot-market-2023#112",
+            "ancillary-service-market-2025#31",
+            "spot-market-2023#56",
+            "spot-market-2023#118",
+            "mid-long-term-market-2025#35",
+            "spot-market-2023#36"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "容量交易的标的是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-13",
+          "category": "definition",
+          "retrieved": [
+            "power-market-operation-2024#10",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#10",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#3",
+            "ancillary-service-market-2025#41",
+            "power-market-operation-2024#12",
+            "ancillary-service-market-2025#30",
+            "ancillary-service-market-2025#26"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是电力辅助服务？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "definition-14",
+          "category": "definition",
+          "retrieved": [
+            "retail-company-2021#33",
+            "retail-company-2021#9",
+            "retail-company-2021#2",
+            "retail-company-2021#31",
+            "retail-company-2021#37",
+            "retail-company-2021#1",
+            "retail-company-2021#35",
+            "retail-company-2021#21",
+            "retail-company-2021#25",
+            "retail-company-2021#36"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "售电公司是指什么样的市场主体？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-01",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#33",
+            "retail-company-2021#6",
+            "retail-company-2021#2",
+            "retail-company-2021#39",
+            "retail-company-2021#36",
+            "retail-company-2021#27",
+            "retail-company-2021#38",
+            "retail-company-2021#35",
+            "retail-company-2021#30",
+            "retail-company-2021#8"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "售电公司是干啥的？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-02",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#17",
+            "retail-company-2021#7",
+            "retail-company-2021#3",
+            "retail-company-2021#15",
+            "retail-company-2021#35",
+            "retail-company-2021#12",
+            "retail-company-2021#14",
+            "mid-long-term-market-2025#37"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "开一家售电公司最少得有多少钱的资产？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-03",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#6",
+            "retail-company-2021#8",
+            "retail-company-2021#15",
+            "retail-company-2021#9",
+            "retail-company-2021#38",
+            "retail-company-2021#10",
+            "retail-company-2021#12",
+            "retail-company-2021#11",
+            "retail-company-2021#7",
+            "retail-company-2021#5"
+          ],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "售电公司要招多少人才能注册？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-04",
+          "category": "paraphrase",
+          "retrieved": [
+            "spot-market-2023#118",
+            "spot-market-2023#78",
+            "spot-market-2023#76",
+            "spot-market-2023#79",
+            "spot-market-2023#77"
+          ],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "现货电价有没有封顶，最高能报到多少？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-05",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#59",
+            "mid-long-term-market-2025#22"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "买绿电能拿到绿证吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-06",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#59"
+          ],
+          "firstHit": 4,
+          "groupRanks": [
+            4
+          ],
+          "queries": [
+            "绿电的钱是怎么算的？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-07",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#27",
+            "retail-company-2021#17",
+            "retail-company-2021#38",
+            "retail-company-2021#4",
+            "retail-company-2021#16",
+            "retail-company-2021#34",
+            "spot-market-2023#15",
+            "retail-company-2021#14",
+            "retail-company-2021#7",
+            "retail-company-2021#21"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "我们厂想同时找两家售电公司代理，行不行？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-08",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#27",
+            "retail-company-2021#30",
+            "retail-company-2021#28",
+            "retail-company-2021#35",
+            "retail-company-2021#19",
+            "retail-company-2021#18",
+            "retail-company-2021#17",
+            "retail-company-2021#34",
+            "retail-company-2021#5",
+            "retail-company-2021#23"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司被清退了，之前签的合同怎么办？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-09",
+          "category": "paraphrase",
+          "retrieved": [
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#42",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#30",
+            "spot-market-2023#30",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#32"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "独立储能参与辅助服务，费用怎么分摊？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-10",
+          "category": "paraphrase",
+          "retrieved": [],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "辅助服务的钱最后由谁来出？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-11",
+          "category": "paraphrase",
+          "retrieved": [
+            "power-market-operation-2024#18",
+            "mid-long-term-market-2025#51",
+            "mid-long-term-market-2025#14",
+            "spot-market-2023#13",
+            "mid-long-term-market-2025#58",
+            "retail-company-2021#14"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "电网出了紧急状况，调度还用按合同来吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-12",
+          "category": "paraphrase",
+          "retrieved": [],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "电价涨得离谱的时候政府能出手管吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-13",
+          "category": "paraphrase",
+          "retrieved": [],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "忘了按时报价会怎么样？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-14",
+          "category": "paraphrase",
+          "retrieved": [],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "电表不准，校验的费用谁来出？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-15",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#35",
+            "retail-company-2021#18",
+            "retail-company-2021#30",
+            "retail-company-2021#20",
+            "retail-company-2021#27",
+            "retail-company-2021#7",
+            "retail-company-2021#28",
+            "retail-company-2021#34",
+            "retail-company-2021#23",
+            "retail-company-2021#5"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "找了售电公司以后，原来和电网签的供电合同还算数吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-16",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#42",
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#45",
+            "power-market-operation-2024#18",
+            "mid-long-term-market-2025#48",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#8",
+            "power-market-operation-2024#16",
+            "ancillary-service-market-2025#5",
+            "spot-market-2023#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "交易机构和调度各自负责哪种校核？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-17",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#77",
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#22",
+            "ancillary-service-market-2025#21",
+            "spot-market-2023#30",
+            "mid-long-term-market-2025#71",
+            "mid-long-term-market-2025#52"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "风电光伏出力忽高忽低，有专门应对的辅助服务吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "paraphrase-18",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#28",
+            "retail-company-2021#30",
+            "retail-company-2021#31",
+            "retail-company-2021#32",
+            "retail-company-2021#27",
+            "retail-company-2021#26",
+            "retail-company-2021#35",
+            "retail-company-2021#29",
+            "retail-company-2021#38",
+            "retail-company-2021#34"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司干不下去了想关门，怎么退出？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-01",
+          "category": "multi",
+          "retrieved": [
+            "spot-market-2023#51",
+            "mid-long-term-market-2025#4",
+            "spot-market-2023#50",
+            "spot-market-2023#52",
+            "spot-market-2023#7",
+            "mid-long-term-market-2025#5",
+            "mid-long-term-market-2025#54",
+            "spot-market-2023#54",
+            "spot-market-2023#69",
+            "spot-market-2023#56"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "中长期市场和现货市场怎么衔接？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-02",
+          "category": "multi",
+          "retrieved": [
+            "spot-market-2023#54",
+            "ancillary-service-market-2025#30",
+            "spot-market-2023#7",
+            "ancillary-service-market-2025#7",
+            "spot-market-2023#117",
+            "ancillary-service-market-2025#24",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#17",
+            "ancillary-service-market-2025#42",
+            "ancillary-service-market-2025#38"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            2,
+            1
+          ],
+          "queries": [
+            "辅助服务市场和现货市场是联合出清还是分开出清？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-03",
+          "category": "multi",
+          "retrieved": [
+            "ancillary-service-market-2025#28",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#33",
+            "power-market-operation-2024#14",
+            "spot-market-2023#81",
+            "retail-company-2021#19"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            2,
+            1
+          ],
+          "queries": [
+            "现货市场运行的地区，辅助服务费用由谁承担？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-04",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#22",
+            "retail-company-2021#21",
+            "retail-company-2021#32",
+            "spot-market-2023#88",
+            "spot-market-2023#132",
+            "retail-company-2021#23",
+            "mid-long-term-market-2025#13",
+            "spot-market-2023#73",
+            "retail-company-2021#34",
+            "retail-company-2021#33"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2,
+            6
+          ],
+          "queries": [
+            "售电公司履约保函的金额怎么确定？不交会怎样？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-05",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#6",
+            "retail-company-2021#11",
+            "retail-company-2021#15",
+            "retail-company-2021#12",
+            "retail-company-2021#1",
+            "retail-company-2021#32",
+            "retail-company-2021#8",
+            "retail-company-2021#3",
+            "retail-company-2021#9",
+            "retail-company-2021#38"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            7,
+            9
+          ],
+          "queries": [
+            "售电公司注册要经过哪些步骤？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-06",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#63",
+            "spot-market-2023#91",
+            "mid-long-term-market-2025#78",
+            "power-market-operation-2024#7",
+            "spot-market-2023#89",
+            "spot-market-2023#90",
+            "power-market-operation-2024#21",
+            "power-market-operation-2024#23",
+            "spot-market-2023#92",
+            "spot-market-2023#94"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "电力市场风险分为哪些类型？现货规则和中长期规则的分类一样吗？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "multi-07",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#59",
+            "mid-long-term-market-2025#24"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            2,
+            1
+          ],
+          "queries": [
+            "绿电交易合同要写明哪些内容，环境价值部分怎么结算？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-08",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#45",
+            "mid-long-term-market-2025#42",
+            "spot-market-2023#116",
+            "mid-long-term-market-2025#38",
+            "power-market-operation-2024#18",
+            "spot-market-2023#18",
+            "mid-long-term-market-2025#35",
+            "spot-market-2023#127"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "电网安全校核没通过会怎么处理，削减要多久完成？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "multi-09",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#16",
+            "retail-company-2021#17",
+            "retail-company-2021#18",
+            "retail-company-2021#2",
+            "retail-company-2021#20",
+            "retail-company-2021#19",
+            "retail-company-2021#4",
+            "mid-long-term-market-2025#39",
+            "retail-company-2021#34",
+            "retail-company-2021#35"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "售电公司和电力用户怎么建立零售关系，用户能同时绑定几家？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "multi-10",
+          "category": "multi",
+          "retrieved": [
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#32",
+            "ancillary-service-market-2025#15",
+            "ancillary-service-market-2025#34",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#29"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            null,
+            2
+          ],
+          "queries": [
+            "辅助服务市场有哪些品种，各自的费用怎么计算？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "validity-01",
+          "category": "validity",
+          "retrieved": [
+            "spot-market-2023#111",
+            "ancillary-service-market-2025#44",
+            "mid-long-term-market-2025#70",
+            "retail-company-2021#40",
+            "spot-market-2023#86",
+            "spot-market-2023#13"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力现货市场基本规则的有效期到什么时候？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "validity-02",
+          "category": "validity",
+          "retrieved": [
+            "mid-long-term-market-2025#70",
+            "ancillary-service-market-2025#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力中长期市场基本规则从什么时候开始施行？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "validity-03",
+          "category": "validity",
+          "retrieved": [
+            "retail-company-2021#40",
+            "retail-company-2021#2",
+            "retail-company-2021#9",
+            "retail-company-2021#17",
+            "retail-company-2021#20",
+            "retail-company-2021#24",
+            "retail-company-2021#36",
+            "retail-company-2021#33",
+            "retail-company-2021#28",
+            "retail-company-2021#16"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司管理办法的有效期是多久？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "validity-04",
+          "category": "validity",
+          "retrieved": [
+            "power-market-operation-2024#30",
+            "mid-long-term-market-2025#70",
+            "ancillary-service-market-2025#1",
+            "power-market-operation-2024#4",
+            "power-market-operation-2024#20",
+            "power-market-operation-2024#26",
+            "power-market-operation-2024#28",
+            "power-market-operation-2024#24",
+            "power-market-operation-2024#6",
+            "power-market-operation-2024#2"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场运行基本规则施行后废止了哪个文件？"
+          ],
+          "latencyMs": 1
+        },
+        {
+          "id": "validity-05",
+          "category": "validity",
+          "retrieved": [
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#39"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "原来的绿色电力交易专章现在还适用吗？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "followup-01",
+          "category": "followup",
+          "retrieved": [
+            "retail-company-2021#12",
+            "spot-market-2023#25",
+            "spot-market-2023#24",
+            "ancillary-service-market-2025#11",
+            "spot-market-2023#26",
+            "spot-market-2023#19",
+            "mid-long-term-market-2025#62",
+            "retail-company-2021#7"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "那注册信息变了怎么办？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "followup-02",
+          "category": "followup",
+          "retrieved": [],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "它的费用怎么算？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "followup-03",
+          "category": "followup",
+          "retrieved": [
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#55",
+            "mid-long-term-market-2025#29",
+            "mid-long-term-market-2025#59"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "那环境价值部分按多少电量结算？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "followup-04",
+          "category": "followup",
+          "retrieved": [
+            "retail-company-2021#28"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "需要提前多久申请？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "followup-05",
+          "category": "followup",
+          "retrieved": [
+            "spot-market-2023#91",
+            "mid-long-term-market-2025#25",
+            "mid-long-term-market-2025#3",
+            "mid-long-term-market-2025#23",
+            "spot-market-2023#14",
+            "retail-company-2021#35"
+          ],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "其中第一个是什么意思？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-01",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "今天杭州天气怎么样？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-02",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "帮我写一首关于春天的诗"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-03",
+          "category": "out_of_scope",
+          "retrieved": [
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#52"
+          ],
+          "groupRanks": [],
+          "queries": [
+            "怎么申请家用光伏发电补贴？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-04",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "电动汽车充电桩的电价一度多少钱？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-05",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "Python 怎么读取 Excel 文件？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-06",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "股票的涨跌停规则是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-07",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "北京地铁几点停运？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-08",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "个人所得税怎么申报？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-09",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "张三的博客链接是什么？"
+          ],
+          "latencyMs": 0
+        },
+        {
+          "id": "out_of_scope-10",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "最近煤炭价格是涨还是跌？"
+          ],
+          "latencyMs": 0
+        }
+      ]
+    },
+    {
+      "name": "rewrite",
+      "description": "先用模型改写与拆解问题（标准模式的做法），再关键词检索",
+      "metrics": {
+        "cases": 79,
+        "hitAt": {
+          "1": 0.8481012658227848,
+          "3": 0.9367088607594937,
+          "5": 0.9493670886075949,
+          "10": 0.9873417721518988
+        },
+        "recallAt": {
+          "1": 0.7890295358649789,
+          "3": 0.9135021097046412,
+          "5": 0.9324894514767931,
+          "10": 0.9810126582278481
+        },
+        "completeAt": {
+          "1": 0.7341772151898734,
+          "3": 0.8860759493670886,
+          "5": 0.9113924050632911,
+          "10": 0.9746835443037974
+        },
+        "mrr": 0.8971518987341772,
+        "emptyRate": 0,
+        "outOfScopeEmptyRate": 0.8,
+        "outOfScopeCases": 10,
+        "meanRetrieved": 10
+      },
+      "rows": [
+        {
+          "id": "lookup-01",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#54",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#9",
+            "mid-long-term-market-2025#12",
+            "mid-long-term-market-2025#55",
+            "mid-long-term-market-2025#11",
+            "mid-long-term-market-2025#30",
+            "mid-long-term-market-2025#17",
+            "mid-long-term-market-2025#73",
+            "mid-long-term-market-2025#21"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力中长期市场按什么周期结算？",
+            "电力中长期市场 结算周期 结算 中长期交易"
+          ],
+          "latencyMs": 757
+        },
+        {
+          "id": "lookup-02",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#45",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#42",
+            "mid-long-term-market-2025#48",
+            "mid-long-term-market-2025#44",
+            "spot-market-2023#116",
+            "mid-long-term-market-2025#21",
+            "mid-long-term-market-2025#38",
+            "power-market-operation-2024#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "月度交易的电网安全校核要在几个工作日内完成？",
+            "月度交易 电网安全校核 工作日 安全校核时限"
+          ],
+          "latencyMs": 650
+        },
+        {
+          "id": "lookup-03",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#12",
+            "spot-market-2023#25",
+            "ancillary-service-market-2025#11",
+            "retail-company-2021#10",
+            "retail-company-2021#6",
+            "retail-company-2021#8",
+            "retail-company-2021#7",
+            "retail-company-2021#15",
+            "spot-market-2023#26",
+            "spot-market-2023#24"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司注册信息发生变化后，多长时间内要申请变更？",
+            "售电公司 注册信息 信息变更 变更申请 时限"
+          ],
+          "latencyMs": 615
+        },
+        {
+          "id": "lookup-04",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#15",
+            "retail-company-2021#38",
+            "retail-company-2021#14",
+            "retail-company-2021#8",
+            "retail-company-2021#25",
+            "retail-company-2021#5",
+            "retail-company-2021#3",
+            "retail-company-2021#12",
+            "retail-company-2021#6",
+            "retail-company-2021#4"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司每年什么时候前要披露持续满足注册条件的信息？",
+            "售电公司 注册条件 信息披露 持续满足 年度披露 时间要求"
+          ],
+          "latencyMs": 674
+        },
+        {
+          "id": "lookup-05",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#28",
+            "retail-company-2021#29",
+            "retail-company-2021#30",
+            "retail-company-2021#35",
+            "retail-company-2021#31",
+            "retail-company-2021#27",
+            "retail-company-2021#26",
+            "retail-company-2021#10",
+            "retail-company-2021#34",
+            "retail-company-2021#8"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司自愿退出售电市场需要提前多少个工作日申请？",
+            "售电公司 自愿退出 退出售电市场 提前申请 工作日 市场退出"
+          ],
+          "latencyMs": 897
+        },
+        {
+          "id": "lookup-06",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#32",
+            "retail-company-2021#21",
+            "retail-company-2021#22",
+            "retail-company-2021#31",
+            "spot-market-2023#132",
+            "retail-company-2021#23",
+            "mid-long-term-market-2025#13",
+            "retail-company-2021#29",
+            "spot-market-2023#88",
+            "retail-company-2021#34"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司退出后，履约保函保留多长时间？",
+            "售电公司退出市场后，其履约保函需要保留多长时间？",
+            "售电公司 退出市场 履约保函 保留期限 保函退还"
+          ],
+          "latencyMs": 643
+        },
+        {
+          "id": "lookup-07",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#24",
+            "retail-company-2021#38",
+            "retail-company-2021#23",
+            "retail-company-2021#6",
+            "retail-company-2021#20",
+            "retail-company-2021#5",
+            "retail-company-2021#19",
+            "retail-company-2021#22",
+            "retail-company-2021#4",
+            "retail-company-2021#34"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "连续多长时间没有实际交易的售电公司会被暂停交易资格？",
+            "售电公司 暂停交易资格 连续无实际交易 交易资格 售电市场"
+          ],
+          "latencyMs": 644
+        },
+        {
+          "id": "lookup-08",
+          "category": "lookup",
+          "retrieved": [
+            "retail-company-2021#17",
+            "retail-company-2021#16",
+            "retail-company-2021#18",
+            "retail-company-2021#2",
+            "retail-company-2021#19",
+            "retail-company-2021#35",
+            "mid-long-term-market-2025#17",
+            "retail-company-2021#34",
+            "retail-company-2021#27",
+            "retail-company-2021#20"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "同一合同周期内，电力用户可以与几家售电公司确立零售服务关系？",
+            "合同周期 电力用户 售电公司 零售服务关系 零售市场 售电服务"
+          ],
+          "latencyMs": 837
+        },
+        {
+          "id": "lookup-09",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#2",
+            "retail-company-2021#19",
+            "ancillary-service-market-2025#32",
+            "ancillary-service-market-2025#43",
+            "ancillary-service-market-2025#26"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务费用的追退补应在多长时间内完成？",
+            "电力辅助服务 辅助服务费用 追退补 时限 完成期限"
+          ],
+          "latencyMs": 1110
+        },
+        {
+          "id": "lookup-10",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#35",
+            "ancillary-service-market-2025#34",
+            "mid-long-term-market-2025#48",
+            "ancillary-service-market-2025#8",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#36",
+            "mid-long-term-market-2025#60",
+            "ancillary-service-market-2025#10",
+            "ancillary-service-market-2025#11",
+            "ancillary-service-market-2025#6"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "经营主体对辅助服务市场披露的信息有异议，应在多少个工作日内申请复核？",
+            "辅助服务市场 信息披露 异议 复核 工作日 经营主体"
+          ],
+          "latencyMs": 634
+        },
+        {
+          "id": "lookup-11",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#32",
+            "ancillary-service-market-2025#6",
+            "power-market-operation-2024#12",
+            "ancillary-service-market-2025#33",
+            "power-market-operation-2024#10",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#12",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#28"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务结算采用什么方式？",
+            "电力辅助服务 结算方式 辅助服务费用 分摊 补偿 考核"
+          ],
+          "latencyMs": 457
+        },
+        {
+          "id": "lookup-12",
+          "category": "lookup",
+          "retrieved": [
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#21",
+            "ancillary-service-market-2025#22",
+            "spot-market-2023#117",
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#3",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#13",
+            "ancillary-service-market-2025#30"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力辅助服务市场品种主要包括哪些？",
+            "电力辅助服务 辅助服务市场 市场品种 调频 调峰 备用 无功补偿"
+          ],
+          "latencyMs": 780
+        },
+        {
+          "id": "lookup-13",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#7",
+            "mid-long-term-market-2025#38",
+            "spot-market-2023#2",
+            "power-market-operation-2024#8",
+            "mid-long-term-market-2025#5",
+            "spot-market-2023#16",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#63",
+            "ancillary-service-market-2025#29",
+            "mid-long-term-market-2025#31"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场交易类型包括哪些？",
+            "电力市场 交易类型 交易品种 中长期交易 现货交易 辅助服务交易 发电权交易 跨省跨区交易"
+          ],
+          "latencyMs": 620
+        },
+        {
+          "id": "lookup-14",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#7",
+            "mid-long-term-market-2025#21",
+            "spot-market-2023#112",
+            "spot-market-2023#51",
+            "power-market-operation-2024#9",
+            "ancillary-service-market-2025#31",
+            "power-market-operation-2024#15",
+            "spot-market-2023#118",
+            "spot-market-2023#126",
+            "ancillary-service-market-2025#32"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电能量交易按交易周期分为哪几类？",
+            "电能量交易 交易周期 交易品种 中长期交易 现货交易 年度交易 月度交易 日前交易"
+          ],
+          "latencyMs": 672
+        },
+        {
+          "id": "lookup-15",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#6",
+            "ancillary-service-market-2025#19",
+            "spot-market-2023#4",
+            "mid-long-term-market-2025#30",
+            "ancillary-service-market-2025#43",
+            "spot-market-2023#104",
+            "ancillary-service-market-2025#16",
+            "power-market-operation-2024#30",
+            "ancillary-service-market-2025#1",
+            "retail-company-2021#21"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场管理委员会的定位是什么？",
+            "电力市场管理委员会 定位 职责 组成 议事规则"
+          ],
+          "latencyMs": 601
+        },
+        {
+          "id": "lookup-16",
+          "category": "lookup",
+          "retrieved": [
+            "power-market-operation-2024#25",
+            "ancillary-service-market-2025#34",
+            "mid-long-term-market-2025#60",
+            "spot-market-2023#4",
+            "power-market-operation-2024#26",
+            "mid-long-term-market-2025#6",
+            "mid-long-term-market-2025#18",
+            "ancillary-service-market-2025#36",
+            "spot-market-2023#19",
+            "power-market-operation-2024#4"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场信息披露应遵循哪些原则？",
+            "电力市场 信息披露 原则 公开 公平 及时 准确 完整"
+          ],
+          "latencyMs": 1407
+        },
+        {
+          "id": "lookup-17",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#27",
+            "spot-market-2023#2",
+            "spot-market-2023#117",
+            "spot-market-2023#120",
+            "spot-market-2023#79",
+            "spot-market-2023#34",
+            "spot-market-2023#78",
+            "spot-market-2023#77",
+            "spot-market-2023#41",
+            "spot-market-2023#76"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力现货市场一般包括哪些市场？",
+            "电力现货市场 日前市场 日内市场 实时市场 辅助服务市场"
+          ],
+          "latencyMs": 637
+        },
+        {
+          "id": "lookup-18",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#29",
+            "spot-market-2023#119",
+            "spot-market-2023#118",
+            "spot-market-2023#79",
+            "spot-market-2023#77",
+            "spot-market-2023#76",
+            "spot-market-2023#78",
+            "spot-market-2023#69",
+            "spot-market-2023#32",
+            "mid-long-term-market-2025#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "现货市场可以选择哪些边际电价机制？",
+            "现货市场 边际电价机制 节点边际电价 系统边际电价 分区边际电价"
+          ],
+          "latencyMs": 1131
+        },
+        {
+          "id": "lookup-19",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#77",
+            "spot-market-2023#76",
+            "spot-market-2023#30",
+            "spot-market-2023#28",
+            "spot-market-2023#118",
+            "spot-market-2023#31",
+            "spot-market-2023#32",
+            "spot-market-2023#79",
+            "spot-market-2023#29",
+            "mid-long-term-market-2025#58"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "现货市场中发电侧价格由什么构成？",
+            "现货市场 发电侧 价格构成 节点电价 发电报价 边际电价"
+          ],
+          "latencyMs": 608
+        },
+        {
+          "id": "lookup-20",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#31",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "spot-market-2023#30",
+            "spot-market-2023#17",
+            "spot-market-2023#14",
+            "mid-long-term-market-2025#28",
+            "spot-market-2023#85",
+            "ancillary-service-market-2025#28",
+            "spot-market-2023#7"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "直接参与交易的用户侧用电价格由哪些部分构成？",
+            "直接参与交易 用户侧用电价格 价格构成 电能量价格 输配电价 政府性基金及附加 辅助服务费用"
+          ],
+          "latencyMs": 1039
+        },
+        {
+          "id": "lookup-21",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#23",
+            "spot-market-2023#21",
+            "spot-market-2023#22",
+            "spot-market-2023#26",
+            "spot-market-2023#20",
+            "spot-market-2023#8",
+            "retail-company-2021#29",
+            "spot-market-2023#24",
+            "retail-company-2021#35",
+            "spot-market-2023#42"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "无正当理由退出市场的经营主体多长时间内不得申请市场准入？",
+            "无正当理由退出市场 经营主体 市场准入 申请期限 退出市场"
+          ],
+          "latencyMs": 718
+        },
+        {
+          "id": "lookup-22",
+          "category": "lookup",
+          "retrieved": [
+            "spot-market-2023#53",
+            "mid-long-term-market-2025#56",
+            "spot-market-2023#7",
+            "mid-long-term-market-2025#20",
+            "spot-market-2023#17",
+            "spot-market-2023#2",
+            "spot-market-2023#63",
+            "retail-company-2021#18",
+            "spot-market-2023#78",
+            "mid-long-term-market-2025#8"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电网企业代理工商业用户购电的偏差电量按什么价格结算？",
+            "电网企业代理购电 工商业用户 偏差电量 结算价格 代理购电价格"
+          ],
+          "latencyMs": 824
+        },
+        {
+          "id": "lookup-23",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#48",
+            "mid-long-term-market-2025#49",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#44",
+            "mid-long-term-market-2025#45",
+            "spot-market-2023#52",
+            "spot-market-2023#26",
+            "ancillary-service-market-2025#35",
+            "mid-long-term-market-2025#38",
+            "mid-long-term-market-2025#60"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "经营主体对中长期交易成交结果有异议，应在多长时间内提出？",
+            "中长期交易 成交结果 异议 提出时限 经营主体"
+          ],
+          "latencyMs": 1053
+        },
+        {
+          "id": "lookup-24",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#60",
+            "mid-long-term-market-2025#19",
+            "mid-long-term-market-2025#17",
+            "mid-long-term-market-2025#20",
+            "mid-long-term-market-2025#15",
+            "spot-market-2023#105",
+            "spot-market-2023#75",
+            "ancillary-service-market-2025#34",
+            "power-market-operation-2024#25",
+            "spot-market-2023#68"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场披露的信息保留或可供查询的时间不少于多久？",
+            "电力市场信息披露 信息保留期限 信息查询期限 披露信息保存 保存时间"
+          ],
+          "latencyMs": 715
+        },
+        {
+          "id": "lookup-25",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#25",
+            "mid-long-term-market-2025#73",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#74",
+            "mid-long-term-market-2025#28",
+            "mid-long-term-market-2025#75",
+            "power-market-operation-2024#7",
+            "spot-market-2023#38",
+            "spot-market-2023#75",
+            "spot-market-2023#63"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "同一经营主体在同一交易序列同一时段能否既买入又卖出？",
+            "经营主体 交易序列 同一时段 买入 卖出 双向交易 交易方向"
+          ],
+          "latencyMs": 956
+        },
+        {
+          "id": "lookup-26",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#31",
+            "mid-long-term-market-2025#5",
+            "mid-long-term-market-2025#69",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#33",
+            "mid-long-term-market-2025#72",
+            "mid-long-term-market-2025#34",
+            "mid-long-term-market-2025#19",
+            "mid-long-term-market-2025#49",
+            "mid-long-term-market-2025#2"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "跨电网经营区电力中长期交易由谁组织？",
+            "跨电网经营区 电力中长期交易 组织主体 交易机构 电力交易中心"
+          ],
+          "latencyMs": 950
+        },
+        {
+          "id": "lookup-27",
+          "category": "lookup",
+          "retrieved": [
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#41",
+            "retail-company-2021#38",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#57",
+            "retail-company-2021#6",
+            "mid-long-term-market-2025#40",
+            "retail-company-2021#8"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司参与绿电交易有什么要求？",
+            "售电公司 绿色电力交易 绿电交易 市场准入 交易资格 绿电环境价值"
+          ],
+          "latencyMs": 527
+        },
+        {
+          "id": "definition-01",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#118",
+            "spot-market-2023#29",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "spot-market-2023#119",
+            "spot-market-2023#76",
+            "spot-market-2023#77",
+            "spot-market-2023#32",
+            "spot-market-2023#69",
+            "spot-market-2023#35"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是节点边际电价？",
+            "节点边际电价 LMP 边际机组 节点电价 电力市场定价"
+          ],
+          "latencyMs": 579
+        },
+        {
+          "id": "definition-02",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#119",
+            "spot-market-2023#29",
+            "spot-market-2023#79",
+            "spot-market-2023#78",
+            "spot-market-2023#76",
+            "spot-market-2023#118",
+            "spot-market-2023#77",
+            "spot-market-2023#32",
+            "spot-market-2023#69",
+            "mid-long-term-market-2025#27"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "分区边际电价是什么意思？",
+            "分区边际电价 边际电价 分区电价 节点边际电价 电价机制"
+          ],
+          "latencyMs": 722
+        },
+        {
+          "id": "definition-03",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#80",
+            "spot-market-2023#32",
+            "spot-market-2023#128",
+            "spot-market-2023#127",
+            "spot-market-2023#29",
+            "retail-company-2021#19",
+            "spot-market-2023#119",
+            "spot-market-2023#17",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#6"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "阻塞费用是怎么定义的？",
+            "阻塞费用 阻塞盈余 输电阻塞 阻塞管理 费用分摊"
+          ],
+          "latencyMs": 998
+        },
+        {
+          "id": "definition-04",
+          "category": "definition",
+          "retrieved": [
+            "spot-market-2023#27",
+            "spot-market-2023#121",
+            "spot-market-2023#76",
+            "spot-market-2023#78",
+            "spot-market-2023#44",
+            "spot-market-2023#49",
+            "spot-market-2023#45",
+            "spot-market-2023#43",
+            "spot-market-2023#77",
+            "spot-market-2023#79"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "日前市场指的是什么？",
+            "日前市场 现货市场 日前交易 市场定义"
+          ],
+          "latencyMs": 855
+        },
+        {
+          "id": "definition-05",
+          "category": "definition",
+          "retrieved": [
+            "retail-company-2021#21",
+            "retail-company-2021#32",
+            "spot-market-2023#132",
+            "retail-company-2021#22",
+            "spot-market-2023#88",
+            "spot-market-2023#73",
+            "mid-long-term-market-2025#13",
+            "spot-market-2023#74",
+            "mid-long-term-market-2025#17",
+            "mid-long-term-market-2025#37"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是履约保函？",
+            "履约保函 保函 履约担保 电力市场"
+          ],
+          "latencyMs": 564
+        },
+        {
+          "id": "definition-06",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#40",
+            "spot-market-2023#5",
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#58"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "绿色电力指的是哪些电量？",
+            "绿色电力 绿电电量 可再生能源 绿色电力交易 绿电环境价值"
+          ],
+          "latencyMs": 885
+        },
+        {
+          "id": "definition-07",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#25",
+            "mid-long-term-market-2025#76",
+            "mid-long-term-market-2025#73",
+            "spot-market-2023#50",
+            "mid-long-term-market-2025#24",
+            "mid-long-term-market-2025#22",
+            "ancillary-service-market-2025#26",
+            "mid-long-term-market-2025#33",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#21"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "什么是挂牌交易？",
+            "挂牌交易 挂牌 交易方式 电力市场"
+          ],
+          "latencyMs": 719
+        },
+        {
+          "id": "definition-08",
+          "category": "definition",
+          "retrieved": [
+            "mid-long-term-market-2025#75",
+            "mid-long-term-market-2025#25",
+            "spot-market-2023#53",
+            "mid-long-term-market-2025#73",
+            "mid-long-term-market-2025#74",
+            "spot-market-2023#122",
+            "spot-market-2023#50",
+            "mid-long-term-market-2025#24",
+            "spot-market-2023#93",
+            "mid-long-term-market-2025#22"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "滚动撮合交易是什么？",
+            "滚动撮合交易 撮合交易 交易方式 电力市场"
+          ],
+          "latencyMs": 592
+        },
+        {
+          "id": "definition-09",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#4",
+            "mid-long-term-market-2025#71",
+            "power-market-operation-2024#2",
+            "mid-long-term-market-2025#3",
+            "mid-long-term-market-2025#17",
+            "spot-market-2023#2",
+            "spot-market-2023#8",
+            "mid-long-term-market-2025#12",
+            "mid-long-term-market-2025#56",
+            "mid-long-term-market-2025#49"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "新型经营主体包括哪些？",
+            "新型经营主体 经营主体 市场主体 电力市场"
+          ],
+          "latencyMs": 530
+        },
+        {
+          "id": "definition-10",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#27",
+            "spot-market-2023#30",
+            "ancillary-service-market-2025#30",
+            "ancillary-service-market-2025#3",
+            "ancillary-service-market-2025#10",
+            "ancillary-service-market-2025#4",
+            "ancillary-service-market-2025#22",
+            "ancillary-service-market-2025#9"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "爬坡服务是什么？",
+            "爬坡服务 爬坡辅助服务 辅助服务 爬坡能力 电力市场"
+          ],
+          "latencyMs": 551
+        },
+        {
+          "id": "definition-11",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#27",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#3",
+            "ancillary-service-market-2025#31",
+            "power-market-operation-2024#7",
+            "spot-market-2023#7",
+            "power-market-operation-2024#10",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#10"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "调峰服务是指什么？",
+            "调峰服务 调峰 辅助服务 电力辅助服务 调峰辅助服务"
+          ],
+          "latencyMs": 665
+        },
+        {
+          "id": "definition-12",
+          "category": "definition",
+          "retrieved": [
+            "power-market-operation-2024#8",
+            "mid-long-term-market-2025#21",
+            "power-market-operation-2024#9",
+            "spot-market-2023#36",
+            "power-market-operation-2024#7",
+            "spot-market-2023#31",
+            "power-market-operation-2024#15",
+            "spot-market-2023#118",
+            "spot-market-2023#56",
+            "spot-market-2023#81"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "容量交易的标的是什么？",
+            "容量交易 标的 容量市场 容量电价 交易品种"
+          ],
+          "latencyMs": 633
+        },
+        {
+          "id": "definition-13",
+          "category": "definition",
+          "retrieved": [
+            "ancillary-service-market-2025#3",
+            "power-market-operation-2024#10",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#30",
+            "ancillary-service-market-2025#10",
+            "ancillary-service-market-2025#7",
+            "spot-market-2023#117",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#20"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "什么是电力辅助服务？",
+            "电力辅助服务 辅助服务 调频 调峰 备用 无功补偿 黑启动"
+          ],
+          "latencyMs": 800
+        },
+        {
+          "id": "definition-14",
+          "category": "definition",
+          "retrieved": [
+            "retail-company-2021#2",
+            "retail-company-2021#35",
+            "retail-company-2021#33",
+            "retail-company-2021#21",
+            "retail-company-2021#9",
+            "retail-company-2021#31",
+            "retail-company-2021#1",
+            "retail-company-2021#37",
+            "spot-market-2023#7",
+            "retail-company-2021#25"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司是指什么样的市场主体？",
+            "售电公司 市场主体 售电服务 零售市场 电力市场"
+          ],
+          "latencyMs": 579
+        },
+        {
+          "id": "paraphrase-01",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#2",
+            "retail-company-2021#6",
+            "retail-company-2021#27",
+            "retail-company-2021#35",
+            "retail-company-2021#30",
+            "retail-company-2021#34",
+            "retail-company-2021#20",
+            "retail-company-2021#28",
+            "retail-company-2021#18",
+            "retail-company-2021#5"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司是干啥的？",
+            "售电公司是干什么的？",
+            "售电公司 售电服务 零售市场 电力销售 购售电业务"
+          ],
+          "latencyMs": 775
+        },
+        {
+          "id": "paraphrase-02",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#3",
+            "retail-company-2021#7",
+            "retail-company-2021#15",
+            "retail-company-2021#12",
+            "mid-long-term-market-2025#37",
+            "retail-company-2021#14",
+            "retail-company-2021#35",
+            "retail-company-2021#17",
+            "spot-market-2023#21",
+            "retail-company-2021#8"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "开一家售电公司最少得有多少钱的资产？",
+            "开一家售电公司最少需要多少资产？",
+            "售电公司 资产总额 注册资本 准入条件 资产要求"
+          ],
+          "latencyMs": 966
+        },
+        {
+          "id": "paraphrase-03",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#12",
+            "retail-company-2021#15",
+            "retail-company-2021#3",
+            "retail-company-2021#7",
+            "retail-company-2021#6",
+            "retail-company-2021#14",
+            "retail-company-2021#8",
+            "retail-company-2021#10",
+            "retail-company-2021#5",
+            "retail-company-2021#38"
+          ],
+          "firstHit": 3,
+          "groupRanks": [
+            3
+          ],
+          "queries": [
+            "售电公司要招多少人才能注册？",
+            "售电公司注册需要多少从业人员？",
+            "售电公司 注册 从业人员 人员数量 准入条件"
+          ],
+          "latencyMs": 816
+        },
+        {
+          "id": "paraphrase-04",
+          "category": "paraphrase",
+          "retrieved": [
+            "spot-market-2023#34",
+            "spot-market-2023#36",
+            "spot-market-2023#29",
+            "mid-long-term-market-2025#30",
+            "mid-long-term-market-2025#27",
+            "spot-market-2023#30",
+            "mid-long-term-market-2025#78",
+            "spot-market-2023#118",
+            "spot-market-2023#78",
+            "spot-market-2023#120"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "现货电价有没有封顶，最高能报到多少？",
+            "现货市场电价的申报上限是多少，是否存在价格封顶机制？",
+            "现货市场 申报价格上限 价格封顶 限价机制 最高限价"
+          ],
+          "latencyMs": 596
+        },
+        {
+          "id": "paraphrase-05",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#59",
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#70"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "买绿电能拿到绿证吗？",
+            "购买绿色电力能否获得绿证？",
+            "绿色电力交易 绿证 可再生能源绿色电力证书 绿电环境价值 证书核发"
+          ],
+          "latencyMs": 588
+        },
+        {
+          "id": "paraphrase-06",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#57"
+          ],
+          "firstHit": 8,
+          "groupRanks": [
+            8
+          ],
+          "queries": [
+            "绿电的钱是怎么算的？",
+            "绿色电力交易的电价是如何计算和结算的？",
+            "绿色电力交易的电价由哪些部分组成？",
+            "绿色电力交易的环境价值如何计价？",
+            "绿色电力交易的结算流程是怎样的？",
+            "绿色电力交易 绿电电价 环境价值 结算 电能量价格 绿证"
+          ],
+          "latencyMs": 927
+        },
+        {
+          "id": "paraphrase-07",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#17",
+            "spot-market-2023#15",
+            "retail-company-2021#27",
+            "retail-company-2021#34",
+            "retail-company-2021#16",
+            "retail-company-2021#14",
+            "spot-market-2023#7",
+            "spot-market-2023#63",
+            "spot-market-2023#2",
+            "mid-long-term-market-2025#39"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "我们厂想同时找两家售电公司代理，行不行？",
+            "电力市场规则是否允许同一电力用户同时委托两家售电公司代理购电？",
+            "同一电力用户与多家售电公司签订代理合同有哪些限制或禁止性规定？",
+            "售电公司 代理购电 电力用户 零售市场 委托代理 合同 市场准入"
+          ],
+          "latencyMs": 979
+        },
+        {
+          "id": "paraphrase-08",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#27",
+            "retail-company-2021#30",
+            "retail-company-2021#35",
+            "retail-company-2021#23",
+            "retail-company-2021#18",
+            "retail-company-2021#19",
+            "retail-company-2021#28",
+            "retail-company-2021#34",
+            "retail-company-2021#13",
+            "retail-company-2021#17"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司被清退了，之前签的合同怎么办？",
+            "售电公司被清退后，之前签订的购售电合同如何处理？",
+            "售电公司被清退后，已签订的购售电合同是否继续有效？",
+            "售电公司被清退后，用户如何调整或解除已签合同？",
+            "售电公司 清退 合同 购售电合同 合同解除 合同转让 零售市场 电力市场"
+          ],
+          "latencyMs": 1099
+        },
+        {
+          "id": "paraphrase-09",
+          "category": "paraphrase",
+          "retrieved": [
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#42",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#30",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#32",
+            "spot-market-2023#30"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "独立储能参与辅助服务，费用怎么分摊？",
+            "独立储能参与辅助服务时，费用如何分摊？",
+            "独立储能 辅助服务 费用分摊 辅助服务费用 分摊机制"
+          ],
+          "latencyMs": 830
+        },
+        {
+          "id": "paraphrase-10",
+          "category": "paraphrase",
+          "retrieved": [
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#6",
+            "retail-company-2021#19",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#42",
+            "ancillary-service-market-2025#32",
+            "spot-market-2023#30"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "辅助服务的钱最后由谁来出？",
+            "电力市场中辅助服务费用最终由谁承担？",
+            "辅助服务 费用分摊 承担主体 电力用户 发电企业 辅助服务费用"
+          ],
+          "latencyMs": 596
+        },
+        {
+          "id": "paraphrase-11",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#51",
+            "power-market-operation-2024#18",
+            "mid-long-term-market-2025#14",
+            "spot-market-2023#13",
+            "ancillary-service-market-2025#40",
+            "retail-company-2021#14",
+            "spot-market-2023#18",
+            "retail-company-2021#5",
+            "ancillary-service-market-2025#5",
+            "spot-market-2023#14"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电网出了紧急状况，调度还用按合同来吗？",
+            "电网发生紧急状况时，电力调度机构是否仍需按照合同执行调度？",
+            "电网紧急状况下调度机构可以采取哪些应急调度措施？",
+            "紧急状况下调度机构不按合同调度是否构成违约或免责？",
+            "紧急状况 调度机构 合同 应急调度 免责 电力调度 调度指令"
+          ],
+          "latencyMs": 954
+        },
+        {
+          "id": "paraphrase-12",
+          "category": "paraphrase",
+          "retrieved": [
+            "spot-market-2023#96",
+            "mid-long-term-market-2025#63",
+            "mid-long-term-market-2025#28",
+            "mid-long-term-market-2025#65",
+            "mid-long-term-market-2025#26",
+            "mid-long-term-market-2025#19",
+            "spot-market-2023#17",
+            "spot-market-2023#101",
+            "mid-long-term-market-2025#78",
+            "spot-market-2023#91"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电价涨得离谱的时候政府能出手管吗？",
+            "电力市场中政府可以对电价进行干预或价格管制吗？",
+            "电力市场价格异常波动时有哪些政府调控措施？",
+            "电价 政府干预 价格管制 价格异常波动 市场调控 最高限价 电力市场规则"
+          ],
+          "latencyMs": 1310
+        },
+        {
+          "id": "paraphrase-13",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#19",
+            "spot-market-2023#19",
+            "power-market-operation-2024#12",
+            "spot-market-2023#30",
+            "spot-market-2023#103",
+            "spot-market-2023#74",
+            "mid-long-term-market-2025#78",
+            "retail-company-2021#23",
+            "spot-market-2023#8",
+            "spot-market-2023#88"
+          ],
+          "groupRanks": [
+            null
+          ],
+          "queries": [
+            "忘了按时报价会怎么样？",
+            "在电力市场中，市场主体未按时报价会有什么后果？",
+            "报价 按时报价 逾期报价 未报价 考核 违约 电力市场"
+          ],
+          "latencyMs": 822
+        },
+        {
+          "id": "paraphrase-14",
+          "category": "paraphrase",
+          "retrieved": [
+            "power-market-operation-2024#14",
+            "spot-market-2023#64",
+            "spot-market-2023#60",
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#6",
+            "power-market-operation-2024#13",
+            "spot-market-2023#61",
+            "power-market-operation-2024#15",
+            "spot-market-2023#62"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电表不准，校验的费用谁来出？",
+            "电表计量不准确时，校验费用由谁承担？",
+            "电能计量装置 计量误差 校验费用 检定费用 计量检定 费用承担"
+          ],
+          "latencyMs": 726
+        },
+        {
+          "id": "paraphrase-15",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#27",
+            "retail-company-2021#18",
+            "retail-company-2021#35",
+            "retail-company-2021#30",
+            "retail-company-2021#34",
+            "retail-company-2021#28",
+            "retail-company-2021#14",
+            "spot-market-2023#15",
+            "retail-company-2021#19",
+            "retail-company-2021#23"
+          ],
+          "firstHit": 2,
+          "groupRanks": [
+            2
+          ],
+          "queries": [
+            "找了售电公司以后，原来和电网签的供电合同还算数吗？",
+            "用户与售电公司签约后，原来与电网签订的供电合同是否仍然有效？",
+            "用户与售电公司签约后，原与电网签订的供电合同是否自动终止？",
+            "售电公司代理用户参与电力市场交易时，原供电合同如何处理？",
+            "售电公司 供电合同 电网企业 合同效力 代理购电 市场交易 合同终止 用户"
+          ],
+          "latencyMs": 1437
+        },
+        {
+          "id": "paraphrase-16",
+          "category": "paraphrase",
+          "retrieved": [
+            "mid-long-term-market-2025#42",
+            "power-market-operation-2024#18",
+            "power-market-operation-2024#16",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#8",
+            "spot-market-2023#18",
+            "mid-long-term-market-2025#45",
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#48",
+            "ancillary-service-market-2025#33"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "交易机构和调度各自负责哪种校核？",
+            "交易机构负责哪种校核？",
+            "调度机构负责哪种校核？",
+            "交易机构 调度机构 校核 安全校核 电力市场"
+          ],
+          "latencyMs": 661
+        },
+        {
+          "id": "paraphrase-17",
+          "category": "paraphrase",
+          "retrieved": [
+            "ancillary-service-market-2025#23",
+            "mid-long-term-market-2025#77",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#22",
+            "spot-market-2023#30",
+            "ancillary-service-market-2025#21",
+            "mid-long-term-market-2025#71",
+            "mid-long-term-market-2025#52",
+            "mid-long-term-market-2025#4"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "风电光伏出力忽高忽低，有专门应对的辅助服务吗？",
+            "风电光伏出力忽高忽低，电力市场中有专门应对的辅助服务吗？",
+            "辅助服务 新能源 风电 光伏 出力波动 调频 备用 爬坡"
+          ],
+          "latencyMs": 1114
+        },
+        {
+          "id": "paraphrase-18",
+          "category": "paraphrase",
+          "retrieved": [
+            "retail-company-2021#32",
+            "retail-company-2021#31",
+            "retail-company-2021#35",
+            "retail-company-2021#30",
+            "retail-company-2021#27",
+            "spot-market-2023#21",
+            "retail-company-2021#34",
+            "retail-company-2021#28",
+            "retail-company-2021#26",
+            "retail-company-2021#29"
+          ],
+          "firstHit": 4,
+          "groupRanks": [
+            4
+          ],
+          "queries": [
+            "售电公司干不下去了想关门，怎么退出？",
+            "售电公司想退出市场并关门，应如何办理退出？",
+            "售电公司退出电力市场的条件和程序是什么？",
+            "售电公司退出时对已签约用户如何安排？",
+            "售电公司 市场退出 退出程序 注销 用户承接 履约保函 电力市场"
+          ],
+          "latencyMs": 890
+        },
+        {
+          "id": "multi-01",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#4",
+            "spot-market-2023#50",
+            "spot-market-2023#51",
+            "spot-market-2023#52",
+            "spot-market-2023#69",
+            "spot-market-2023#7",
+            "ancillary-service-market-2025#30",
+            "spot-market-2023#54",
+            "spot-market-2023#53",
+            "mid-long-term-market-2025#5"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            2,
+            1
+          ],
+          "queries": [
+            "中长期市场和现货市场怎么衔接？",
+            "中长期市场 现货市场 市场衔接 中长期合同 现货交易 价格衔接 交易时序"
+          ],
+          "latencyMs": 576
+        },
+        {
+          "id": "multi-02",
+          "category": "multi",
+          "retrieved": [
+            "spot-market-2023#54",
+            "ancillary-service-market-2025#30",
+            "spot-market-2023#7",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#28",
+            "spot-market-2023#117",
+            "ancillary-service-market-2025#24",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#17"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            2,
+            1
+          ],
+          "queries": [
+            "辅助服务市场和现货市场是联合出清还是分开出清？",
+            "辅助服务市场 现货市场 联合出清 分开出清 出清机制"
+          ],
+          "latencyMs": 616
+        },
+        {
+          "id": "multi-03",
+          "category": "multi",
+          "retrieved": [
+            "ancillary-service-market-2025#28",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#2",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#42",
+            "spot-market-2023#81",
+            "ancillary-service-market-2025#32"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            4,
+            1
+          ],
+          "queries": [
+            "现货市场运行的地区，辅助服务费用由谁承担？",
+            "现货市场 辅助服务费用 费用承担 辅助服务市场 分摊机制"
+          ],
+          "latencyMs": 728
+        },
+        {
+          "id": "multi-04",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#21",
+            "retail-company-2021#22",
+            "retail-company-2021#32",
+            "spot-market-2023#88",
+            "spot-market-2023#132",
+            "retail-company-2021#23",
+            "mid-long-term-market-2025#13",
+            "spot-market-2023#73",
+            "mid-long-term-market-2025#15",
+            "retail-company-2021#34"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            6
+          ],
+          "queries": [
+            "售电公司履约保函的金额怎么确定？不交会怎样？",
+            "售电公司履约保函的金额如何确定？不提交履约保函会有什么后果？",
+            "售电公司履约保函的金额如何确定？",
+            "售电公司不提交履约保函会有什么后果？",
+            "售电公司 履约保函 保函金额 履约保障 市场准入 违约处理"
+          ],
+          "latencyMs": 835
+        },
+        {
+          "id": "multi-05",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#6",
+            "retail-company-2021#15",
+            "retail-company-2021#8",
+            "retail-company-2021#12",
+            "retail-company-2021#11",
+            "retail-company-2021#38",
+            "retail-company-2021#9",
+            "retail-company-2021#14",
+            "retail-company-2021#4",
+            "retail-company-2021#10"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            3,
+            7
+          ],
+          "queries": [
+            "售电公司注册要经过哪些步骤？",
+            "售电公司 注册 市场准入 注册流程 电力交易中心 注册条件 公示 备案"
+          ],
+          "latencyMs": 690
+        },
+        {
+          "id": "multi-06",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#63",
+            "spot-market-2023#91",
+            "mid-long-term-market-2025#78",
+            "power-market-operation-2024#7",
+            "ancillary-service-market-2025#38",
+            "mid-long-term-market-2025#49",
+            "mid-long-term-market-2025#19",
+            "spot-market-2023#12",
+            "spot-market-2023#89",
+            "spot-market-2023#90"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "电力市场风险分为哪些类型？现货规则和中长期规则的分类一样吗？",
+            "电力市场风险分为哪些类型？现货市场规则和中长期市场规则对风险的分类是否一样？",
+            "电力市场风险分为哪些类型？",
+            "现货市场规则中风险分为哪些类型？",
+            "中长期市场规则中风险分为哪些类型？",
+            "电力市场风险 风险类型 现货市场 中长期市场 市场规则 风险分类"
+          ],
+          "latencyMs": 812
+        },
+        {
+          "id": "multi-07",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#77"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            7
+          ],
+          "queries": [
+            "绿电交易合同要写明哪些内容，环境价值部分怎么结算？",
+            "绿色电力交易合同需要明确哪些内容，绿电环境价值部分如何结算？",
+            "绿色电力交易合同应包含哪些条款和内容？",
+            "绿色电力交易中的环境价值如何结算？",
+            "绿色电力交易 绿电合同 合同内容 环境价值 结算 绿证 电量 电价"
+          ],
+          "latencyMs": 939
+        },
+        {
+          "id": "multi-08",
+          "category": "multi",
+          "retrieved": [
+            "mid-long-term-market-2025#46",
+            "mid-long-term-market-2025#45",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#42",
+            "spot-market-2023#116",
+            "power-market-operation-2024#18",
+            "spot-market-2023#127",
+            "mid-long-term-market-2025#38",
+            "ancillary-service-market-2025#17",
+            "spot-market-2023#18"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            3
+          ],
+          "queries": [
+            "电网安全校核没通过会怎么处理，削减要多久完成？",
+            "电网安全校核未通过时会如何处理，以及安全校核后的削减（调整）需要在多长时间内完成？",
+            "电网安全校核未通过时的处理流程和措施是什么？",
+            "安全校核后发电计划或交易结果的削减（调整）完成时限是多久？",
+            "安全校核 电网安全 削减 调整 完成时限 调度机构 发电计划 交易结果"
+          ],
+          "latencyMs": 919
+        },
+        {
+          "id": "multi-09",
+          "category": "multi",
+          "retrieved": [
+            "retail-company-2021#16",
+            "retail-company-2021#17",
+            "retail-company-2021#18",
+            "retail-company-2021#2",
+            "retail-company-2021#19",
+            "retail-company-2021#20",
+            "retail-company-2021#34",
+            "retail-company-2021#35",
+            "retail-company-2021#27",
+            "mid-long-term-market-2025#39"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1,
+            2
+          ],
+          "queries": [
+            "售电公司和电力用户怎么建立零售关系，用户能同时绑定几家？",
+            "售电公司和电力用户如何建立零售关系，电力用户能同时绑定几家售电公司？",
+            "售电公司与电力用户建立零售关系的流程和方式是什么？",
+            "电力用户在同一时间可以绑定几家售电公司？",
+            "售电公司 电力用户 零售关系 绑定 零售市场 售电服务 用户绑定"
+          ],
+          "latencyMs": 1263
+        },
+        {
+          "id": "multi-10",
+          "category": "multi",
+          "retrieved": [
+            "ancillary-service-market-2025#26",
+            "ancillary-service-market-2025#32",
+            "spot-market-2023#55",
+            "ancillary-service-market-2025#2",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#15",
+            "ancillary-service-market-2025#13",
+            "ancillary-service-market-2025#6",
+            "ancillary-service-market-2025#29"
+          ],
+          "firstHit": 6,
+          "groupRanks": [
+            6,
+            null
+          ],
+          "queries": [
+            "辅助服务市场有哪些品种，各自的费用怎么计算？",
+            "辅助服务市场有哪些品种？",
+            "辅助服务各品种的费用如何计算？",
+            "辅助服务 辅助服务品种 费用计算 调频 调峰 备用 无功补偿 辅助服务费用"
+          ],
+          "latencyMs": 963
+        },
+        {
+          "id": "validity-01",
+          "category": "validity",
+          "retrieved": [
+            "spot-market-2023#111",
+            "mid-long-term-market-2025#70",
+            "ancillary-service-market-2025#44",
+            "retail-company-2021#40",
+            "spot-market-2023#86",
+            "spot-market-2023#13",
+            "spot-market-2023#84",
+            "spot-market-2023#83",
+            "power-market-operation-2024#30",
+            "spot-market-2023#82"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力现货市场基本规则的有效期到什么时候？",
+            "电力现货市场 基本规则 有效期 施行日期 废止日期"
+          ],
+          "latencyMs": 583
+        },
+        {
+          "id": "validity-02",
+          "category": "validity",
+          "retrieved": [
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#33",
+            "ancillary-service-market-2025#18",
+            "mid-long-term-market-2025#2",
+            "mid-long-term-market-2025#32",
+            "spot-market-2023#82",
+            "mid-long-term-market-2025#47",
+            "mid-long-term-market-2025#75",
+            "mid-long-term-market-2025#74",
+            "power-market-operation-2024#7"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力中长期市场基本规则从什么时候开始施行？",
+            "电力中长期市场 基本规则 施行时间 生效日期"
+          ],
+          "latencyMs": 680
+        },
+        {
+          "id": "validity-03",
+          "category": "validity",
+          "retrieved": [
+            "retail-company-2021#40",
+            "retail-company-2021#2",
+            "retail-company-2021#9",
+            "retail-company-2021#17",
+            "retail-company-2021#20",
+            "retail-company-2021#36",
+            "retail-company-2021#24",
+            "retail-company-2021#33",
+            "retail-company-2021#28",
+            "retail-company-2021#16"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "售电公司管理办法的有效期是多久？",
+            "售电公司 管理办法 有效期"
+          ],
+          "latencyMs": 488
+        },
+        {
+          "id": "validity-04",
+          "category": "validity",
+          "retrieved": [
+            "power-market-operation-2024#30",
+            "ancillary-service-market-2025#1",
+            "power-market-operation-2024#4",
+            "power-market-operation-2024#20",
+            "power-market-operation-2024#26",
+            "power-market-operation-2024#28",
+            "power-market-operation-2024#24",
+            "power-market-operation-2024#6",
+            "power-market-operation-2024#2",
+            "power-market-operation-2024#22"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "电力市场运行基本规则施行后废止了哪个文件？",
+            "电力市场运行基本规则 废止 文件"
+          ],
+          "latencyMs": 504
+        },
+        {
+          "id": "validity-05",
+          "category": "validity",
+          "retrieved": [
+            "mid-long-term-market-2025#70",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#40",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#39",
+            "spot-market-2023#3",
+            "mid-long-term-market-2025#3"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "原来的绿色电力交易专章现在还适用吗？",
+            "绿色电力交易 专章 适用 电力市场规则"
+          ],
+          "latencyMs": 538
+        },
+        {
+          "id": "followup-01",
+          "category": "followup",
+          "retrieved": [
+            "retail-company-2021#12",
+            "spot-market-2023#25",
+            "ancillary-service-market-2025#11",
+            "spot-market-2023#24",
+            "spot-market-2023#26",
+            "retail-company-2021#7",
+            "spot-market-2023#19",
+            "retail-company-2021#6",
+            "retail-company-2021#10",
+            "retail-company-2021#15"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "那注册信息变了怎么办？",
+            "售电公司注册信息发生变更后应如何处理？",
+            "售电公司 注册信息变更 信息变更 变更手续 市场注册"
+          ],
+          "latencyMs": 1179
+        },
+        {
+          "id": "followup-02",
+          "category": "followup",
+          "retrieved": [
+            "ancillary-service-market-2025#27",
+            "ancillary-service-market-2025#33",
+            "ancillary-service-market-2025#20",
+            "ancillary-service-market-2025#23",
+            "ancillary-service-market-2025#7",
+            "ancillary-service-market-2025#29",
+            "ancillary-service-market-2025#30",
+            "spot-market-2023#80",
+            "ancillary-service-market-2025#34",
+            "ancillary-service-market-2025#6"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "它的费用怎么算？",
+            "爬坡服务的费用怎么计算？",
+            "爬坡服务 费用计算 费用分摊 补偿标准 辅助服务"
+          ],
+          "latencyMs": 611
+        },
+        {
+          "id": "followup-03",
+          "category": "followup",
+          "retrieved": [
+            "mid-long-term-market-2025#58",
+            "mid-long-term-market-2025#57",
+            "mid-long-term-market-2025#22",
+            "mid-long-term-market-2025#41",
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#50",
+            "mid-long-term-market-2025#39",
+            "mid-long-term-market-2025#59",
+            "mid-long-term-market-2025#23",
+            "mid-long-term-market-2025#40"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "那环境价值部分按多少电量结算？",
+            "绿电交易价格中的环境价值部分按多少电量结算？",
+            "绿色电力交易 绿电环境价值 结算电量 电能量价格 环境价值结算"
+          ],
+          "latencyMs": 529
+        },
+        {
+          "id": "followup-04",
+          "category": "followup",
+          "retrieved": [
+            "retail-company-2021#28",
+            "retail-company-2021#30",
+            "retail-company-2021#35",
+            "retail-company-2021#31",
+            "spot-market-2023#21",
+            "retail-company-2021#29",
+            "retail-company-2021#34",
+            "retail-company-2021#27",
+            "retail-company-2021#32",
+            "retail-company-2021#26"
+          ],
+          "firstHit": 1,
+          "groupRanks": [
+            1
+          ],
+          "queries": [
+            "需要提前多久申请？",
+            "售电公司自愿申请退出售电市场需要提前多久申请？",
+            "售电公司 自愿退出 退出售电市场 提前申请 申请时限"
+          ],
+          "latencyMs": 695
+        },
+        {
+          "id": "followup-05",
+          "category": "followup",
+          "retrieved": [
+            "spot-market-2023#27",
+            "spot-market-2023#76",
+            "spot-market-2023#49",
+            "spot-market-2023#78",
+            "spot-market-2023#44",
+            "spot-market-2023#121",
+            "spot-market-2023#45",
+            "spot-market-2023#79",
+            "spot-market-2023#77",
+            "spot-market-2023#28"
+          ],
+          "firstHit": 6,
+          "groupRanks": [
+            6
+          ],
+          "queries": [
+            "其中第一个是什么意思？",
+            "现货市场中的日前市场是什么意思？",
+            "日前市场 现货市场 日前交易 市场出清"
+          ],
+          "latencyMs": 600
+        },
+        {
+          "id": "out_of_scope-01",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "今天杭州天气怎么样？",
+            "杭州 天气"
+          ],
+          "latencyMs": 557
+        },
+        {
+          "id": "out_of_scope-02",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "帮我写一首关于春天的诗",
+            "春天 诗"
+          ],
+          "latencyMs": 750
+        },
+        {
+          "id": "out_of_scope-03",
+          "category": "out_of_scope",
+          "retrieved": [
+            "mid-long-term-market-2025#77",
+            "mid-long-term-market-2025#52",
+            "mid-long-term-market-2025#71",
+            "mid-long-term-market-2025#40",
+            "spot-market-2023#31",
+            "spot-market-2023#2",
+            "retail-company-2021#22",
+            "spot-market-2023#7"
+          ],
+          "groupRanks": [],
+          "queries": [
+            "怎么申请家用光伏发电补贴？",
+            "分布式光伏 户用光伏 光伏补贴 补贴申请 并网申请 国家补贴 地方补贴"
+          ],
+          "latencyMs": 1032
+        },
+        {
+          "id": "out_of_scope-04",
+          "category": "out_of_scope",
+          "retrieved": [
+            "mid-long-term-market-2025#27",
+            "mid-long-term-market-2025#28",
+            "ancillary-service-market-2025#15",
+            "spot-market-2023#79",
+            "retail-company-2021#34",
+            "spot-market-2023#64",
+            "spot-market-2023#77",
+            "spot-market-2023#31",
+            "spot-market-2023#50",
+            "spot-market-2023#17"
+          ],
+          "groupRanks": [],
+          "queries": [
+            "电动汽车充电桩的电价一度多少钱？",
+            "电动汽车充电桩 充电电价 电价标准 充电服务费 峰谷分时电价"
+          ],
+          "latencyMs": 616
+        },
+        {
+          "id": "out_of_scope-05",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "Python 怎么读取 Excel 文件？",
+            "Python 读取 Excel 文件"
+          ],
+          "latencyMs": 649
+        },
+        {
+          "id": "out_of_scope-06",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "股票的涨跌停规则是什么？",
+            "涨跌停 涨跌幅限制 股票交易规则"
+          ],
+          "latencyMs": 458
+        },
+        {
+          "id": "out_of_scope-07",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "北京地铁几点停运？",
+            "北京地铁 停运时间 运营时间"
+          ],
+          "latencyMs": 456
+        },
+        {
+          "id": "out_of_scope-08",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "个人所得税怎么申报？",
+            "个人所得税 申报 纳税申报 个税申报"
+          ],
+          "latencyMs": 963
+        },
+        {
+          "id": "out_of_scope-09",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "张三的博客链接是什么？",
+            "张三 博客 链接"
+          ],
+          "latencyMs": 1051
+        },
+        {
+          "id": "out_of_scope-10",
+          "category": "out_of_scope",
+          "retrieved": [],
+          "groupRanks": [],
+          "queries": [
+            "最近煤炭价格是涨还是跌？",
+            "煤炭价格 电煤价格 动力煤价格 煤炭市场 价格走势"
+          ],
+          "latencyMs": 674
+        }
+      ]
+    }
+  ]
+}

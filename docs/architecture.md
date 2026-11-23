@@ -1,449 +1,168 @@
-# DBPilot — Architecture
+# DataQuery Workbench (数问工作台) — Architecture
 
-DBPilot is an AI-powered MySQL assistant that lets users ask natural-language questions about their databases. The application combines a React 19 single-page client, TanStack Start server functions, an inlined DeepSeek agent runtime, and mysql2 connection pools to deliver streaming, tool-augmented database analysis with human-in-the-loop SQL execution.
+DataQuery Workbench is a full-stack TypeScript AI workbench built on **TanStack Start**, **React 19**, and an inlined multi-model agent runtime (`src/core/`). It combines two complementary analytical engines in one workspace:
 
----
-
-## Table of Contents
-
-- [DBPilot — Architecture](#dbpilot--architecture)
-  - [Table of Contents](#table-of-contents)
-  - [High-Level Architecture](#high-level-architecture)
-  - [Technology Stack](#technology-stack)
-  - [Request Flow](#request-flow)
-    - [Step-by-step](#step-by-step)
-  - [Agent Architecture](#agent-architecture)
-    - [Tools](#tools)
-    - [Agent loop](#agent-loop)
-  - [SSE Streaming Architecture](#sse-streaming-architecture)
-    - [Event mapping](#event-mapping)
-  - [Human-in-the-Loop SQL Flow](#human-in-the-loop-sql-flow)
-    - [Detailed flow](#detailed-flow)
-  - [Data Storage](#data-storage)
-  - [Key Design Decisions](#key-design-decisions)
-    - [1. Inlined deepseek-kit (`src/core/`)](#1-inlined-deepseek-kit-srccore)
-    - [2. SSE over WebSocket](#2-sse-over-websocket)
-    - [3. Human-in-the-loop SQL execution](#3-human-in-the-loop-sql-execution)
-    - [4. IndexedDB for user data](#4-indexeddb-for-user-data)
-  - [Project Structure](#project-structure)
-  - [Related Server Functions](#related-server-functions)
+1. **DBPilot (`/dbpilot`)** — Natural-language Text-to-SQL assistant for MySQL with schema introspection, query planning, interactive parameter clarification (`smart_filter`), AST-enforced safety policies, human-in-the-loop SQL confirmation via `suspend/resume`, and automatic visualization.
+2. **Knowledge Q&A (`/knowledge`)** — In-process Retrieval-Augmented Generation (RAG) engine over structured regulatory documents (with clause-level chunking, BM25 + optional vector RRF hybrid retrieval, query rewriting, client-side PDF/DOCX uploads, citation verification, and rule-validity tracking).
+3. **Evaluation Dashboard (`/evals`)** — Self-contained HTML report generated from reproducible Text-to-SQL benchmarks (`evals/`).
 
 ---
 
 ## High-Level Architecture
 
-The application is a full-stack TypeScript monolith built on **TanStack Start**. The client is a React 19 SPA with a single route (`/`). The server exposes RPC-style endpoints via `createServerFn`. AI reasoning and tool orchestration run through an inlined copy of **deepseek-kit** core (`src/core/`). Database access uses **mysql2** connection pools, one pool per configured connection.
-
 ```mermaid
 flowchart TB
     subgraph client ["Client (Browser)"]
-        UI["React 19 SPA<br/>TanStack Router /"]
-        useChat["useChat hook"]
-        indexedDB["IndexedDB (Dexie.js)<br/>sessions + API key + settings"]
-        UI --> useChat
-        useChat --> indexedDB
+        Router["TanStack Router<br/>/dbpilot · /knowledge · /evals"]
+        Hooks["React Context & Hooks<br/>useChat · useKnowledgeChat · useDatabase · useSettings"]
+        DocParser["Browser Document Parser<br/>unpdf (PDF) · mammoth (DOCX) · local BM25"]
+        IDB["IndexedDB (Dexie.js)<br/>sessions · encrypted connections & API keys · uploaded chunks"]
+        Router --> Hooks
+        Hooks --> IDB
+        Hooks --> DocParser
     end
 
-    subgraph server ["Server (TanStack Start)"]
-        chatStream["chatStream<br/>createServerFn"]
-        confirmSql["confirmAndExecuteSql<br/>createServerFn"]
-        connectionsFn["connections<br/>createServerFn"]
-        agentLayer["createDbAgent"]
-        tools["DB Tools<br/>list_tables / get_table_schema / execute_sql"]
-        core["src/core/<br/>deepseek-kit inlined"]
-        dbPools["mysql2 Pools<br/>per connection ID"]
-        connFile["data/connections.json"]
+    subgraph server ["Server (TanStack Start / Nitro)"]
+        ChatFn["chatStream (POST SSE)"]
+        ConfirmFn["confirmAndExecuteSql (POST JSON)"]
+        KbFn["knowledgeChatStream (POST SSE)<br/>/knowledge-upload (POST JSON)"]
+        ConnFn["connections / settings / crypto / feedback"]
+        Agent["createDbAgent + Intent Router<br/>8 DB Tools + suspend/resume"]
+        Rag["In-process RAG Pipeline<br/>guardrail → rewrite → BM25/Vector RRF → synthesis → citation check"]
+        Core["src/core/ Multi-Model Runtime<br/>loop · streaming · retry · compaction · PII boundary"]
+        Safety["Security Layer<br/>node-sql-parser AST · sql-policy · AES-256-GCM · PII masking"]
+        Pools["mysql2 Pools + TLS/CA + Dict Cache"]
+        Otel["Langfuse + OpenTelemetry<br/>(metadata-only by default)"]
     end
 
     subgraph external ["External Services"]
-        deepseek["DeepSeek API"]
-        mysql["MySQL Server(s)"]
+        LLM["DeepSeek Native API /<br/>OpenAI-Compatible Providers"]
+        MySQL["MySQL 8.x (User or Demo Read-Only DB)"]
+        Embed["Optional Embedding / Bocha Web Search"]
     end
 
-    useChat -->|"POST SSE"| chatStream
-    useChat -->|"POST JSON"| confirmSql
-    UI --> connectionsFn
+    Hooks -->|"SSE"| ChatFn
+    Hooks -->|"JSON"| ConfirmFn
+    Hooks -->|"SSE / JSON"| KbFn
+    Hooks -->|"JSON"| ConnFn
 
-    chatStream --> agentLayer
-    agentLayer --> core
-    agentLayer --> tools
-    core -->|"streaming chat"| deepseek
-    tools --> dbPools
-    confirmSql --> dbPools
-    dbPools --> mysql
-    connectionsFn --> connFile
-    tools --> connFile
+    ChatFn --> Agent
+    Agent --> Core
+    Agent --> Safety
+    Agent --> Pools
+    ConfirmFn --> Safety
+    ConfirmFn --> Pools
+    KbFn --> Rag
+    Rag --> Core
+    Rag --> Embed
+    Core --> LLM
+    Pools --> MySQL
+    ChatFn -.-> Otel
+    KbFn -.-> Otel
 ```
 
 | Layer | Responsibility |
-|-------|----------------|
-| **Client** | Chat UI, session management, SSE consumption, SQL confirmation UI |
-| **Server functions** | Stream orchestration, SQL execution after approval, connection CRUD |
-| **Agent core (`src/core/`)** | Model invocation, multi-step agent loop, tool dispatch, stream events |
-| **Database layer** | Connection pooling, schema introspection, query execution |
+|---|---|
+| **Client (`src/routes/`, `src/components/`, `src/hooks/`)** | Multi-workbench UI, responsive chat + linked visualization side panel, SSE consumption, SQL confirmation & `smart_filter` dialogs, IndexedDB persistence, client-side PDF/DOCX extraction. |
+| **Server Functions (`src/server/functions/`)** | SSE orchestration (`chat.ts`, `knowledge-chat.ts`), approved SQL execution (`confirm-sql.ts`), connection probing, AES-256-GCM encryption endpoints, chart classification, feedback. |
+| **Agent Core (`src/core/`)** | Multi-provider OpenAI-compatible HTTP/SSE client, pre-first-event stream retry, unified PII egress masking, multi-step `agentLoop` with duplicate-call breaking, context compaction, and `suspend/resume`. |
+| **Database & Safety (`src/server/database*.ts`, `src/lib/sql-guard.ts`, `src/server/sql-policy.ts`)** | `mysql2` connection pooling, TLS/CA verification, foreign-key & dictionary-table introspection, schema subsetting, fail-closed AST SQL validation, sentinel `LIMIT 500+1` truncation detection. |
+| **Knowledge RAG (`src/server/knowledge/`, `src/lib/retrieval/`)** | Clause-level Markdown chunker, `Intl.Segmenter` + CJK bigram tokenizer, Okapi BM25, optional dense vector cosine + RRF fusion, query rewriting/decomposition, citation verification, and validity-date checks. |
 
 ---
 
 ## Technology Stack
 
 | Category | Technology |
-|----------|------------|
-| Framework | TanStack Start + TanStack Router |
-| UI | React 19, Tailwind CSS 4 |
-| AI runtime | Inlined deepseek-kit (`src/core/`) |
-| LLM provider | DeepSeek API (thinking mode enabled) |
-| Database driver | mysql2 (promise API, connection pools) |
-| Validation | Zod |
-| Streaming | Server-Sent Events (SSE) over HTTP |
-| Build | Vite 6 |
+|---|---|
+| Framework | TanStack Start + TanStack Router + Nitro |
+| UI & Visualization | React 19, Tailwind CSS v4, Radix UI, Lucide Icons, Recharts, react-markdown |
+| AI Runtime | Inlined multi-model engine (`src/core/`, evolved from `deepseek-kit`) |
+| LLM Providers | Built-in DeepSeek native thinking API + server-managed or user-configured OpenAI-compatible providers |
+| Database Driver | `mysql2` (promise API, TLSv1.2+, `bigNumberStrings`) |
+| Validation & Safety | Zod v4, `node-sql-parser` (MySQL AST), Node `crypto` (AES-256-GCM) |
+| Client Storage & Parsing | Dexie.js (IndexedDB), `unpdf`, `mammoth` |
+| Observability | `@langfuse/otel` + `@langfuse/tracing` + OpenTelemetry |
+| Build & Testing | Vite 7, TypeScript 5.8, Node `node:test` runner |
 
 ---
 
-## Request Flow
+## DBPilot Agent & Human-in-the-Loop Flow
 
-When a user sends a message, the client initiates an SSE stream. The server creates a database-scoped agent, streams DeepSeek events, maps them to client-facing chunks, and breaks early if the agent requests SQL execution (requiring human confirmation).
+### Registered Tools (`src/server/tools.ts`)
 
-```mermaid
-flowchart LR
-    userMsg["User message"]
-    useChatHook["useChat.sendMessage()"]
-    chatStreamFn["chatStream<br/>server function"]
-    createAgent["createDbAgent()"]
-    agentStream["agent.stream()"]
-    sseChunks["SSE chunks"]
-    clientRender["Client renders<br/>thinking / tool-calls / text"]
+| Tool | Touches DB? | Behavior |
+|---|---|---|
+| `get_database_overview` | Read-only | Returns table list, comments, approximate row counts, foreign-key relationships, and query-relevant schema subsets. |
+| `list_tables` | Read-only | Exact count and listing of `BASE TABLE` or `VIEW` objects for metadata questions without generating SQL. |
+| `get_table_schema` | Read-only | Returns columns, types, indexes, foreign keys, `ENUM` values, and auto-detected dictionary table labels (`sys_dict_data`, etc.). |
+| `plan_query` | Read-only | Plans multi-table/complex queries and automatically prefetches schemas for all involved tables. |
+| `explain_sql` | Read-only | Runs `EXPLAIN` to inspect execution plans and warn about full-table scans before execution. |
+| `smart_filter` | No (`suspend`) | Suspends the agent loop and renders interactive filter controls (date range, options, aggregation granularity) for ambiguous queries. |
+| `execute_sql` | No (`suspend`) | Validates SQL via AST + server policy, then suspends the agent loop so the user can review, edit, approve, or cancel before execution. |
+| `report_analysis` | No | Emits structured key metrics, chart recommendations, and follow-up suggestions alongside narrative analysis. |
 
-    userMsg --> useChatHook
-    useChatHook --> chatStreamFn
-    chatStreamFn --> createAgent
-    createAgent --> agentStream
-    agentStream --> sseChunks
-    sseChunks --> clientRender
-```
+### Native `suspend / resume` Execution Cycle
 
-### Step-by-step
-
-1. **User input** — `MessageInput` calls `useChat.sendMessage(content)`.
-2. **Session update** — User and empty assistant messages are appended; history is built from prior message content.
-3. **Server call** — `chatStream` is invoked with `connectionId`, `message`, `history`, `model`, and `apiKey`.
-4. **Agent creation** — `createDbAgent` loads the connection from `data/connections.json`, builds the model (with thinking enabled), registers DB tools, and attaches the system prompt.
-5. **Streaming loop** — `agent.stream()` yields events (`reasoning-delta`, `text-delta`, `tool-call`, `step`, `finish`). The server maps these to `StreamChunk` types and writes SSE frames.
-6. **Early termination** — If `execute_sql` is detected, the stream breaks after emitting `tool-call-start` so the client can show the confirmation UI before any SQL runs.
-7. **Client rendering** — `ThinkingBlock`, `ToolCallStatus`, and markdown text update incrementally on the assistant message bubble.
-
----
-
-## Agent Architecture
-
-The agent is assembled in `src/server/agent.ts` from three primitives provided by the inlined core: `createModel`, `createAgent`, and `tool`.
-
-```mermaid
-flowchart TB
-    subgraph config ["Configuration"]
-        apiKey["API key<br/>IndexedDB or env"]
-        modelName["Model name<br/>deepseek-flash / deepseek-v4-pro"]
-        systemPrompt["System prompt<br/>Chinese DB analyst instructions"]
-        maxSteps["maxSteps: 10"]
-    end
-
-    createModelFn["createModel()<br/>thinking: enabled"]
-    createAgentFn["createAgent()<br/>model + tools + system + maxSteps"]
-    agentStreamFn["agent.stream()<br/>AsyncGenerator StreamEvent"]
-
-    subgraph tools ["Registered Tools"]
-        listTables["list_tables<br/>SHOW TABLES"]
-        getSchema["get_table_schema<br/>INFORMATION_SCHEMA + indexes"]
-        executeSql["execute_sql<br/>returns pending_confirmation JSON"]
-    end
-
-    subgraph events ["Stream Events"]
-        reasoningDelta["reasoning-delta"]
-        textDelta["text-delta"]
-        toolCall["tool-call"]
-        stepEvt["step"]
-        finishEvt["finish"]
-    end
-
-    apiKey --> createModelFn
-    modelName --> createModelFn
-    createModelFn --> createAgentFn
-    systemPrompt --> createAgentFn
-    maxSteps --> createAgentFn
-    tools --> createAgentFn
-    createAgentFn --> agentStreamFn
-    agentStreamFn --> events
-```
-
-### Tools
-
-| Tool | Executes SQL? | Behavior |
-|------|---------------|----------|
-| `list_tables` | Yes (read-only) | Returns all table names via `SHOW TABLES` |
-| `get_table_schema` | Yes (read-only) | Returns columns, types, keys, defaults, comments, and indexes for a named table |
-| `execute_sql` | **No** | Returns a JSON payload with `status: "pending_confirmation"`, the proposed SQL, and an explanation. Does not touch the database. |
-
-Every tool call is closed by a `tool-result` event that carries its call id, which the server (`src/server/chat-events.ts`) turns into a `tool-call-end` SSE event. The `execute_sql` and `smart_filter` tools do not return a result: they return `suspend(payload)`, which ends the agent run without another model call and yields a `suspend` event with a serializable state (the conversation without the system prompt, plus the pending tool calls). The server sends that state to the client in an `agent-suspended` event right before the confirmation request.
-
-When the user confirms, revises or cancels, the client sends the state back as `resume` together with the real outcome. The server validates it (`parseSuspendedState`), rebuilds the system prompt, writes the outcome over the pending call's placeholder and continues the same conversation. A state that is missing, stale or invalid falls back to a fresh turn built from the visible history.
-
-### Agent loop
-
-The core `generateStream` function runs an agent loop (up to `maxSteps`):
-
-1. Stream a model step from the DeepSeek API.
-2. If the model emits tool calls, execute them and append tool results to the message history.
-3. Repeat until the model finishes without tool calls, a tool suspends the run, or `maxSteps` is reached.
-4. Yield normalized `StreamEvent` objects throughout.
-
-Thinking mode is always enabled (`thinking: { type: 'enabled' }`), so the model can emit `reasoning_content` deltas that become visible "thinking" blocks in the UI.
-
----
-
-## SSE Streaming Architecture
-
-The server returns a raw `Response` with `Content-Type: text/event-stream`. Each event is a JSON object prefixed with `data: ` and terminated by a blank line.
+Instead of breaking the SSE stream imperatively and reconstructing synthetic prompts from scratch, `execute_sql` and `smart_filter` return `suspend(payload)` inside `src/core/generate/generate-loop.ts`:
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Server as chatStream Server
-    participant Agent as agent.stream()
-    participant API as DeepSeek API
+    participant Server as chatStream / confirmSql
+    participant Agent as agentLoop (src/core)
+    participant LLM as Model API
     participant DB as MySQL
 
-    Client->>Server: POST chatStream<br/>connectionId, message, history
-    Server->>Agent: stream prompt + messages
-    Agent->>API: invokeStream chat completion
-
-    loop Stream events
-        API-->>Agent: reasoning-delta
-        Agent-->>Server: reasoning-delta
-        Server-->>Client: SSE thinking chunk
-
-        API-->>Agent: text-delta
-        Agent-->>Server: text-delta
-        Server-->>Client: SSE text chunk
-
-        API-->>Agent: tool-call
-        Agent-->>Server: tool-call
-        Server-->>Client: SSE tool-call-start
-
-        Agent->>DB: list_tables / get_table_schema
-        DB-->>Agent: schema data
-        Agent-->>Server: step
-        Server-->>Client: SSE tool-call-end
+    Client->>Server: POST chatStream (message, history, encrypted connection)
+    Server->>LLM: Intent classification (optional)
+    Server->>Agent: agent.stream()
+    loop Reasoning & Read-Only Tools
+        Agent->>LLM: Stream chat completion (reasoning_content + tool_calls)
+        LLM-->>Agent: reasoning-delta / text-delta / tool-call
+        Agent->>DB: get_database_overview / get_table_schema / plan_query
+        DB-->>Agent: Schema metadata
+        Agent-->>Server: tool-result
+        Server-->>Client: SSE thinking / tool-call-start / tool-call-end
     end
+    Agent-->>Server: suspend (serializable messages + pending tool calls)
+    Server-->>Client: SSE agent-suspended + sql-confirm / smart-filter + finish
 
-    alt execute_sql detected
-        Server-->>Client: SSE tool-call-start execute_sql
-        Server-->>Client: SSE finish
-        Note over Server,Client: Stream breaks early<br/>no SQL executed
-    else Normal completion
-        Server-->>Client: SSE finish
-    end
+    Note over Client: User inspects SQL and clicks Confirm
+    Client->>Server: POST confirmAndExecuteSql
+    Server->>Server: AST sql-guard + sql-policy + LIMIT 500+1
+    Server->>DB: Execute approved SQL (AbortSignal-cancellable)
+    DB-->>Server: Rows + truncation metadata
+    Server-->>Client: SqlResultInfo
+
+    Client->>Server: POST chatStream (isContinuation: true, resume state + summary)
+    Server->>Agent: agent.stream({ resume })
+    Agent->>LLM: Continues exact suspended conversation with tool outcome
+    Agent-->>Client: SSE report_analysis + narrative analysis + finish
 ```
 
-### Event mapping
-
-| DeepSeek / Agent Event | SSE `StreamChunk` Type | Client handling |
-|------------------------|------------------------|-----------------|
-| `reasoning-delta` | `{ type: "thinking", content }` | Appended to `message.thinking` |
-| `text-delta` | `{ type: "text", content }` | Appended to `message.content` |
-| `tool-call` | `{ type: "tool-call-start", name, args }` | Added to `message.toolCalls` |
-| `step` (after tool exec) | `{ type: "tool-call-end", name, result }` | Marks tool call completed |
-| Loop end | `{ type: "finish" }` | Finalizes in-progress tool calls |
-| Error | `{ type: "error", message }` | Appended to message content |
-
-The client parses SSE via `parseSSEStream()` in `useChat.tsx`, which reads the response body with a `ReadableStream` reader and yields parsed JSON chunks.
+If a resumed state is missing, stale, or fails validation (`parseSuspendedState`), the server gracefully falls back to a fresh turn constructed from the visible conversation history.
 
 ---
 
-## Human-in-the-Loop SQL Flow
+## Security & Privacy Boundaries
 
-SQL execution is deliberately separated from the agent stream. The agent proposes SQL; the user must confirm before the server runs it against MySQL.
-
-```mermaid
-flowchart TB
-    step1["1. Agent calls execute_sql tool"]
-    step2["2. Tool returns pending_confirmation JSON<br/>SQL is NOT executed"]
-    step3["3. Stream breaks on executeSqlDetected"]
-    step4["4. Client shows SqlConfirmBlock<br/>SQL + explanation + Confirm/Cancel"]
-    step5{"5. User decision"}
-    step6["6a. confirmAndExecuteSql server function<br/>runs SQL via mysql2"]
-    step7["7. continueWithSqlResult sends<br/>formatted result back to agent"]
-    step8["6b. User cancels<br/>status: cancelled"]
-    step9["New agent stream for analysis"]
-
-    step1 --> step2
-    step2 --> step3
-    step3 --> step4
-    step4 --> step5
-    step5 -->|"Confirm"| step6
-    step5 -->|"Cancel"| step8
-    step6 --> step7
-    step7 --> step9
-    step9 --> step1
-
-    style step2 fill:#fff3cd
-    style step6 fill:#d4edda
-```
-
-### Detailed flow
-
-1. **Tool invocation** — The model calls `execute_sql` with `{ sql, explanation }`.
-2. **Pending confirmation** — The tool handler returns:
-   ```json
-   {
-     "status": "pending_confirmation",
-     "sql": "...",
-     "explanation": "...",
-     "message": "已提交给用户确认。请立即停止..."
-   }
-   ```
-3. **Stream break** — `chatStream` sets `executeSqlDetected = true` and exits the event loop after emitting `tool-call-start` for `execute_sql`.
-4. **UI prompt** — `useChat.processStream` captures SQL args from the `tool-call-start` chunk and attaches `sqlConfirm: { status: "pending" }` to the assistant message. `SqlConfirmBlock` renders the proposal.
-5. **User confirms** — `confirmSql()` calls `confirmAndExecuteSql`, which runs the query through `executeQuery()` (with a 60-second timeout).
-6. **Result feedback** — On success, the result is stored on the message (`sqlResult`) and `continueWithSqlResult()` sends a synthetic user-style prompt containing the SQL, row count, and up to 50 rows of data back through `chatStream` for further analysis.
-7. **Error recovery** — On failure, `continueWithSqlError()` sends the error message so the agent can revise the SQL (typically after re-checking schema with `get_table_schema`).
-8. **Multi-step queries** — The system prompt instructs the agent to call `execute_sql` at most once per turn and wait for results before proposing the next query.
-
-This design ensures that destructive or incorrect SQL never runs without explicit user approval.
-
----
-
-## Data Storage
-
-```mermaid
-flowchart LR
-    subgraph browser ["Browser (Client)"]
-        sessions["deepseek-chat-sessions<br/>ChatSession[]"]
-        apiKeyStore["deepseek-api-key"]
-        modelStore["deepseek-model"]
-    end
-
-    subgraph serverDisk ["Server Filesystem"]
-        connections["data/connections.json<br/>DatabaseConnection[]"]
-    end
-
-    subgraph serverMemory ["Server Memory"]
-        pools["mysql2 Pool Map<br/>keyed by connection.id"]
-    end
-
-    connections --> pools
-```
-
-| Data | Location | Format | Notes |
-|------|----------|--------|-------|
-| Chat sessions | Browser `IndexedDB` (`deepseek-chat-sessions`) | JSON array of `ChatSession` | Last 100 messages per session retained on save |
-| API key | Browser `IndexedDB` (`deepseek-api-key`) | Plain string | Sent to server per request; falls back to `DEEPSEEK_API_KEY` env var |
-| Model preference | Browser `IndexedDB` (`deepseek-model`) | String | Default: `deepseek-flash` |
-| Database connections | Server `data/connections.json` | JSON array | Host, port, user, password, database name |
-| Connection pools | Server in-memory `Map` | mysql2 `Pool` | Created lazily per connection ID; max 5 connections per pool |
-
-There is **no server-side chat persistence** and **no user account system**. All conversation history lives in the user's browser. Database credentials are stored server-side in the connections file (the deployment should restrict filesystem access accordingly).
-
----
-
-## Key Design Decisions
-
-### 1. Inlined deepseek-kit (`src/core/`)
-
-The DeepSeek agent SDK is vendored directly into the repository rather than consumed as an external npm package.
-
-**Why:**
-
-- **Native thinking mode** — DeepSeek models expose `reasoning_content` in streaming deltas. The inlined core maps these to `reasoning-delta` events without adapter layers.
-- **Reasoning content management** — The generate loop correctly threads reasoning tokens through multi-step tool calls.
-- **Cache hit optimization** — The core can leverage DeepSeek's prompt caching semantics across agent steps.
-- **Full control** — Tool dispatch, retry logic, and stream normalization can be tuned for this app's DB-assistant workflow.
-
-### 2. SSE over WebSocket
-
-Streaming uses HTTP Server-Sent Events rather than a persistent WebSocket.
-
-**Why:**
-
-- **Simpler infrastructure** — SSE works over standard HTTP POST responses; no separate WS upgrade path.
-- **Unidirectional flow** — Chat streaming is server-to-client after an initial POST; SSE matches this pattern naturally.
-- **TanStack Start compatibility** — `createServerFn({ response: 'raw' })` returns a `ReadableStream` Response cleanly.
-
-### 3. Human-in-the-loop SQL execution
-
-The `execute_sql` tool does not run queries. A separate `confirmAndExecuteSql` server function handles execution after explicit user approval.
-
-**Why:**
-
-- **Safety** — LLMs can hallucinate table or column names, generate overly broad queries, or propose destructive statements.
-- **Transparency** — Users see the exact SQL and explanation before anything touches the database.
-- **Auditability** — Confirmation state (`pending`, `confirmed`, `executed`, `cancelled`, `error`) is tracked on each message.
-
-### 4. IndexedDB for user data
-
-Chat history and API keys are stored in the browser, not on the server.
-
-**Why:**
-
-- **Privacy-first** — Conversations never leave the user's machine (except when sent to DeepSeek for inference).
-- **Zero server dependency** — No database, auth system, or session store required for chat functionality.
-- **Instant persistence** — Sessions survive page reloads without backend round-trips.
-
----
-
-## Project Structure
-
-```
-deepseek-db-chat/
-├── src/
-│   ├── core/                  # Inlined deepseek-kit: model, agent, tools, streaming
-│   ├── server/
-│   │   ├── agent.ts           # createDbAgent — model + tools + system prompt
-│   │   ├── tools.ts           # list_tables, get_table_schema, execute_sql
-│   │   ├── database.ts        # mysql2 pools, query execution, schema introspection
-│   │   ├── store.ts           # connections.json CRUD
-│   │   └── functions/
-│   │       ├── chat.ts        # chatStream SSE endpoint
-│   │       ├── confirm-sql.ts # confirmAndExecuteSql
-│   │       └── connections.ts # connection management API
-│   ├── hooks/
-│   │   ├── useChat.tsx        # Chat state, SSE parsing, SQL confirm flow
-│   │   ├── useDatabase.tsx    # Active connection selection
-│   │   └── useSettings.tsx    # API key and model (IndexedDB)
-│   ├── components/
-│   │   ├── chat/              # MessageList, SqlConfirmBlock, ThinkingBlock, etc.
-│   │   └── layout/            # Sidebar, DatabaseList, ApiKeyDialog
-│   ├── routes/
-│   │   └── index.tsx          # Single route "/"
-│   └── lib/
-│       ├── types.ts           # ChatMessage, StreamChunk, SqlResultInfo, etc.
-│       └── constants.ts       # Model defaults, timeouts, file paths
-├── data/
-│   └── connections.json       # Server-side DB connection configs
-└── docs/
-    └── architecture.md        # This document
-```
-
----
-
-## Related Server Functions
-
-| Function | Method | Purpose |
-|----------|--------|---------|
-| `chatStream` | POST (raw SSE) | Stream agent responses for a user message |
-| `confirmAndExecuteSql` | POST (JSON) | Execute approved SQL against the active connection |
-| Connection CRUD | POST (JSON) | Add, list, test, and remove database connections |
-
-These are invoked from the client via TanStack Start's `createServerFn` RPC layer, which handles serialization and routing automatically.
+- **Credentials & Storage**: All chat sessions, user connections, and user-supplied API keys live in browser **IndexedDB**. Passwords and API keys are encrypted server-side with **AES-256-GCM** (`ENCRYPTION_KEY`) before being persisted in the browser; built-in demo DB credentials (`DEMO_DB_*`) and server AI keys never leave the server.
+- **Credential Containment**: `src/server/ai-credentials.ts` confines server-managed API keys strictly to administrator-configured endpoints and rejects HTTP redirects (`redirect: 'error'`) so credentials cannot be exfiltrated.
+- **Fail-Closed SQL Enforcement**: `src/lib/sql-guard.ts` parses SQL into an AST (`node-sql-parser`), rejecting unparseable syntax, multiple statements, executable comments, `SELECT INTO`, locking reads, session variables, and dangerous functions. `src/server/sql-policy.ts` enforces read-only mode by default, blocks writes on production/demo targets, and requires both `SQL_WRITE_ENABLED=true` and an exact `SQL_WRITE_ALLOWLIST` match for non-production writes.
+- **Unified Egress Masking**: `src/lib/masking.ts` scrubs common PII patterns (phone numbers, national IDs, bank cards, emails, and sensitive structured fields) at the HTTP boundary before requests leave for model, embedding, or search APIs.
+- **Privacy-Safe Telemetry**: Langfuse tracing (`src/server/langfuse.ts`) defaults to metadata-only spans (no prompts, answers, SQL, database names, or IPs). Content capture requires `LANGFUSE_CAPTURE_CONTENT=true` and remains PII-masked.
 
 ---
 
 ## Knowledge Q&A (RAG)
 
-The knowledge workbench (`/workbench/knowledge`) answers electricity-market rule questions in-process; `KNOWLEDGE_BACKEND=remote` restores the former proxy to the external service at `MEMO_CHAT_API_BASE`. Both paths emit the same `KnowledgeStreamChunk` SSE protocol, so the client is unchanged apart from the citation panel.
+The knowledge workbench (`/knowledge`) runs in-process by default (`KNOWLEDGE_BACKEND=remote` restores proxying to `MEMO_CHAT_API_BASE`), emitting a unified `KnowledgeStreamChunk` SSE protocol:
 
 ```mermaid
 flowchart LR
     corpus["knowledge/corpus/*.md<br/>front matter + articles"] -->|"pnpm kb:ingest [--embed]"| index["knowledge/kb-index.json<br/>chunks + optional vectors"]
-    index --> kb["loadKnowledgeBase()<br/>BM25 built in memory"]
+    index --> kb["loadKnowledgeBase()<br/>in-memory BM25"]
     q["question"] --> guard["guardrail<br/>maskPII"] --> rewrite["query_rewrite<br/>standalone + sub-questions"]
     rewrite --> retrieve["kb_retrieve<br/>BM25 + cosine, RRF"]
     kb --> retrieve
@@ -452,13 +171,37 @@ flowchart LR
 
 | Module (`src/server/knowledge/`) | Responsibility |
 |---|---|
-| `corpus.ts`, `chunker.ts` | Parse front matter; one chunk per article (第X条) or glossary entry, long articles split, short neighbours merged |
-| `tokenizer.ts`, `bm25.ts` | `Intl.Segmenter` words + CJK bigrams; Okapi BM25 |
-| `embedding.ts`, `index-builder.ts` | Server-key embeddings via the OpenAI-compatible `/embeddings` endpoint; vectors reused by content hash |
-| `retriever.ts` | Per-query keyword and vector rankings fused with reciprocal rank fusion (k = 60) |
-| `validity.ts` | Document status (in force / expired / not yet effective) computed from Beijing dates at question time |
-| `pipeline.ts`, `prompt.ts`, `citations.ts` | Stage orchestration, cited answer prompt, citation validation |
+| `corpus.ts`, `chunker.ts` | Parse front matter; clause-level chunking (`第X条` & glossary entries), splitting overly long articles and merging short neighbors. |
+| `src/lib/retrieval/tokenizer.ts`, `bm25.ts` | `Intl.Segmenter` words + CJK bigrams; Okapi BM25 with coverage + matched-IDF relevance gate. |
+| `embedding.ts`, `index-builder.ts` | Optional server-key embeddings via OpenAI-compatible `/embeddings`; vectors cached by content hash. |
+| `retriever.ts` | Per-query keyword and dense rankings fused with Reciprocal Rank Fusion (`k = 60`). |
+| `validity.ts` | Computes document validity status (in force / expired / not yet effective) in Beijing time at question time. |
+| `pipeline.ts`, `prompt.ts`, `citations.ts` | Stage orchestration, cache-friendly citation prompts, strict no-evidence refusal, and citation index validation. |
 
-Users can also upload PDF, Word, Markdown and text files. They are parsed in the browser (`src/lib/document-text.ts`, pdf.js via unpdf and mammoth, loaded on demand), the extracted text is posted to `/workbench/knowledge-upload` for structuring, chunking and optional embedding, and the returned chunks are stored in IndexedDB; the server keeps nothing. For each question the browser ranks the stored chunks with the same BM25 code (`src/lib/retrieval/`) and sends up to 30 candidates, which the server fuses with the built-in results. The bundled documents are every user's default knowledge base: health lists them with their validity status, a user can remove any of them in their own browser (and restore it), and the removed ids travel with each question as `excludedDefaultIds` so retrieval skips those documents before ranking. Limits: `KB_UPLOAD_MAX_DOCUMENTS` (per browser), `KB_UPLOAD_MAX_BYTES`, `KB_UPLOAD_MAX_CHARS`. A Vite plugin keeps both parsers out of the server builds, and `pnpm build` runs Vite with a 4 GB heap because the combined build exceeded V8's default limit.
+Users can upload PDF, DOCX, Markdown, and TXT files parsed entirely in the browser (`src/lib/document-text.ts`, lazy-loaded `unpdf` and `mammoth`). Extracted text is chunked (and optionally embedded) via `/knowledge-upload` without server persistence and stored in IndexedDB. At query time, the browser pre-ranks local chunks with the same BM25 implementation and sends up to 30 candidates to fuse with built-in provisions.
 
-The index records the embedding model it was built with; query embeddings always use that model and the server's own key, and retrieval falls back to keyword-only when either is unavailable. With general knowledge disabled, a question with no retrieved provision is refused without a model call.
+---
+
+## Project Structure
+
+```text
+deepseek-db-chat/
+├── src/
+│   ├── core/                  # Multi-model Agent runtime (loop, suspend, stream, retry, compact)
+│   ├── server/
+│   │   ├── agent.ts           # DBPilot agent configuration & layered system prompt
+│   │   ├── tools.ts           # 8 DB tools (overview, list_tables, schema, plan, explain, filter, sql, report)
+│   │   ├── database*.ts       # mysql2 pooling, TLS/CA, FK & dictionary introspection, query execution
+│   │   ├── sql-policy.ts      # Server-side read-only / write allowlist policy
+│   │   ├── ai-credentials.ts  # Provider target resolution & server-key containment
+│   │   ├── knowledge/         # In-process RAG pipeline (chunking, BM25/vector RRF, citations, validity)
+│   │   └── functions/         # TanStack Server Functions (chat, confirm-sql, knowledge-chat, settings)
+│   ├── components/            # React UI (chat/, knowledge/, layout/, ui/)
+│   ├── hooks/                 # Client state & IndexedDB hooks
+│   ├── lib/                   # Shared types, AST sql-guard, PII masking, retrieval, result formatting
+│   └── routes/                # TanStack Router (/dbpilot, /knowledge, /evals, /knowledge-upload)
+├── knowledge/                 # Regulatory Markdown corpus & prebuilt kb-index.json
+├── evals/                     # Text-to-SQL & RAG evaluation suites, baselines, and HTML report generator
+├── tests/                     # 200+ offline regression tests (security, agent, RAG, UX, evals)
+└── docs/                      # Architecture, setup, configuration, and evolution docs
+```
