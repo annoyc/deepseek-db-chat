@@ -13,8 +13,9 @@ import {
 } from '@/lib/providers'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
 import { getEnvApiKeyStatus, listServerProviders } from '@/server/functions/settings'
+import { normalizeCollapseMode, type CollapseMode } from '@/lib/collapse-mode'
 
-export type { CustomProvider, ProviderConfig, ProviderOption }
+export type { CollapseMode, CustomProvider, ProviderConfig, ProviderOption }
 
 type ProviderConfigs = Record<string, ProviderConfig>
 
@@ -47,8 +48,8 @@ interface SettingsState {
   reasoningEffort: ReasoningEffort
   sqlPermission: 'readonly' | 'write'
   maxSqlExecutions: number
-  thinkingCollapseMode: 'expanded' | 'collapsed'
-  toolCallCollapseMode: 'expanded' | 'collapsed'
+  thinkingCollapseMode: CollapseMode
+  toolCallCollapseMode: CollapseMode
   setProvider: (provider: string) => void
   /** Switch to a specific provider and model at once (the model need not be the provider's default). */
   selectModel: (providerId: string, modelId: string) => void
@@ -61,8 +62,8 @@ interface SettingsState {
   setReasoningEffort: (effort: ReasoningEffort) => void
   setSqlPermission: (mode: 'readonly' | 'write') => void
   setMaxSqlExecutions: (max: number) => void
-  setThinkingCollapseMode: (mode: 'expanded' | 'collapsed') => void
-  setToolCallCollapseMode: (mode: 'expanded' | 'collapsed') => void
+  setThinkingCollapseMode: (mode: CollapseMode) => void
+  setToolCallCollapseMode: (mode: CollapseMode) => void
 }
 
 const SettingsContext = createContext<SettingsState | null>(null)
@@ -84,14 +85,16 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   )
   const [sqlPermission, setSqlPermission] = useLocalStorage<'readonly' | 'write'>('sql-permission', 'readonly')
   const [maxSqlExecutions, setMaxSqlExecutions] = useLocalStorage<number>('max-sql-executions', SESSION_MAX_SQL_EXECUTIONS)
-  const [thinkingCollapseMode, setThinkingCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
+  const [thinkingCollapseModeRaw, setThinkingCollapseMode] = useLocalStorage<CollapseMode>(
     'thinking-collapse-mode',
-    'collapsed'
+    'auto'
   )
-  const [toolCallCollapseMode, setToolCallCollapseMode] = useLocalStorage<'expanded' | 'collapsed'>(
+  const [toolCallCollapseModeRaw, setToolCallCollapseMode] = useLocalStorage<CollapseMode>(
     'toolcall-collapse-mode',
-    'collapsed'
+    'auto'
   )
+  const thinkingCollapseMode = normalizeCollapseMode(thinkingCollapseModeRaw, 'auto')
+  const toolCallCollapseMode = normalizeCollapseMode(toolCallCollapseModeRaw, 'auto')
 
   const [serverProviders, setServerProviders] = useState<ServerProvider[]>(FALLBACK_SERVER_PROVIDERS)
   const [serverLoaded, setServerLoaded] = useState(false)

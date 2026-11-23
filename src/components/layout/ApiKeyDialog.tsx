@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
 import { Modal, ModalTitle } from '@/components/ui/modal'
-import type { ProviderConfig } from '@/hooks/useSettings'
+import type { CollapseMode, ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
 import type { ConnectionTestResult } from '@/server/providers'
 import { encryptPasswordFn } from '@/server/functions/crypto'
@@ -64,8 +64,8 @@ function SectionHeader({ title, description, action }: { title: string; descript
   )
 }
 
-function CollapseToggle({ value, onChange, label }: { value: 'expanded' | 'collapsed'; onChange: (v: 'expanded' | 'collapsed') => void; label: string }) {
-  const options = [['expanded', '展开'], ['collapsed', '折叠']] as const
+function CollapseToggle({ value, onChange, label }: { value: CollapseMode; onChange: (v: CollapseMode) => void; label: string }) {
+  const options = [['auto', '智能'], ['expanded', '展开'], ['collapsed', '折叠']] as const
   return (
     <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-stone-100 p-0.5">
       {options.map(([v, text]) => (
@@ -604,8 +604,8 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
   const [serverDrafts, setServerDrafts] = useState<Record<string, ServerDraft>>({})
   const [customDrafts, setCustomDrafts] = useState<CustomDraft[]>([])
 
-  const [localThinkingCollapse, setLocalThinkingCollapse] = useState<'expanded' | 'collapsed'>('collapsed')
-  const [localToolCallCollapse, setLocalToolCallCollapse] = useState<'expanded' | 'collapsed'>('collapsed')
+  const [localThinkingCollapse, setLocalThinkingCollapse] = useState<CollapseMode>('auto')
+  const [localToolCallCollapse, setLocalToolCallCollapse] = useState<CollapseMode>('auto')
   const [localMaxSqlExecutions, setLocalMaxSqlExecutions] = useState(20)
 
   useEffect(() => {
@@ -851,14 +851,20 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
             {section === 'display' && (
               <div className="space-y-5">
-                <SectionHeader title="默认折叠状态" description="控制聊天中对应模块的初始展开/折叠状态。" />
+                <SectionHeader title="默认折叠状态" description="控制聊天中思考过程与工具调用的展开/收起策略。" />
                 <div className="divide-y divide-stone-100 rounded-xl border border-stone-200">
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-stone-700">思考过程</span>
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div>
+                      <div className="text-sm text-stone-700">思考过程</div>
+                      <p className="mt-0.5 text-xs text-stone-400">智能模式：思考时自动展开预览，完成后自动收起</p>
+                    </div>
                     <CollapseToggle value={localThinkingCollapse} onChange={setLocalThinkingCollapse} label="思考过程默认状态" />
                   </div>
-                  <div className="flex items-center justify-between px-4 py-3">
-                    <span className="text-sm text-stone-700">工具调用</span>
+                  <div className="flex items-center justify-between gap-4 px-4 py-3">
+                    <div>
+                      <div className="text-sm text-stone-700">工具调用</div>
+                      <p className="mt-0.5 text-xs text-stone-400">智能模式：默认收起，调用出错时自动展开</p>
+                    </div>
                     <CollapseToggle value={localToolCallCollapse} onChange={setLocalToolCallCollapse} label="工具调用默认状态" />
                   </div>
                 </div>

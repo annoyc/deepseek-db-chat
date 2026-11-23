@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronDown, ChevronRight, ListChecks, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ToolCallInfo } from '@/lib/types'
+import { resolveToolCallExpanded, type CollapseMode } from '@/lib/collapse-mode'
 
 interface QueryPlanBlockProps {
   toolCall: ToolCallInfo
-  defaultExpanded?: boolean
+  collapseMode?: CollapseMode
 }
 
 interface PlanStep {
@@ -29,12 +30,20 @@ const COMPLEXITY_CONFIG = {
   complex: { label: '复杂', className: 'bg-red-50 text-red-700 border-red-200' },
 } as const
 
-export function QueryPlanBlock({ toolCall, defaultExpanded = true }: QueryPlanBlockProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlockProps) {
+  const [expanded, setExpanded] = useState(() => resolveToolCallExpanded(collapseMode, toolCall.status))
+  const manualToggleRef = useRef(false)
 
   useEffect(() => {
-    setExpanded(defaultExpanded)
-  }, [defaultExpanded])
+    manualToggleRef.current = false
+    setExpanded(resolveToolCallExpanded(collapseMode, toolCall.status))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseMode])
+
+  useEffect(() => {
+    if (collapseMode !== 'auto' || manualToggleRef.current) return
+    if (toolCall.status === 'error') setExpanded(true)
+  }, [collapseMode, toolCall.status])
 
   const isLoading = toolCall.status === 'calling'
   const isCompleted = toolCall.status === 'completed'
@@ -65,7 +74,11 @@ export function QueryPlanBlock({ toolCall, defaultExpanded = true }: QueryPlanBl
   return (
     <div className="border border-primary/20 rounded-xl overflow-hidden bg-white">
       <button
-        onClick={() => setExpanded(!expanded)}
+        type="button"
+        onClick={() => {
+          manualToggleRef.current = true
+          setExpanded((prev) => !prev)
+        }}
         className="w-full flex items-center gap-1.5 px-3 py-2 border-b border-primary/10 hover:bg-primary/5 transition-colors"
       >
         {expanded

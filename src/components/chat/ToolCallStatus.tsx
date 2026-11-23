@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { CheckCircle2, ChevronDown, ChevronRight, Loader2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { ToolCallInfo } from '@/lib/types'
+import { resolveToolCallExpanded, type CollapseMode } from '@/lib/collapse-mode'
 
 interface ToolCallStatusProps {
   toolCall: ToolCallInfo
-  defaultExpanded?: boolean
+  collapseMode?: CollapseMode
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -23,13 +24,23 @@ const TOOL_PARAM_LABELS: Record<string, Record<string, string>> = {
   list_tables: {},
 }
 
-export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallStatusProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+export function ToolCallStatus({ toolCall, collapseMode = 'auto' }: ToolCallStatusProps) {
+  const [expanded, setExpanded] = useState(() => resolveToolCallExpanded(collapseMode, toolCall.status))
+  const manualToggleRef = useRef(false)
 
-  // 当设置中的默认状态变化时，同步到组件内部状态
+  // 当设置中的折叠策略变化时，重置为该策略对应的状态
   useEffect(() => {
-    setExpanded(defaultExpanded)
-  }, [defaultExpanded])
+    manualToggleRef.current = false
+    setExpanded(resolveToolCallExpanded(collapseMode, toolCall.status))
+    // Only reset when the global setting changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseMode])
+
+  // 智能模式：调用报错时自动展开，方便排查原因（尊重用户手动收起）
+  useEffect(() => {
+    if (collapseMode !== 'auto' || manualToggleRef.current) return
+    if (toolCall.status === 'error') setExpanded(true)
+  }, [collapseMode, toolCall.status])
   const label = TOOL_LABELS[toolCall.name] ?? toolCall.name
   const paramLabels = TOOL_PARAM_LABELS[toolCall.name] ?? {}
   const hasResult = toolCall.status === 'completed' && toolCall.result !== undefined
@@ -48,7 +59,11 @@ export function ToolCallStatus({ toolCall, defaultExpanded = true }: ToolCallSta
   return (
     <div className={`${borderClass} rounded-xl overflow-hidden bg-white`}>
       <button
-        onClick={() => showCollapse && setExpanded(!expanded)}
+        onClick={() => {
+          if (!showCollapse) return
+          manualToggleRef.current = true
+          setExpanded((prev) => !prev)
+        }}
         className={cn(
           'w-full flex items-center gap-1.5 px-3 py-2 transition-colors',
           headerBorderClass,

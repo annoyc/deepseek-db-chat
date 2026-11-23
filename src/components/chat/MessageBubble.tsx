@@ -7,7 +7,7 @@ import { SqlConfirmBlock } from './SqlConfirmBlock'
 import { SmartFilterConfirmBlock } from './SmartFilterConfirmBlock'
 import { MarkdownContent } from './MarkdownContent'
 import { useVizPanel } from './VisualizationPanel'
-import { useSettings } from '@/hooks/useSettings'
+import { useSettings, type CollapseMode } from '@/hooks/useSettings'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { CopyButton } from '@/components/ui/copy-button'
@@ -80,8 +80,8 @@ function AnswerActions({
 interface MessageBubbleProps {
   message: ChatMessage
   isStreaming?: boolean
-  thinkingExpanded?: boolean
-  toolCallExpanded?: boolean
+  thinkingCollapseMode?: CollapseMode
+  toolCallCollapseMode?: CollapseMode
   questionText?: string
   isLatestTurn?: boolean
   vizMessageIds?: string[]
@@ -108,7 +108,7 @@ function StreamingIndicator({ text }: { text?: string }) {
 }
 
 
-function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallExpanded, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
+function AssistantPartsView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
@@ -139,13 +139,13 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
           case 'thinking': {
             const idx = ++thinkingIdx
             const thinkingStreaming = isLastThinking && idx === lastThinkingIndex
-            return <ThinkingBlock key={`t-${i}`} content={part.content} index={idx} isStreaming={thinkingStreaming} defaultExpanded={thinkingExpanded} />
+            return <ThinkingBlock key={`t-${i}`} content={part.content} index={idx} isStreaming={thinkingStreaming} collapseMode={thinkingCollapseMode} />
           }
           case 'tool-call': {
             const tc = toolCalls[part.toolCallIndex]
             if (!tc || tc.name === 'execute_sql' || tc.name === 'smart_filter' || tc.name === 'report_analysis') return null
-            if (tc.name === 'plan_query') return <div key={`plan-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><QueryPlanBlock toolCall={tc} defaultExpanded={toolCallExpanded} /></div>
-            return <div key={`tc-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><ToolCallStatus toolCall={tc} defaultExpanded={toolCallExpanded} /></div>
+            if (tc.name === 'plan_query') return <div key={`plan-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><QueryPlanBlock toolCall={tc} collapseMode={toolCallCollapseMode} /></div>
+            return <div key={`tc-${i}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300"><ToolCallStatus toolCall={tc} collapseMode={toolCallCollapseMode} /></div>
           }
           case 'text':
             return part.content ? <MarkdownContent key={`txt-${i}`} content={part.content} isStreaming={isLastText && i === parts.length - 1} /> : null
@@ -182,7 +182,7 @@ function AssistantPartsView({ message, isStreaming, thinkingExpanded, toolCallEx
   )
 }
 
-function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallExpanded, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
+function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query' && tc.name !== 'report_analysis') ?? []
   const planToolCalls = message.toolCalls?.filter((tc) => tc.name === 'plan_query') ?? []
   const hasThinking = Boolean(message.thinking)
@@ -197,23 +197,24 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
   const hasConfirmBlock = hasSqlConfirm || hasSmartFilterConfirm
   const hasActiveToolCall = nonSqlToolCalls.some((tc) => tc.status === 'calling')
   const showTailIndicator = isStreaming && !hasConfirmBlock && !hasContent && !hasActiveToolCall
+  const thinkingStreaming = Boolean(isStreaming && !hasContent && !hasToolCalls && !hasConfirmBlock)
 
   return (
     <div className="space-y-3 min-w-0 max-w-full animate-in fade-in duration-200">
       {hasThinking && (
-        <ThinkingBlock content={message.thinking!} isStreaming={isStreaming} defaultExpanded={thinkingExpanded} />
+        <ThinkingBlock content={message.thinking!} isStreaming={thinkingStreaming} collapseMode={thinkingCollapseMode} />
       )}
 
       {hasToolCalls && (
         <div className="space-y-3">
           {planToolCalls.map((tc, idx) => (
             <div key={`plan-${idx}`} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <QueryPlanBlock toolCall={tc} defaultExpanded={toolCallExpanded} />
+              <QueryPlanBlock toolCall={tc} collapseMode={toolCallCollapseMode} />
             </div>
           ))}
           {nonSqlToolCalls.map((tc, idx) => (
             <div key={idx} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <ToolCallStatus toolCall={tc} defaultExpanded={toolCallExpanded} />
+              <ToolCallStatus toolCall={tc} collapseMode={toolCallCollapseMode} />
             </div>
           ))}
         </div>
@@ -253,8 +254,6 @@ function AssistantLegacyView({ message, isStreaming, thinkingExpanded, toolCallE
 
 export function MessageBubble({ message, isStreaming, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
   const { thinkingCollapseMode, toolCallCollapseMode } = useSettings()
-  const thinkingExpanded = thinkingCollapseMode === 'expanded'
-  const toolCallExpanded = toolCallCollapseMode === 'expanded'
 
   if (message.role === 'user') {
     return (
@@ -285,8 +284,8 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
       <AssistantPartsView
         message={message}
         isStreaming={isStreaming}
-        thinkingExpanded={thinkingExpanded}
-        toolCallExpanded={toolCallExpanded}
+        thinkingCollapseMode={thinkingCollapseMode}
+        toolCallCollapseMode={toolCallCollapseMode}
         questionText={questionText}
         isLatestTurn={isLatestTurn}
         vizMessageIds={vizMessageIds}
@@ -298,8 +297,8 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
     <AssistantLegacyView
       message={message}
       isStreaming={isStreaming}
-      thinkingExpanded={thinkingExpanded}
-      toolCallExpanded={toolCallExpanded}
+      thinkingCollapseMode={thinkingCollapseMode}
+      toolCallCollapseMode={toolCallCollapseMode}
       questionText={questionText}
       isLatestTurn={isLatestTurn}
       vizMessageIds={vizMessageIds}

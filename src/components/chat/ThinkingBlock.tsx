@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resolveThinkingExpanded, type CollapseMode } from '@/lib/collapse-mode'
 
 interface ThinkingBlockProps {
   content: string
   index?: number
   isStreaming?: boolean
-  defaultExpanded?: boolean
+  collapseMode?: CollapseMode
 }
 
 function renderInlineCode(text: string): ReactNode[] {
@@ -26,15 +27,30 @@ function renderInlineCode(text: string): ReactNode[] {
   })
 }
 
-export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = true }: ThinkingBlockProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded)
+export function ThinkingBlock({ content, index, isStreaming = false, collapseMode = 'auto' }: ThinkingBlockProps) {
+  const [expanded, setExpanded] = useState(() => resolveThinkingExpanded(collapseMode, isStreaming))
+  const [manualToggle, setManualToggle] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldAutoScrollRef = useRef(true)
 
-  // 当设置中的默认状态变化时，同步到组件内部状态
+  // 当设置中的折叠策略变化时，重置为该策略对应的状态
   useEffect(() => {
-    setExpanded(defaultExpanded)
-  }, [defaultExpanded])
+    setManualToggle(false)
+    setExpanded(resolveThinkingExpanded(collapseMode, isStreaming))
+    // Only reset when the global setting changes, not on every streaming tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseMode])
+
+  // 智能模式：思考中自动展开预览，思考结束后自动收起（尊重用户手动点击）
+  useEffect(() => {
+    if (collapseMode !== 'auto' || manualToggle) return
+    setExpanded(isStreaming)
+  }, [collapseMode, isStreaming, manualToggle])
+
+  const handleToggle = useCallback(() => {
+    setManualToggle(true)
+    setExpanded((prev) => !prev)
+  }, [])
 
   // Track whether user has manually scrolled away from bottom
   const handleInnerScroll = useCallback(() => {
@@ -59,7 +75,8 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
   return (
     <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
       <button
-        onClick={() => setExpanded(!expanded)}
+        type="button"
+        onClick={handleToggle}
         className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-stone-50 transition-colors border-b border-stone-100"
       >
         {isStreaming && <span className="streaming-thinking-dot flex-shrink-0" aria-hidden="true" />}
@@ -79,7 +96,10 @@ export function ThinkingBlock({ content, index, isStreaming, defaultExpanded = t
         <div
           ref={scrollRef}
           onScroll={handleInnerScroll}
-          className="px-3 pb-3 text-[13px] text-stone-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto max-h-[500px]"
+          className={cn(
+            'px-3 pb-3 text-[13px] text-stone-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto',
+            collapseMode === 'auto' && isStreaming && !manualToggle ? 'max-h-[220px]' : 'max-h-[500px]',
+          )}
         >
           <div className="pt-2">
             {renderInlineCode(content)}
