@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, Brain, Eye, Globe2, Loader2, Lock, Menu, PanelRightOpen, Sparkles, Square } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpenText, Brain, Eye, FileUp, Globe2, Loader2, Menu, PanelRightOpen, Settings, Sparkles, Square } from 'lucide-react'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
+import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
 import { cn } from '@/lib/utils'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
+import { useSettings } from '@/hooks/useSettings'
 import { APP_NAME } from '@/lib/constants'
 import { ToolChainTimeline } from './ToolChainTimeline'
 import { isSubmitKey } from '@/lib/keyboard'
@@ -30,28 +32,28 @@ const features = [
   {
     icon: Brain,
     title: '规则原文检索',
-    description: '关键词与向量混合检索电力市场规则原文，按条款给出出处',
+    description: '混合检索规则原文，按条款标注出处',
     color: 'text-primary',
     bg: 'bg-primary/10',
   },
   {
     icon: Globe2,
     title: '联网补充',
-    description: '可选联网搜索补充实时信息，回答中保留来源线索',
+    description: '可选联网搜索，保留来源线索',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
   },
   {
     icon: Eye,
     title: '证据可查',
-    description: '工具链、引用条款及有效期、联网来源集中在证据面板',
+    description: '条款引用与有效期集中在证据面板',
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
   {
-    icon: Lock,
-    title: '本地历史',
-    description: '问答记录保存到当前浏览器，方便继续追问',
+    icon: FileUp,
+    title: '私有文档与本地历史',
+    description: '本地解析 PDF / Word / Markdown，历史存浏览器',
     color: 'text-stone-700',
     bg: 'bg-stone-100',
   },
@@ -223,36 +225,44 @@ function AssistantMessage({
   )
 }
 
-function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClick: (text: string) => void; disabled: boolean }) {
+function EmptyKnowledgeState({ onSuggestionClick, disabled, zeroConfigReady = false }: { onSuggestionClick: (text: string) => void; disabled: boolean; zeroConfigReady?: boolean }) {
   return (
     <div className="subtle-scrollbar h-full overflow-y-auto">
-      <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-4 px-3 py-5 md:px-6 lg:py-6 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
-        <section className="glass-panel rounded-[20px] p-5 lg:p-6 2xl:p-8">
+      <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-3.5 px-3 py-4 md:px-6 lg:py-5 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
+        <section className="glass-panel rounded-[20px] p-4 lg:p-5 2xl:p-7">
           <div className="flex items-start gap-3.5 2xl:gap-4">
-            <div className="anim-logo d-0 h-12 w-12 flex-shrink-0 2xl:h-14 2xl:w-14">
+            <div className="anim-logo d-0 h-11 w-11 flex-shrink-0 2xl:h-14 2xl:w-14">
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                <Brain className="h-3.5 w-3.5" />
-                Knowledge Copilot
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  <BookOpenText className="h-3.5 w-3.5" />
+                  {APP_NAME} · 知识问答
+                </span>
+                {zeroConfigReady && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    免配置 · 直接提问
+                  </span>
+                )}
               </div>
-              <h1 className="anim-up d-1 text-2xl font-semibold tracking-tight text-stone-950 lg:text-3xl 2xl:text-4xl">知识库问答</h1>
-              <p className="anim-up d-2 mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                基于电力市场规则原文检索、大模型与联网搜索，回答电力市场和交易规则问题，并标注引用条款。
+              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-stone-950 lg:text-2xl 2xl:text-3xl">知识库问答</h1>
+              <p className="anim-up d-2 mt-1 text-sm text-stone-500">
+                查规则原文、看条款出处，支持上传私有文档。
               </p>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 lg:grid-cols-2 2xl:mt-8">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 2xl:mt-6 2xl:gap-3">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3.5 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
+                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-9 2xl:w-9 ${feature.bg}`}>
-                    <feature.icon className={`h-4.5 w-4.5 ${feature.color}`} />
+                <div className="flex items-start gap-2.5">
+                  <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-8 2xl:w-8 ${feature.bg}`}>
+                    <feature.icon className={`h-4 w-4 ${feature.color}`} />
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-stone-900">{feature.title}</h3>
@@ -264,8 +274,8 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled }: { onSuggestionClic
           </div>
         </section>
 
-        <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
+        <div className="glass-panel space-y-2.5 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
           <div className="grid gap-2 lg:grid-cols-2">
             {suggestions.map((item) => (
               <button
@@ -303,7 +313,10 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
     persistenceState,
     retrySave,
   } = useKnowledgeChatStore()
+  const { activeProvider, serverProviders } = useSettings()
+  const zeroConfigReady = serverProviders.some((p) => p.id === activeProvider?.id && p.hasEnvKey)
   const [input, setInput] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldAutoScrollRef = useRef(true)
@@ -384,7 +397,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
   return (
     <div className="app-canvas relative flex h-full min-w-0 flex-1 flex-col">
       <header className="app-header flex flex-shrink-0 items-center justify-between gap-2 border-b px-3 py-3 backdrop-blur-sm sm:px-5">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {onOpenSidebar && (
             <button
               onClick={onOpenSidebar}
@@ -395,28 +408,41 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
               <Menu className="h-5 w-5" />
             </button>
           )}
+          <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200/70 bg-white/80 text-primary shadow-sm sm:flex">
+            <BookOpenText className="h-4.5 w-4.5" />
+          </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-stone-950">知识库问答</div>
-            <div className="truncate text-xs text-stone-500">规则检索 / 大模型 / 联网搜索</div>
+            <div className="truncate text-sm font-semibold tracking-tight text-stone-950">知识库问答</div>
+            <div className="truncate text-xs text-stone-500">规则检索 / 私有文档 / 联网补充</div>
           </div>
         </div>
-        <button
-          onClick={onOpenContext}
-          className={cn(
-            'flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-2 text-sm transition-colors',
-            contextOpen
-              ? 'border-primary/20 bg-primary/10 text-primary'
-              : 'border-stone-200 bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800',
-          )}
-        >
-          <PanelRightOpen className="h-4 w-4" />
-          证据面板
-        </button>
+        <div className="flex flex-shrink-0 items-center gap-1.5">
+          <button
+            onClick={onOpenContext}
+            className={cn(
+              'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              contextOpen
+                ? 'border-primary/20 bg-primary/10 text-primary'
+                : 'border-stone-200 bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800',
+            )}
+          >
+            <PanelRightOpen className="h-4 w-4" />
+            证据面板
+          </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-white/80 hover:text-stone-700"
+            title="设置"
+            aria-label="设置"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
       </header>
 
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {messages.length === 0 ? (
-          <EmptyKnowledgeState onSuggestionClick={draftSuggestion} disabled={isStreaming || historyUnavailable} />
+          <EmptyKnowledgeState onSuggestionClick={draftSuggestion} disabled={isStreaming || historyUnavailable} zeroConfigReady={zeroConfigReady} />
         ) : (
           <div
             ref={containerRef}
@@ -472,7 +498,11 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
               }}
               disabled={isStreaming || historyUnavailable}
               rows={1}
-              placeholder={historyUnavailable ? historyHint : '输入关于电力市场、省电、售电、交易规则的问题...'}
+              placeholder={historyUnavailable
+                ? historyHint
+                : zeroConfigReady
+                  ? '规则库与模型已就绪，无需配置，直接输入电力市场或私有文档问题…'
+                  : '输入关于电力市场、现货、售电或交易规则的问题…'}
               className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
             />
 
@@ -550,6 +580,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
           </p>
         </div>
       </div>
+      <ApiKeyDialog open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }

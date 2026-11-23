@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Database, MessageSquarePlus, PanelLeftOpen, Plus, Settings, ChevronDown, Server } from 'lucide-react'
+import { BarChart3, Database, MessageSquarePlus, PanelLeftOpen, Plus, Settings, ChevronDown, Server } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AppModeSwitch, type AppMode } from './AppModeSwitch'
 import { DatabaseList } from './DatabaseList'
@@ -195,6 +195,16 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
         <div className="border-t border-stone-200/75">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
+              <a
+                href={`${import.meta.env.BASE_URL}evals`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-primary"
+                title="评测报告"
+                aria-label="打开评测报告"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+              </a>
               <button
                 onClick={() => setShowApiKeyDialog(true)}
                 className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
@@ -213,14 +223,24 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center justify-between gap-1 px-3 py-2">
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
+                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
               >
                 <Settings className="w-3.5 h-3.5" />
                 设置
               </button>
+              <a
+                href={`${import.meta.env.BASE_URL}evals`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                title="查看 Text-to-SQL 评测报告"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                评测报告
+              </a>
             </div>
           )}
         </div>

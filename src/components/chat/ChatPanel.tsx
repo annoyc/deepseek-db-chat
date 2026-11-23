@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { PersistenceNotice } from '../layout/PersistenceNotice'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
+import { useSettings } from '@/hooks/useSettings'
+import { isDemoConnectionId } from '@/lib/demo-connection'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
 import { WelcomeScreen } from './WelcomeScreen'
@@ -20,12 +22,15 @@ interface ChatPanelProps {
 export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSidebar }: ChatPanelProps) {
   const { activeSession, draftMessage, isStreaming, persistenceState, retrySave } = useChatStore()
   const { activeConnectionId, getFullConnection, connectionStatus } = useDatabaseStore()
+  const { activeProvider, serverProviders } = useSettings()
   const [showSettings, setShowSettings] = useState(false)
   const messages = activeSession?.messages ?? []
   const isEmptySession = messages.length === 0
 
   const displayConnectionId = activeConnectionId || activeSession?.connectionId || null
   const sessionConnection = displayConnectionId ? getFullConnection(displayConnectionId) : null
+  const hasServerKey = serverProviders.some((p) => p.id === activeProvider?.id && p.hasEnvKey)
+  const zeroConfigReady = isDemoConnectionId(sessionConnection?.id) && hasServerKey
   const historyReady = persistenceState !== 'loading' && persistenceState !== 'load-error'
   const canUseSuggestions = historyReady && Boolean(activeConnectionId) && !isStreaming
 
@@ -99,6 +104,7 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
           <WelcomeScreen
             hasConnection={canUseSuggestions}
             connectionName={sessionConnection?.name}
+            zeroConfigReady={zeroConfigReady}
             onSuggestionClick={(text) => {
               if (!canUseSuggestions) return
               draftMessage(text)

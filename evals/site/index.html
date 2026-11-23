@@ -3,24 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>DBPilot Text-to-SQL 评测报告</title>
-<meta name="description" content="DBPilot 数据库 Agent 的 Text-to-SQL 分层评测：执行准确率、危险操作拦截、Token 与延迟，以及每道题每一轮的明细。">
+<title>数问工作台 · Text-to-SQL 评测报告</title>
+<meta name="description" content="数问工作台（DataQuery Workbench）数据库 Agent 的 Text-to-SQL 分层评测：执行准确率、危险操作拦截、Token 与延迟，以及每道题每一轮的明细。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600&display=swap">
 <style>
   /* Layout: one reading column, tabs for overview / per-question / method; ledger-like tables. */
   :root {
-    --bg: #f7f8fa; --panel: #ffffff; --fg: #1b2230; --muted: #5d6677; --line: #dfe3ea;
-    --accent: #2f5bd3; --accent-2: #c7861a; --bad: #c2362f; --ok: #1f7a4d; --grid: #edf0f4; --code-bg: #f2f4f7;
+    --bg: #f7f4ed; --panel: #ffffff; --fg: #151515; --muted: #6f6a60; --line: #ded8cb;
+    --accent: #0f766e; --accent-2: #c7861a; --bad: #c2410c; --ok: #0f766e; --grid: #eee9dd; --code-bg: #f4f1e8;
     --serif: "Noto Serif SC", "Songti SC", "STSong", Georgia, serif;
-    --sans: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --sans: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --r: 8px;
+    --r: 10px;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #11151c; --panel: #181e27; --fg: #e6e9ef; --muted: #9aa3b2; --line: #2a3240; --accent: #7aa2ff; --accent-2: #e0a84a; --bad: #ff7b72; --ok: #4cc38a; --grid: #222a36; --code-bg: #10141a; color-scheme: dark; }
+    :root { --bg: #141513; --panel: #1c1e1b; --fg: #eceae4; --muted: #a19c91; --line: #2f322c; --accent: #2dd4bf; --accent-2: #e0a84a; --bad: #fb7185; --ok: #34d399; --grid: #252723; --code-bg: #111310; color-scheme: dark; }
   }
   * { box-sizing: border-box; }
   /* Author display rules (section { display: grid }) would otherwise override the hidden attribute. */
@@ -115,13 +115,14 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>DBPilot Text-to-SQL 评测报告</h1>
+    <h1>数问工作台 · Text-to-SQL 评测报告</h1>
     <p class="lede">对真实运行的数据库 Agent 跑 <b data-v="config.cases">—</b> 道分层题目、每题 <b data-v="config.repeats">—</b> 轮：执行准确率 <b data-v="summary.executionAccuracy.mean" data-f="pct">—</b>，但模型对写操作的主动拒绝率只有 <b data-v="summary.modelRefusalRate.mean" data-f="pct">—</b>，危险 SQL 全靠工具层的 AST 安全校验拦下。</p>
     <p class="meta muted">
       <span>模型 <span data-v="config.model">—</span></span>
       <span>思考模式 <span data-v="config.thinking">—</span> / <span data-v="config.effort">—</span></span>
       <span>固定时钟 <span data-v="config.now" data-f="datetime">—</span></span>
       <span>运行于 <span data-v="config.startedAt" data-f="datetime">—</span></span>
+      <span><a href="/workbench/dbpilot">返回工作台</a></span>
       <span><a href="https://github.com/annoyc/deepseek-db-chat/tree/main/evals" rel="noopener">评测代码</a></span>
     </p>
   </header>

@@ -5,76 +5,85 @@ interface WelcomeScreenProps {
   onSuggestionClick: (text: string) => void
   hasConnection: boolean
   connectionName?: string
+  zeroConfigReady?: boolean
 }
 
 const suggestions = [
-  '列出当前数据库的表，并根据表注释说明各自用途。',
-  '当前数据库有哪些主要实体？它们之间有什么关联？',
-  '有哪些适合做趋势分析的日期字段和数值字段？',
-  '请根据当前表结构推荐三个可以分析的业务问题。',
+  '列出当前数据库的表结构与关联关系',
+  '按月统计 2026 年订单数与应付总额',
+  '分析最近各渠道的业务表现',
+  '统计各商品分类的销量与平均评分',
 ]
 
 const features = [
   {
     icon: Brain,
     title: '自然语言查询',
-    description: '直接提出业务问题，由模型生成查询思路和 SQL',
+    description: '一句话生成分析思路与 SQL',
     color: 'text-primary',
     bg: 'bg-primary/10',
   },
   {
     icon: ShieldCheck,
     title: '安全执行',
-    description: '默认仅查询，写入操作需人工确认',
+    description: '默认只读 + AST 校验，执行前确认',
     color: 'text-indigo-600',
     bg: 'bg-indigo-50',
   },
   {
     icon: Eye,
     title: '过程透明',
-    description: '思考过程、工具调用、执行结果清晰可追踪',
+    description: '思考过程与工具调用全程可追踪',
     color: 'text-amber-600',
     bg: 'bg-amber-50',
   },
   {
     icon: Lock,
     title: '本地优先',
-    description: '连接信息与对话历史保存在当前浏览器',
+    description: '凭据加密，历史保存在本地浏览器',
     color: 'text-stone-700',
     bg: 'bg-stone-100',
   },
 ]
 
-export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName }: WelcomeScreenProps) {
+export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName, zeroConfigReady = false }: WelcomeScreenProps) {
   return (
     <div className="subtle-scrollbar h-full overflow-y-auto">
-      <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-4 px-3 py-5 md:px-6 lg:py-6 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
-        <section className="glass-panel rounded-[20px] p-5 lg:p-6 2xl:p-8">
+      <div className="mx-auto flex min-h-full max-w-4xl flex-col justify-center space-y-3.5 px-3 py-4 md:px-6 lg:py-5 2xl:max-w-5xl 2xl:space-y-5 2xl:py-8">
+        <section className="glass-panel rounded-[20px] p-4 lg:p-5 2xl:p-7">
           <div className="flex items-start gap-3.5 2xl:gap-4">
-            <div className="anim-logo d-0 h-12 w-12 flex-shrink-0 2xl:h-14 2xl:w-14">
+            <div className="anim-logo d-0 h-11 w-11 flex-shrink-0 2xl:h-14 2xl:w-14">
               <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
             </div>
             <div className="min-w-0">
-              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                <DatabaseZap className="h-3.5 w-3.5" />
-                SQL Copilot
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  <DatabaseZap className="h-3.5 w-3.5" />
+                  {APP_NAME} · 数据库分析
+                </span>
+                {zeroConfigReady && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    免配置 · 直接提问
+                  </span>
+                )}
               </div>
-              <h1 className="anim-up d-1 text-2xl font-semibold tracking-tight text-stone-950 lg:text-3xl 2xl:text-4xl">数据分析助手</h1>
-              <p className="anim-up d-2 mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                自然语言查询、SQL 审核、结果解释与可视化，集中在一个本地优先的数据工作台。
+              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-stone-950 lg:text-2xl 2xl:text-3xl">数据分析助手</h1>
+              <p className="anim-up d-2 mt-1 text-sm text-stone-500">
+                用自然语言查数、审 SQL、看图表。
               </p>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3 lg:grid-cols-2 2xl:mt-8">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 2xl:mt-6 2xl:gap-3">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3.5 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
+                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
               >
-                <div className="flex items-start gap-3">
-                  <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-9 2xl:w-9 ${feature.bg}`}>
-                    <feature.icon className={`h-4.5 w-4.5 ${feature.color}`} />
+                <div className="flex items-start gap-2.5">
+                  <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-8 2xl:w-8 ${feature.bg}`}>
+                    <feature.icon className={`h-4 w-4 ${feature.color}`} />
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-stone-900">{feature.title}</h3>
@@ -86,11 +95,11 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
           </div>
         </section>
 
-        <div className="glass-panel space-y-3 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
+        <div className="glass-panel space-y-2.5 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题 <span className="font-normal normal-case tracking-normal">· 点击填入输入框，可修改后发送</span></p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
             {hasConnection && connectionName && (
-              <span className="truncate rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+              <span className="truncate rounded-full border border-primary/15 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                 {connectionName}
               </span>
             )}

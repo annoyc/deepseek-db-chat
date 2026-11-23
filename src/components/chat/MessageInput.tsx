@@ -3,6 +3,7 @@ import { ArrowUp, Square, Atom, ChevronDown, Shield, AlertTriangle } from 'lucid
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { useSettings } from '@/hooks/useSettings'
+import { isDemoConnectionId } from '@/lib/demo-connection'
 import { modelLabel } from '@/lib/providers'
 import { isSubmitKey } from '@/lib/keyboard'
 import { Modal, ModalTitle } from '@/components/ui/modal'
@@ -14,7 +15,9 @@ export function MessageInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState, inputDraft } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { provider, providers, activeProvider, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
+  const { provider, providers, activeProvider, serverProviders, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
+  const hasServerKey = serverProviders.some((p) => p.id === activeProvider?.id && p.hasEnvKey)
+  const zeroConfigReady = isDemoConnectionId(activeConnectionId) && hasServerKey
   const prevSessionIdRef = useRef(activeSessionId)
 
   useEffect(() => {
@@ -90,7 +93,13 @@ export function MessageInput() {
             value={input}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder={historyUnavailable ? historyHint : activeConnectionId ? `你可以问关于数据库${connectionName}的任何问题` : '请先选择一个数据库连接'}
+            placeholder={historyUnavailable
+              ? historyHint
+              : !activeConnectionId
+                ? '请先选择一个数据库连接'
+                : zeroConfigReady
+                  ? '演示库与模型已就绪，无需配置，直接输入业务问题开始查询…'
+                  : `你可以问关于数据库${connectionName}的任何问题`}
             disabled={!activeConnectionId || historyUnavailable}
             rows={1}
             className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"

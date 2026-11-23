@@ -21,7 +21,9 @@
 
 ## 演示效果
 
-[打开在线工作台](https://deepseek-db-chat.vercel.app/) · [查看交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals) · 无需配置数据库，即可直接体验内置只读演示库与规则知识库。
+**[打开在线工作台（开箱即用 · 免配 API Key 与数据库）](https://deepseek-db-chat.vercel.app/)** · [查看交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals)
+
+> 已内置只读电商演示库（8 张表）与 5 份全国电力市场规则语料，并预置服务端模型，打开即可直接点击建议问题或自由提问。
 
 > 两段 GIF 录制于本地工作台，使用**真实 DeepSeek V4 Flash API**和[合成电商数据集](./scripts/mysql-demo-seed.sql)。SQL 经人工确认后在 MySQL 中实际执行；动画保留关键操作，压缩了等待时间。详见[录制说明](./docs/demo/README.md)。
 

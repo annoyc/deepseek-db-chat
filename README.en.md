@@ -21,7 +21,9 @@
 
 ## See It in Action
 
-[Open the hosted workspace](https://deepseek-db-chat.vercel.app/) · [Interactive Evaluation Report (`/workbench/evals`)](https://deepseek-db-chat.vercel.app/workbench/evals) · Try the built-in read-only demo database and regulatory knowledge base without configuring credentials.
+**[Open Hosted Workspace (Zero-Config Demo · No API Key or DB Setup Required)](https://deepseek-db-chat.vercel.app/)** · [Interactive Evaluation Report (`/workbench/evals`)](https://deepseek-db-chat.vercel.app/workbench/evals)
+
+> Preloaded with a read-only e-commerce demo database (8 tables), 5 regulatory documents, and a server-hosted model — open and click any suggested question right away.
 
 > Recorded in a local workspace with the **real DeepSeek V4 Flash API** and the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql). SQL is reviewed, confirmed, and executed against MySQL. The GIFs preserve key interactions and shorten waiting periods. See the [recording notes](./docs/demo/README.md).
 

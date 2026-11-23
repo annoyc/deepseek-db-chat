@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  BarChart3,
   BookOpenText,
   MessageSquarePlus,
   PanelLeftOpen,
@@ -179,6 +180,16 @@ export function KnowledgeSidebar({
         <div className="border-t border-stone-200/75">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
+              <a
+                href={`${import.meta.env.BASE_URL}evals`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                title="评测报告"
+                aria-label="打开评测报告"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+              </a>
               <button
                 onClick={() => void refreshHealth()}
                 disabled={checkingHealth}
@@ -197,17 +208,27 @@ export function KnowledgeSidebar({
               </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex items-center justify-between gap-1 px-3 py-2">
               <button
                 onClick={() => void refreshHealth()}
                 disabled={checkingHealth}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900 disabled:opacity-50"
                 title="只检测知识库服务连接，不生成模型回答"
                 aria-label="只检测知识库服务连接，不生成模型回答"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
-                {checkingHealth ? '正在检测服务...' : '重新检测服务'}
+                {checkingHealth ? '检测中...' : '检测服务'}
               </button>
+              <a
+                href={`${import.meta.env.BASE_URL}evals`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                title="查看 Text-to-SQL 评测报告"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                评测报告
+              </a>
             </div>
           )}
         </div>

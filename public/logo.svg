@@ -1,16 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
   <title>数问 · 数据与知识工作台</title>
-  <desc>数据层与对话尾角融为一体，代表用自然语言探索数据与知识。</desc>
+  <desc>层叠数据体与圆润对话尾角融为一体，代表用自然语言探索数据与知识。</desc>
   <defs>
-    <linearGradient id="mark-bg" x1="6" y1="0" x2="42" y2="48" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#16887D"/>
-      <stop offset="1" stop-color="#0B5C56"/>
+    <linearGradient id="mark-bg" x1="4" y1="2" x2="44" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#199488"/>
+      <stop offset="55%" stop-color="#0F7269"/>
+      <stop offset="100%" stop-color="#084E49"/>
+    </linearGradient>
+    <radialGradient id="mark-glow" cx="26%" cy="18%" r="65%">
+      <stop offset="0%" stop-color="#7CF3DF" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#7CF3DF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tier-mid" x1="12.8" y1="16.4" x2="35.2" y2="26.2" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E2FBF5"/>
+      <stop offset="100%" stop-color="#B0EDE0"/>
+    </linearGradient>
+    <linearGradient id="tier-bot" x1="12.8" y1="23.9" x2="35.2" y2="36.6" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#D9F7F0"/>
     </linearGradient>
   </defs>
-  <rect width="48" height="48" rx="13" fill="url(#mark-bg)"/>
-  <g stroke="#F4FFFC" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="24" cy="14.5" rx="11.5" ry="4.75"/>
-    <path d="M12.5 14.5V29.5C12.5 32.12 17.65 34.25 24 34.25H26.5L33.5 38V32.5C34.78 31.7 35.5 30.65 35.5 29.5V14.5"/>
-    <path d="M12.5 22C12.5 24.62 17.65 26.75 24 26.75C30.35 26.75 35.5 24.62 35.5 22" stroke="#A8EBDD"/>
-  </g>
+
+  <!-- Rounded app tile with subtle glass highlight -->
+  <rect width="48" height="48" rx="12.5" fill="url(#mark-bg)"/>
+  <rect width="48" height="48" rx="12.5" fill="url(#mark-glow)"/>
+  <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="11.75" stroke="#FFFFFF" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- Top database disc -->
+  <ellipse cx="24" cy="14.5" rx="11.2" ry="4.2" fill="#FFFFFF"/>
+
+  <!-- Middle data tier (soft mint tint for depth) -->
+  <path
+    d="M12.8 16.5C12.8 18.82 17.81 20.7 24 20.7C30.19 20.7 35.2 18.82 35.2 16.5V22.0C35.2 24.32 30.19 26.2 24 26.2C17.81 26.2 12.8 24.32 12.8 22.0Z"
+    fill="url(#tier-mid)"
+  />
+
+  <!-- Bottom data tier seamlessly flowing into a rounded speech tail -->
+  <path
+    d="M12.8 24.0C12.8 26.32 17.81 28.2 24 28.2C30.19 28.2 35.2 26.32 35.2 24.0V29.4C35.2 30.48 34.36 31.32 33.1 31.86C33.24 33.12 33.62 34.48 34.08 35.56C34.34 36.18 33.74 36.78 33.1 36.54C31.18 35.82 29.12 34.74 27.2 33.42C26.18 33.54 25.1 33.6 24 33.6C17.81 33.6 12.8 31.72 12.8 29.4Z"
+    fill="url(#tier-bot)"
+  />
 </svg>
