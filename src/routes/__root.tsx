@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Outlet, HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { DatabaseProvider } from '@/hooks/useDatabase'
 import { ChatProvider } from '@/hooks/useChat'
@@ -7,6 +7,7 @@ import { KnowledgeDocumentsProvider } from '@/hooks/useKnowledgeDocuments'
 import { SettingsProvider } from '@/hooks/useSettings'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { LayoutProvider } from '@/hooks/useLayout'
+import { ensureAnonymousUserCookie } from '@/lib/anonymous-user'
 import { APP_TAGLINE, APP_TITLE } from '@/lib/constants'
 import { buildThemeInitScript, DEFAULT_THEME_ACCENT } from '@/lib/theme'
 import '@/styles/globals.css'
@@ -29,6 +30,10 @@ export const Route = createRootRoute({
 const THEME_INIT_SCRIPT = buildThemeInitScript()
 
 function RootComponent() {
+  useEffect(() => {
+    ensureAnonymousUserCookie()
+  }, [])
+
   return (
     <RootDocument>
       <ThemeProvider>

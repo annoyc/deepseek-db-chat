@@ -8,7 +8,7 @@ import { readResponseJson } from '@/core/client/response-body'
 import type { KnowledgeChatInput, KnowledgeHealth, KnowledgeStreamChunk } from '@/lib/knowledge-types'
 import { createRequestModel, resolveAiTarget } from '@/server/ai-credentials'
 import { getActiveTraceId } from '@langfuse/tracing'
-import { withTrace } from '@/server/langfuse'
+import { resolveUserId, withTrace } from '@/server/langfuse'
 import { createServerEmbedder } from '@/server/knowledge/embedding'
 import { loadKnowledgeBase } from '@/server/knowledge/knowledge-base'
 import { runKnowledgePipeline, type KnowledgePipelineDeps } from '@/server/knowledge/pipeline'
@@ -236,6 +236,8 @@ async function localPipelineDeps(data: KnowledgeChatInput): Promise<KnowledgePip
 export const knowledgeChatStream = createServerFn({ method: 'POST' })
   .inputValidator((data: KnowledgeChatInput) => KnowledgeInputSchema.parse(data))
   .handler(async ({ data }): Promise<Response> => {
+    const request = getRequest()
+    const userId = resolveUserId(request)
     const backend = knowledgeBackend()
     const encoder = new TextEncoder()
     const stream = createManagedStream(async ({ signal, enqueue }) => {
@@ -247,6 +249,7 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
         await withTrace({
           name: 'knowledge-chat',
           input: data.message,
+          userId,
           metadata: { provider: data.provider || 'deepseek', model: data.model, stream: true, messageCount: (data.history?.length ?? 0) + 1 },
           tags: ['knowledge', data.answerMode],
         }, async () => {
@@ -266,7 +269,7 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
       }
       emit({ enqueue }, encoder, { type: 'finish' })
     }, {
-      signal: getRequest().signal,
+      signal: request.signal,
       deadlineMs: 180000,
       onError(error, enqueue) {
         const message = error instanceof Error && error.name === 'TimeoutError'

@@ -38,6 +38,8 @@ export const chatStream = createServerFn({ method: 'POST' })
   .inputValidator((data: ChatInput) => data)
   .handler(
     async ({ data }): Promise<Response> => {
+    const request = getRequest()
+    const userId = resolveUserId(request)
     const encoder = new TextEncoder()
     const stream = createManagedStream(async ({ signal, enqueue }) => {
         const controller = { enqueue }
@@ -119,7 +121,6 @@ export const chatStream = createServerFn({ method: 'POST' })
         }
 
         if (langfuseSpanProcessor) {
-          const userId = resolveUserId()
           await startActiveObservation('chat', async (span) => {
             if (span.traceId) {
               controller.enqueue(encoder.encode(formatSSE({ type: 'trace', traceId: span.traceId })))
@@ -139,7 +140,7 @@ export const chatStream = createServerFn({ method: 'POST' })
           await runChat()
         }
     }, {
-      signal: getRequest().signal,
+      signal: request.signal,
       deadlineMs: 180000,
       onError(error, enqueue) {
         const message = error instanceof Error && error.name === 'TimeoutError'

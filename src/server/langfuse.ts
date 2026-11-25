@@ -1,6 +1,8 @@
 import './instrumentation'
+import { getRequest } from '@tanstack/react-start/server'
 import { startActiveObservation, propagateAttributes } from '@langfuse/tracing'
 import { traceContent, traceError, traceMetadata } from '@/core/telemetry'
+import { parseAnonymousUserIdFromCookieHeader } from '@/lib/anonymous-user'
 import { langfuseSpanProcessor } from './instrumentation'
 
 export { langfuseSpanProcessor }
@@ -14,9 +16,21 @@ export interface TraceOptions {
   tags?: string[]
 }
 
-/** Anonymous by default; authenticated callers may explicitly supply an opaque userId. */
-export function resolveUserId(): string | undefined {
-  return undefined
+/**
+ * Resolves an opaque anonymous user ID from the incoming request cookie.
+ * Returns `undefined` outside a request context or when the cookie is absent/invalid.
+ * Raw request IPs are never used as user identifiers.
+ */
+export function resolveUserId(request?: Pick<Request, 'headers'> | null): string | undefined {
+  let req = request
+  if (!req) {
+    try {
+      req = getRequest()
+    } catch {
+      return undefined
+    }
+  }
+  return parseAnonymousUserIdFromCookieHeader(req?.headers.get('cookie'))
 }
 
 /**
