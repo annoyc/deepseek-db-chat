@@ -77,9 +77,9 @@ All server-side logic, exposed to the client via TanStack Start `createServerFn`
 | File / Directory | Purpose |
 |------------------|---------|
 | `agent.ts` | Creates the DB agent with system prompt and tool bindings |
-| `tools.ts` | Defines the three database tools (`list_tables`, `get_table_schema`, `execute_sql`) |
+| `tools.ts` | Defines database tools (`overview_database`, `list_tables`, `get_table_schema`, `explain_sql`, `execute_sql`, `smart_filter`) |
 | `database.ts` | MySQL connection pool management via mysql2 |
-| `store.ts` | Server-side connection store (`data/connections.json`) |
+| `crypto.ts` | AES-256-GCM encryption/decryption helpers for browser-stored credentials and API keys |
 | `functions/chat.ts` | SSE streaming chat endpoint |
 | `functions/confirm-sql.ts` | Human-in-the-loop SQL execution after user approval |
 | `functions/connections.ts` | Database connection CRUD |

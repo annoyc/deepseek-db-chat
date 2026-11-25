@@ -118,29 +118,10 @@ The selected model is sent with each chat request and passed to the agent at run
 
 Connections can be configured in two ways:
 
-1. **Environment variables** — Provide `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_DATABASE` in `.env` for a default connection at startup.
-2. **In-app "Add Connection" dialog** — Click **Add Database Connection** in the sidebar to create connections interactively.
+1. **Built-in read-only demo connection (optional)** — Provide `DEMO_DB_ENABLED=true` and `DEMO_DB_*` variables in `.env` so visitors automatically receive a server-managed read-only demo connection without exposing credentials to the browser.
+2. **In-app "Add Connection" dialog** — Click **Add Database Connection** in the sidebar to create personal connections interactively.
 
-Connections added via the UI are persisted server-side in `data/connections.json`.
-
-### Connection File Format
-
-Each entry in `data/connections.json` follows this structure:
-
-```json
-{
-  "id": "abc123",
-  "name": "Production",
-  "host": "db.example.com",
-  "port": 3306,
-  "user": "readonly",
-  "password": "secret",
-  "database": "analytics",
-  "createdAt": "2026-05-30T12:00:00.000Z"
-}
-```
-
-Passwords are stored in plain text on the server. Restrict file permissions on `data/connections.json` in production environments.
+Personal connections added via the UI are stored locally in the browser's **IndexedDB**, with passwords encrypted via **AES-256-GCM** using the server encryption helper (never written in plaintext to a server JSON file).
 
 ### Connection Pool Settings
 
@@ -300,27 +281,15 @@ Compaction is handled by `CompactMessage` and `CompactTool` in `src/core/context
 
 | Data | Location | Persistence |
 |------|----------|-------------|
-| Chat sessions | Browser `IndexedDB` (`deepseek-chat-sessions`) | Per browser |
-| API key | Browser `IndexedDB` (`deepseek-api-key`) | Per browser |
-| Model selection | Browser `IndexedDB` (`deepseek-model`) | Per browser |
-| Database connections | `data/connections.json` | Server-side file |
-| Chat history (server) | `data/chats/` | Server-side file (currently unused) |
+| Chat & knowledge sessions | Browser `IndexedDB` | Per browser |
+| Personal database connections | Browser `IndexedDB` (passwords AES-256-GCM encrypted) | Per browser |
+| User API keys & custom providers | Browser `IndexedDB` (keys AES-256-GCM encrypted) | Per browser |
+| Uploaded knowledge doc chunks | Browser `IndexedDB` (parsed client-side) | Per browser |
+| Built-in demo DB / server API keys | Server environment variables (`.env`) | Server-side only |
 
 ### Browser Storage
 
-Client-side data is scoped to the browser profile. Clearing browser data removes chat history, API keys, and model preferences. Chat sessions are capped at the **last 100 messages** per session when saved to `IndexedDB`.
-
-### Server-Side Storage
-
-The `data/` directory is created automatically on first use. Paths are defined in `src/lib/constants.ts`:
-
-```typescript
-export const DATA_DIR = 'data'
-export const CONNECTIONS_FILE = 'data/connections.json'
-export const CHATS_DIR = 'data/chats'
-```
-
-Server-side chat storage (`data/chats/`) is implemented in `src/server/store.ts` but is not currently used by the UI — all active chat history lives in the browser.
+Client-side data is scoped to the browser profile. Clearing browser data removes local chat history, encrypted personal connections, custom provider keys, and uploaded knowledge chunks without affecting any server-side configuration.
 
 ---
 

@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-Common questions about **DBPilot** — an AI-powered MySQL assistant.
+Common questions about **DataQuery Workbench** (DBPilot Text-to-SQL & Knowledge Q&A).
 
 ---
 
@@ -12,17 +12,24 @@ Currently **MySQL only**. PostgreSQL and SQLite support is planned.
 
 ### Is my data safe?
 
-Yes. All chat history is stored in your browser's **IndexedDB**. No data is sent to any server except the DeepSeek API for AI processing. No login or registration is required.
+Yes. All chat history, personal database connections, and user-supplied API keys are stored locally in your browser's **IndexedDB** (with database passwords and API keys encrypted via **AES-256-GCM**). No login or registration is required.
 
-Your database credentials are stored server-side in `data/connections.json` (local to your deployment) and are never sent to DeepSeek.
+Server-managed demo credentials and server API keys stay strictly on the server. When you run a query, only your question, necessary schema metadata, and rule-masked query results are sent to your configured model provider.
 
 ### Can AI execute dangerous SQL?
 
-No. Every SQL query requires your **explicit confirmation** before execution. Dangerous operations (such as `DROP`, `DELETE`, `TRUNCATE`, and `ALTER`) are clearly flagged in the confirmation dialog so you can review them before approving.
+No. SQL execution is protected by defense in depth:
+1. **Read-only by default** — server policy blocks write statements unless explicitly enabled and allowlisted for non-production connections.
+2. **AST validation (`sql-guard`)** — executable comments and unparseable SQL are rejected before execution.
+3. **Human confirmation** — every SQL query requires your explicit approval before running.
 
 ---
 
 ## Setup
+
+### Which model providers are supported?
+
+**DeepSeek** is built in (`DEEPSEEK_API_KEY`), and you can add any **OpenAI-compatible** provider (such as Alibaba Cloud Bailian/Qwen, Kimi, GLM, SiliconFlow, or OpenRouter) either on the server via `AI_PROVIDERS` or directly in the in-app **Settings → Model Providers** dialog.
 
 ### How do I get a DeepSeek API key?
 
@@ -30,13 +37,7 @@ Visit [https://platform.deepseek.com/api_keys](https://platform.deepseek.com/api
 
 ### Can I use a custom API endpoint?
 
-Yes. Set `DEEPSEEK_API_BASE_URL` in your `.env` file to point to a custom endpoint or proxy:
-
-```env
-DEEPSEEK_API_BASE_URL=https://your-proxy.example.com
-```
-
-The default is `https://api.deepseek.com`.
+Yes. For DeepSeek proxies, set `DEEPSEEK_API_BASE_URL` in `.env` (defaults to `https://api.deepseek.com`). For any other OpenAI-compatible provider, add a custom provider in **Settings** or configure `AI_PROVIDERS` in `.env`.
 
 ### Which model should I use?
 

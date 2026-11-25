@@ -1,68 +1,134 @@
-<p align="center">
-  <h1 align="center">数问工作台 · DataQuery Workbench</h1>
+<div align="center">
+
+<img src="./public/logo.svg" width="76" height="76" alt="数问工作台 Logo" />
+
+# 数问工作台 · DataQuery Workbench
+
+**本地优先、免登录、模型自由的 AI 数据与知识工作台**
+
+在一个界面完成 **MySQL 自然语言查数（Text-to-SQL）** 与 **规章文档问答（RAG）**，<br />
+内置实时思考可视化、AST 安全防线、人机协同确认、自动图表与条款级溯源。
+
+<p>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-0F7269?style=flat-square" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D22.0.0-0F7269?style=flat-square" alt="Node >= 22" />
+  <img src="https://img.shields.io/badge/TypeScript-5.8-0F7269?style=flat-square" alt="TypeScript 5.8" />
+  <img src="https://img.shields.io/badge/PRs-welcome-199488?style=flat-square" alt="PRs Welcome" />
 </p>
 
-<p align="center">
-  面向企业分析场景的双引擎多模型 AI 工作台 — 结合 <b>结构化数据查数（Text-to-SQL）</b> 与 <b>非结构化规章问答（RAG）</b>，内置实时思考可视化、AST 安全防线、人机协同确认与量化评测体系。
+<p>
+  <a href="https://deepseek-db-chat.vercel.app/workbench/dbpilot"><b>在线体验</b></a>
+  &nbsp;·&nbsp;
+  <a href="#演示效果"><b>演示效果</b></a>
+  &nbsp;·&nbsp;
+  <a href="#核心特性"><b>核心特性</b></a>
+  &nbsp;·&nbsp;
+  <a href="#快速开始"><b>快速开始</b></a>
+  &nbsp;·&nbsp;
+  <a href="#评测基准"><b>评测基准</b></a>
+  &nbsp;·&nbsp;
+  <a href="./README.en.md"><b>English</b></a>
 </p>
 
-<p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat&colorA=080f12&colorB=1fa669" alt="License"></a>
-  <img src="https://img.shields.io/badge/node-%3E%3D22.0.0-green.svg?style=flat&colorA=080f12&colorB=1fa669" alt="Node">
-  <img src="https://img.shields.io/badge/TypeScript-5.8-blue.svg?style=flat&colorA=080f12&colorB=1fa669" alt="TypeScript">
-  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat&colorA=080f12&colorB=1fa669" alt="PRs Welcome">
-</p>
-
-<p align="center">
-  <b><a href="./README.en.md">English</a></b> · <b><a href="./docs/architecture.md">架构文档</a></b> · <b><a href="./docs/getting-started.md">快速上手</a></b> · <b><a href="./evals/README.md">评测基准</a></b>
-</p>
+</div>
 
 ---
 
 ## 演示效果
 
-**[打开在线工作台 · 数问 · 数据与知识工作台（免配 API Key 与数据库）](https://deepseek-db-chat.vercel.app/workbench/dbpilot)** · [知识库问答（`/workbench/knowledge`）](https://deepseek-db-chat.vercel.app/workbench/knowledge) · [交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals)
-
-> 已内置只读电商演示库（8 张表）与 3 份有效期内的全国电力市场规则语料，并预置服务端模型，打开即可直接点击建议问题或自由提问。
-
-> 三段 GIF 均录制于线上工作台，使用 **DeepSeek V4.1 Flash** 真实流式推理、[合成电商数据集](./scripts/mysql-demo-seed.sql)与内置电力市场规则语料。SQL 经人工确认后在只读 MySQL 中实际执行；动画保留关键交互帧并压缩了等待时间。详见[录制说明](./docs/demo/README.md)。
-
-部署方可以提供自动加载的内置只读演示连接。AI 查询还需要已配置的模型服务，也可以自行添加应用服务端可访问的 MySQL 连接。
+> 🚀 **免配置在线试玩**：[数据库查数（`/workbench/dbpilot`）](https://deepseek-db-chat.vercel.app/workbench/dbpilot) · [知识库问答（`/workbench/knowledge`）](https://deepseek-db-chat.vercel.app/workbench/knowledge) · [交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals)
+>
+> 线上已预置只读电商演示库（8 张表）、3 份有效期内的全国电力市场规则语料与服务端模型，打开即可点击建议问题或自由提问。
 
 ### 1. 自然语言探索数据库
 
-询问数据库有多少张表并查看表清单，元数据工具直接返回 8 张基础表信息，避免重复生成 SQL。
+直接询问库表数量与结构，元数据工具一次返回全部 8 张基础表信息，无需重复生成探索性 SQL。
 
 ![数据库探索：询问表数量，直接获得完整表清单](./docs/demo/schema-exploration.gif)
 
 ### 2. 从业务问题到双轴可视化与指标摘要
 
-用自然语言提问月度订单数与应付总额，检查模型生成的 SQL 并确认执行，在右侧数据面板联动查看自动双轴柱状图/折线图、数据表与 KPI 分析摘要。
+自然语言提问月度订单数与应付总额，审核并确认模型生成的 SQL 后在只读 MySQL 中执行，右侧面板自动联动渲染双轴柱状/折线图、可排序数据表与 KPI 分析摘要。
 
 ![数据分析：自然语言提问、审核并确认 SQL、查看双轴图表与指标摘要](./docs/demo/sql-analysis.gif)
 
 ### 3. 规章制度问答与条款级证据溯源
 
-提问电力市场规则问题（如绿电价格结算），经脱敏、改写拆解、检索与引用校验生成带 `[n]` 出处标注的回答，并在右侧证据面板核查工具使用链与有效期内原文条款。
+提问电力市场规则（如绿电价格结算），经脱敏、改写拆解、检索与引用校验生成带 `[n]` 出处标注的回答，并在右侧证据面板核查工具使用链与有效期内原文条款。
 
 ![知识库问答：规则检索、条款引用、有效期校验与证据面板溯源](./docs/demo/knowledge-rag.gif)
 
+<details>
+<summary>关于演示录制的说明</summary>
+
+三段 GIF 均录制于真实工作台，使用 **DeepSeek V4.1 Flash** 流式推理、[合成电商数据集](./scripts/mysql-demo-seed.sql)与内置电力市场规则语料；SQL 经人工确认后在只读 MySQL 中实际执行，动画保留关键交互帧并压缩了等待时间。详见 [docs/demo/README.md](./docs/demo/README.md)。
+
+</details>
+
 ---
 
-## 评测基准与工程指标
+## 核心特性
 
-项目内置可复现的双引擎评测体系，覆盖 **Text-to-SQL 执行准确性/安全性** 与 **RAG 检索消融/忠实度**，详见 [Text-to-SQL 评测](./evals/README.md) 与 [知识库 RAG 评测](./evals/knowledge/README.md)。
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <b>🔐 本地优先 & 免登录</b><br />
+      无需注册账号，无服务端用户库。个人数据库连接、自有 API Key（AES-256-GCM 加密）、对话历史及上传文档切片全部保存在当前浏览器的 IndexedDB。
+    </td>
+    <td width="50%" valign="top">
+      <b>🔀 模型自由 & 极致成本</b><br />
+      内置 DeepSeek 原生思考模式与前缀缓存优化（实测命中率 <b>85%</b>），支持自由添加 Kimi、Qwen、GLM、硅基流动、OpenRouter 等任意 OpenAI 兼容服务并一键切换。
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <b>🛡️ 纵深 SQL 安全防线</b><br />
+      服务端默认强制只读 + AST 语法树校验（拒绝可执行注释与未解析语句）+ 人机协同确认 + 统一模型出口 PII 脱敏；SELECT 自动限流 500 行并标注截断状态。
+    </td>
+    <td width="50%" valign="top">
+      <b>⚡ 查数与查规双引擎</b><br />
+      将结构化 Text-to-SQL 与应用内 RAG 引擎合二为一：既能自动画图、出 KPI 摘要，也能对制度规则与私有 PDF/DOCX 做条款级引用溯源与有效期校验。
+    </td>
+  </tr>
+</table>
 
-### Text-to-SQL 评测（45 题 × 2 轮，`deepseek-flash` + 固定时钟只读演示库）
+### 数据分析（Text-to-SQL）
+- **数据库全景与外键感知**：一键扫描表结构、行数、表注释、业务字典表及 `INFORMATION_SCHEMA` 外键关系，精准生成多表 JOIN。
+- **智能筛选（`smart_filter`）**：遇到时间范围、口径或枚举歧义时，先以交互式控件请用户澄清，再生成 SQL，不盲目猜测。
+- **过程透明与自纠正**：实时流式展示模型思考过程（`reasoning_content`）与工具调用链；支持执行前 `EXPLAIN` 预分析，出错时按结构化错误类型自动修正 SQL。
+- **交互式可视化**：结果自动渲染为可分页排序表格（支持 CSV 导出）、双轴柱状/折线/饼图与 KPI 指标卡。
+- **多库与弹性执行**：支持从侧边栏管理多个 MySQL 连接（支持 TLS/CA 校验），内置首包前指数退避重试与原生 `suspend/resume` 挂起恢复。
+
+### 知识库问答（RAG）
+- **应用内免外部依赖**：默认内置 3 份有效期内电力市场规则，按「章 / 节 / 条」切块；基于 Node `Intl.Segmenter` 的 BM25 中文检索，可选配合向量检索 RRF 融合。
+- **浏览器端私有文档**：支持上传 PDF、Word（`.docx`）、Markdown、TXT（默认单浏览器最多 10 份、单文件 10 MB），原文件在浏览器本地解析，不落盘；提问时仅发送相关片段。
+- **引用校验与时效追踪**：强制校验回答中的 `[n]` 出处编号并定位原文条款，按施行日与有效期自动标注有效状态；可选开启通用知识补充与联网搜索（Bocha）。
+
+<details>
+<summary>隐私与数据流边界说明</summary>
+
+- **本地存储**：个人连接配置、用户自有 API Key（AES-256-GCM 加密）、完整会话记录和本地上传文档切片均保存在当前浏览器 IndexedDB；内置演示库凭据和服务端 API Key 始终留在服务端。
+- **模型传输**：提问、必要表结构及经规则脱敏的查询结果会发送给所选模型；知识问答发送脱敏后的问题与检索到的条款片段（配置向量检索或联网搜索时，脱敏问题会发往对应接口）。
+- **脱敏与遥测**：统一模型出口对常见 PII 与结构化敏感字段做脱敏处理（不能替代组织自身的数据分级与字段权限管控）；包含敏感标识的初始查数问题会提示改用内部编号。可选 Langfuse 遥测默认仅采集运行元数据，开启内容采集后仍保持脱敏。
+
+</details>
+
+---
+
+## 评测基准
+
+仓库内置可复现的双引擎评测套件，详见 [Text-to-SQL 评测](./evals/README.md) 与 [知识库 RAG 评测](./evals/knowledge/README.md)。
+
+### Text-to-SQL（45 题 × 2 轮，`deepseek-flash` + 固定时钟只读演示库）
 
 | 维度 | 指标结果 | 说明 |
 |---|---:|---|
-| **执行准确率（relaxed）** | **94.1%**（91.2%–97.1%） | 覆盖单表/NULL/JSON（100%）、聚合/净实收（95.0%）、时间趋势（92.9%）、多表/5 表关联（88.9%） |
-| **歧义澄清率** | **100.0%**（10/10） | 面对时间/口径模糊的问题全部主动调用 `smart_filter` 澄清 |
-| **安全防线（模型自拒 vs 最终拦截）** | **41.7% → 100.0%** | 模型在 58.3% 危险轮次仍尝试写操作，全部被 AST `sql-guard` 与服务端策略在执行前确定性拦截 |
-| **DeepSeek 前缀缓存命中率** | **85.0%** | 分层静态 Prompt + 确定性消息构造，平均每题 2.70 次工具调用、0 运行错误 |
+| **执行准确率（relaxed）** | **94.1%**（91.2%–97.1%） | 单表/NULL/JSON 100%、聚合 95.0%、时间趋势 92.9%、多表/5 表关联 88.9% |
+| **歧义澄清率** | **100.0%**（10/10） | 时间/口径模糊问题全部主动触发 `smart_filter` 澄清 |
+| **安全拦截（模型自拒 → 最终拦截）** | **41.7% → 100.0%** | 58.3% 危险轮次模型仍尝试写入，全部被 AST `sql-guard` 与服务端策略确定性拦截 |
+| **DeepSeek 前缀缓存命中率** | **85.0%** | 分层静态 Prompt + 确定性消息布局，平均 2.70 次工具调用/题，0 运行错误 |
 
-### 知识库 RAG 评测（89 题电力市场规则语料）
+### 知识库 RAG（89 题电力市场规则语料）
 
 | 阶段 / 配置 | Hit@1 | Hit@5 | Recall@10 | MRR | 库内空检索 ↓ | 库外空检索 ↑ |
 |---|---:|---:|---:|---:|---:|---:|
@@ -70,205 +136,148 @@
 | 联合门槛基线（`baseline`，BM25） | 73.4% | 89.9% | 89.2% | 0.803 | 6.3% | 90.0% |
 | **+ 问题改写与拆解（`rewrite`）** | **84.8%** | **94.9%** | **98.1%** | **0.897** | **0.0%** | 80.0% |
 
-- **短板跃升**：开启 `query_rewrite` 后，口语化提问（`paraphrase`）Hit@1 从 **22.2% → 72.2%**、Hit@5 从 **66.7% → 88.9%**；多轮指代追问（`followup`）Recall@10 从 **60.0% → 100.0%**。
-- **端到端回答与忠实度**（标准模式 + 仅知识库，固定日期 `2026-10-15`）：库内回答率 **92.4%**、引用有效率 **91.8%**、要点覆盖率 **88.6%**、**库外拒答率 100.0%**、**LLM-as-a-Judge 忠实度 100.0%**（73/73），P50 延迟 **2.87s**。
-
----
-
-## 为什么选择数问工作台？
-
-通用 AI 数据库工具依赖通用大模型 SDK，无法正确处理各厂商独有的思考模式和缓存机制；而在真实企业分析中，查数（结构化 SQL）与查口径/查制度（非结构化文档）往往密不可分。数问工作台内联自研多模型 Agent 运行时（DeepSeek 原生思考模式 + 任意 OpenAI 兼容服务）与应用内 RAG 引擎，在一个工作台内同时解决「查准数」与「找对据」两个核心问题。
-
-### 多模型 & 极致成本
-
-支持 **DeepSeek**、**Kimi**、**Qwen**、**GLM** 等多款大模型，内置 DeepSeek 原生 API，其他 OpenAI 兼容服务可由管理员在服务端配置，或由用户在设置中自行添加。内置 DeepSeek 前缀缓存优化与上下文复用，确定性消息构建确保缓存命中率最大化（实测 **85%**）— 自由切换模型的同时保持极致性价比。
-
-### 安全可靠
-
-数据库密码和用户自有 API Key 使用 AES-256-GCM 加密保存；服务器 API Key 始终留在服务器。SQL 在最终执行入口按服务器策略再次检查，默认只读；生产连接禁止写入，非生产写入必须由管理员显式启用并配置目标白名单。可执行注释及无法可靠解析的语句会被拒绝。SELECT 返回最多 500 行，并标明实际执行 SQL、限制与截断状态。生产数据库还应使用数据库自身的只读账号。详情见 [运行与回归说明](./OPERATIONS.md)。
-
-### 过程透明
-
-AI 思考过程与工具调用完全可视化，每一步推理和 SQL 生成都有迹可循、可审计。**AI 想什么，你就看到什么** — 拒绝黑箱操作。
-
-### 隐私无忧
-
-个人连接和完整对话历史保存在当前浏览器的 IndexedDB，内置演示库的凭据始终留在服务器。提问、必要表结构和经规则脱敏的结果会发送给所选模型。知识问答在应用内检索规则原文，脱敏后的问题和检索到的条款发给所选模型；用户上传的文档在浏览器内解析和保存，只有提取的文字会发到服务端切块（不落盘），提问时只发送相关片段；配置了向量检索或联网搜索时，脱敏后的问题还会发给百炼向量接口或博查搜索。设置 `KNOWLEDGE_BACKEND=remote` 时，知识问答改为发给 `MEMO_CHAT_API_BASE` 指定的独立服务。统一模型出口对常见 PII 与结构化敏感字段脱敏，不能代替组织的数据分类与字段授权。Langfuse 为可选服务，默认仅采集运行元信息；内容采集需显式开启，开启后仍脱敏。包含敏感标识的初始数据库问题会提示改用非敏感内部编号，以免脱敏后生成错误筛选条件。
-
----
-
-## 核心特性
-
-- 🔀 **多模型支持** — 内置 DeepSeek，可自行添加任意 OpenAI 兼容服务（百炼、硅基流动、OpenRouter…），界面内一键切换
-- ⚡ **极致成本** — DeepSeek 前缀缓存优化，上下文复用，确定性消息构建，最大化缓存命中率
-- 🔒 **安全可靠** — AES-256-GCM 凭据加密、服务器默认只读、AST 语法树校验、人工确认与统一模型出口脱敏
-- 🎛️ **智能筛选** — AI 驱动的交互式查询参数微调（时间范围、枚举筛选、聚合方式），SQL 生成前精准确认用户意图
-- 📚 **知识库问答（RAG）** — 电力市场规则原文按条款切块，BM25 与向量混合检索后用 RRF 融合；支持浏览器端解析上传 PDF/DOCX；回答标注条款出处并校验引用，按施行日期提示规则是否在有效期内
-- 🗺️ **数据库全景** — 一键扫描全部表结构，含行数统计、表注释、业务字典表自动探测和外键关系映射，为 JOIN 查询提供精准依据
-- 🔗 **外键感知** — Schema 检查自动提取 `INFORMATION_SCHEMA` 中的外键关系，AI 据此生成正确的多表 JOIN
-- 🔍 **EXPLAIN 预分析** — 执行前可选的查询计划检查，自动预警全表扫描
-- 🛠️ **SQL 自纠正** — 失败时结构化错误分类（未知字段、表不存在、语法错误），引导 AI 智能修正而非盲目重试
-- 👁️ **过程透明** — AI 思考过程与工具调用实时可视化，支持智能自动折叠，全程可审计
-- 🛡️ **隐私无忧** — 完整历史本地保存，模型与知识服务的数据传输范围明确，可选 Langfuse 遥测默认仅采集元数据
-- 📊 **交互式数据可视化** — 查询结果自动渲染为可分页排序表格（支持 CSV 导出）、自动双轴图表（柱状图 / 折线图 / 饼图）与 KPI 指标卡
-- ♻️ **弹性执行机制** — 首包前流式重试 + 指数退避 + 可配置超时 + 原生 `suspend/resume` 挂起恢复
-- 🗄️ **多数据库管理** — 从侧边栏添加、切换和管理多个 MySQL 连接（支持 TLS/CA 校验）
-- 🧠 **智能 Agent 循环** — 内嵌 few-shot JOIN 示例的多步推理：全景扫描 → 规划/检查表结构 → 生成 SQL → 挂起确认 → 执行 → 出错自纠正
-- 💭 **默认思考模式** — `reasoning_content` 在多轮工具调用中正确管理，零配置
-- 📡 **SSE 流式传输** — 通过 Server-Sent Events 实时推送响应，即时反馈
-- 📈 **内置评测体系** — Text-to-SQL 自动化评测（含 `/workbench/evals` 报告页）与 RAG 检索消融 + LLM-as-a-Judge 忠实度评测
+- **专项提升**：开启 `query_rewrite` 后，口语化提问 Hit@1 从 **22.2% → 72.2%**（Hit@5 **66.7% → 88.9%**）；多轮指代追问 Recall@10 从 **60.0% → 100.0%**。
+- **端到端忠实度**（仅知识库模式，固定日期 `2026-10-15`）：库内回答率 **92.4%**、引用有效率 **91.8%**、要点覆盖率 **88.6%**、**库外拒答率 100.0%**、**LLM-as-a-Judge 忠实度 100.0%**（73/73），P50 延迟 **2.87s**。
 
 ---
 
 ## 快速开始
 
+环境要求：**Node.js >= 22.0.0**、**pnpm**。
+
 ```bash
-# 克隆仓库
+# 1. 克隆仓库并安装依赖
 git clone https://github.com/annoyc/deepseek-db-chat.git
 cd deepseek-db-chat
-
-# 安装依赖
 pnpm install --frozen-lockfile
 
-# 设置环境变量
+# 2. 配置环境变量（填入 DEEPSEEK_API_KEY，或通过 AI_PROVIDERS 配置其他兼容服务）
 cp .env.example .env
-# 编辑 .env 并填入你的 API Key（DeepSeek，或通过 AI_PROVIDERS 配置其他服务）
 
-# 启动开发服务器
+# 3. 启动本地开发服务器（默认 http://localhost:3000）
 pnpm dev
+```
 
-# 构建生产版本
+生产构建与启动：
+
+```bash
 pnpm build
 pnpm start
 ```
 
-### MySQL 连接与 TLS
+> 也可直接从界面右上角 **设置 → 模型服务** 添加任意 OpenAI 兼容 API Key，并在左侧边栏添加你自己的 MySQL 连接（推荐使用只读账号）。
 
-从侧边栏添加数据库连接，填写应用服务端可访问的主机、数据库名和只读账号。Aiven 主机会自动启用 TLS，TLS 连接会校验证书及主机名。CA 证书可从 Aiven 服务的 **Overview → CA certificate** 下载后导入，也可由部署方统一配置。
+<details>
+<summary>进阶配置：多模型服务（<code>AI_PROVIDERS</code> / <code>thinkingStyle</code>）</summary>
 
-若希望访客连接指定主机时免填 CA，可设置以下服务端环境变量：
+所有模型服务均通过 OpenAI Chat Completions 协议接入，仅思考参数字段不同（`thinkingStyle`）：
+
+| `thinkingStyle` | 请求参数 | 适用服务 |
+|---|---|---|
+| `deepseek` | `thinking: { type, reasoning_effort }` | DeepSeek 官方 API |
+| `enable_thinking` | `enable_thinking: true/false` | 阿里云百炼 / 通义千问、硅基流动等 |
+| `none` | 不发送（默认，兼容性最好） | 其他 OpenAI 兼容服务 |
+
+- **服务端托管**：内置 DeepSeek（`DEEPSEEK_API_KEY`），其余服务通过 `AI_PROVIDERS`（JSON 数组，通过 `apiKeyEnv` 引用独立环境变量）配置，示例见 `.env.example`。旧变量 `BAILIAN_API_KEY` 仍兼容。
+- **用户自行添加**：在 **设置 → 模型服务 → 添加** 中选择模板（百炼、硅基流动、OpenRouter）或自定义 Base URL 与 API Key，可点击「测试连接」依次验证流式工具调用、JSON 输出和思考参数。自定义服务绝不使用服务端密钥。
+
+</details>
+
+<details>
+<summary>进阶配置：MySQL TLS / CA 证书与内置只读演示连接</summary>
+
+#### MySQL TLS 与 CA 证书
+从侧边栏添加连接时，Aiven 等云主机自动启用 TLS 并校验证书与主机名。若希望访客连接特定主机免填 CA，可配置服务端环境变量（Vercel 配置后需重新部署）：
 
 ```dotenv
 DB_SSL_CA_HOST=db.example.aivencloud.com
 DB_SSL_CA="-----BEGIN CERTIFICATE-----\n<CA 证书正文>\n-----END CERTIFICATE-----"
 ```
 
-将示例替换为完整、精确的数据库主机名及其公共 CA 证书。`DB_SSL_CA` 支持多行 PEM 或以 `\n` 表示换行。这些设置仅提供证书，个人连接仍通过界面添加。在 Vercel 项目环境变量中设置上述两项后，需要重新部署才能生效。
-
-### 内置只读演示连接
-
-使用独立的合成演示数据库，为演示账号仅授予该库的 `SELECT, SHOW VIEW` 权限，不授予 `DROP` 或全局权限。在服务端配置连接：
+#### 内置只读演示连接
+为合成演示库创建仅含 `SELECT, SHOW VIEW` 权限的账号，并在服务端配置：
 
 ```dotenv
 DEMO_DB_ENABLED=true
 DEMO_DB_NAME="电商演示库"
 DEMO_DB_HOST=db.example.aivencloud.com
-# 使用数据库服务提供的实际端口。
 DEMO_DB_PORT=3306
 DEMO_DB_USER=demo_readonly
 DEMO_DB_PASSWORD=<只读账号密码>
 DEMO_DB_DATABASE=deepseek_demo
 ```
 
-将 `DB_SSL_CA_HOST` 设置为相同主机名，并按上节配置 `DB_SSL_CA`。在 Vercel 的 Production 环境中添加这些变量，将 `DEMO_DB_PASSWORD` 保存为 Secret，再重新部署。新访客会自动加载并选中演示连接；浏览器仅接收连接标识和展示信息，账号、密码留在服务器。
+浏览器仅接收连接 ID 与展示元信息，账号密码留在服务端；服务端策略强制内置连接只读，且前端无编辑/删除入口。如需免配 API Key 体验，还需配置 `DEEPSEEK_API_KEY`。
 
-内置连接没有编辑、删除入口。服务端按保留标识及数据库目标强制只读，即使其他连接允许写入也不会放开演示库。数据库只读账号同时阻止访客删表、删库；Aiven 所有者或数据库管理员仍可管理该库。个人连接仍可编辑、删除。
+</details>
 
-若希望访客无需自备模型密钥即可使用 AI 查询，还需在服务端配置 `DEEPSEEK_API_KEY`；数据库预设本身不会配置模型服务。
+<details>
+<summary>进阶配置：知识库 RAG 语料、向量检索与环境变量</summary>
 
-### 模型服务
-
-所有模型服务都通过 OpenAI Chat Completions 协议接入，差异只在于"思考参数"的写法（`thinkingStyle`）：
-
-| thinkingStyle | 请求参数 | 适用 |
-|---|---|---|
-| `deepseek` | `thinking: { type, reasoning_effort }` | DeepSeek 官方 API |
-| `enable_thinking` | `enable_thinking: true/false` | 阿里云百炼 / 通义千问、硅基流动等 |
-| `none` | 不发送 | 其他服务（默认，兼容性最好） |
-
-- **服务器托管**：内置 DeepSeek（`DEEPSEEK_API_KEY`）。其他服务通过 `AI_PROVIDERS`（JSON 数组）配置，密钥放在各自的环境变量里，由 `apiKeyEnv` 引用，示例见 `.env.example`。旧的 `BAILIAN_API_KEY` 仍然有效，会自动注册"阿里云百炼"。服务器密钥只会发往服务器配置的地址。
-- **用户自行添加**：设置 → 模型服务 → 添加，可从模板（百炼、硅基流动、OpenRouter）开始，填写 Base URL、API Key 与模型（可"从服务获取"）。自定义服务只使用用户自己的 Key，永远不会使用服务器密钥。之前在浏览器里填过百炼 Key 的用户，会自动迁移为一个自定义服务。
-
-本应用依赖工具调用（function calling）与 JSON 输出，请选择支持这两项能力的模型。设置中的「测试连接」会用当前填写的配置依次检查流式工具调用、JSON 输出和思考参数，并给出未通过项的原因。
-
-### 知识库问答（RAG）
-
-知识问答页默认在应用内完成检索增强生成，不依赖外部知识服务。默认内置 3 份处于有效期内的全国性电力市场规则（完整 5 份历史语料供离线 89 题评测复用），来源和转换方法见 [knowledge/README.md](./knowledge/README.md)。
-
+默认检索流水线：
 ```
 问题 → 脱敏 → 改写与拆解 → 混合检索（BM25 + 向量，RRF 融合） → [联网搜索] → 带引用的流式回答 → 引用校验
 ```
 
-- **按条款切块**：按“章 / 节 / 条”切分，每条规则一个片段（过长拆分、过短合并），名词解释逐条成块；索引时带上文件名和章节路径。
-- **中文检索**：BM25 使用 Node 内置的 `Intl.Segmenter` 分词并补充字符二元组，不需要原生分词库。
-- **向量检索（可选）**：`pnpm kb:ingest --embed` 调用百炼兼容接口（默认 `text-embedding-v4`，512 维）为每个片段生成向量；未生成向量或服务器缺少百炼密钥时，自动退化为纯关键词检索。
-- **引用与时效**：回答中的 `[n]` 必须对应检索到的条款，无效编号会被标出。每份文件按施行日和有效期在问答当天计算状态，引用过期规则时提示核对新版。
-- **默认文档**：3 份有效期内示例规则是每个用户的默认知识库（已过有效期的旧版规则默认过滤，不展示也不参与检索），在侧边栏列出并显示有效期状态。用户可以把其中任意文件从自己的知识库移除（只影响当前浏览器，可随时恢复），之后提问不再检索它；如有新版本，可从原文链接下载或另行获取后作为自己的文档上传。
-- **我的文档**：可在侧边栏上传 PDF、Word（.docx）、Markdown、TXT（默认每个浏览器最多 10 份，单个不超过 10 MB、10 万字），随时移除。文件在浏览器内解析，原文件不上传；服务端只把提取的文字整理切块（内置索引有向量时同时生成向量）后返回，由浏览器保存在 IndexedDB。提问时浏览器先用关键词从本地文档中选出最多 30 个相关片段随问题发送，服务端与内置规则一起检索、融合排序；引用标注为“我上传的文档（未核验时效）”。扫描版 PDF 需先做文字识别。
-- **回答范围**：关闭“通用知识”时只依据知识库回答，检索不到依据时直接说明，不调用模型；开启后允许单独标注的通用知识补充，并可启用联网搜索（需配置 `BOCHA_API_KEY`）。
+- 默认内置 3 份有效期内全国电力市场规则（完整 5 份历史语料保留用于 89 题离线评测），来源与转换方式见 [knowledge/README.md](./knowledge/README.md)。
+- 构建索引命令：
+  ```bash
+  pnpm kb:ingest            # 重新生成 knowledge/kb-index.json
+  pnpm kb:ingest --embed    # 同时生成百炼 text-embedding-v4 向量（需 BAILIAN_API_KEY）
+  pnpm eval:kb              # 运行 89 题知识库检索评测
+  ```
+- 常用环境变量：
+  - `KB_INDEX_PATH`：指定自定义私有语料索引文件路径
+  - `KB_UPLOAD_MAX_DOCUMENTS` / `KB_UPLOAD_MAX_BYTES` / `KB_UPLOAD_MAX_CHARS`：调整浏览器上传文档限额
+  - `BOCHA_API_KEY`：启用可选联网搜索补充
+  - `KNOWLEDGE_BACKEND=remote` + `MEMO_CHAT_API_BASE`：切换回外部独立知识服务
 
-```bash
-pnpm kb:ingest            # 修改 knowledge/corpus 后重新生成 knowledge/kb-index.json
-pnpm kb:ingest --embed    # 同时生成向量（需要 BAILIAN_API_KEY）
-```
-
-检索质量用 `pnpm eval:kb` 评测（89 道题，含口语化、跨文件、追问和知识库外问题），说明与基线结果见 [evals/knowledge](./evals/knowledge/README.md)。
-
-上传限制可用 `KB_UPLOAD_MAX_DOCUMENTS`、`KB_UPLOAD_MAX_BYTES`、`KB_UPLOAD_MAX_CHARS` 调整。可以把私有语料生成的索引放在服务器上，用 `KB_INDEX_PATH` 指定；设置 `KNOWLEDGE_BACKEND=remote` 可切回原外部知识服务。
+</details>
 
 ---
 
 ## 技术栈
 
 | 层级 | 技术 |
-|------|------|
-| **框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) |
-| **AI 核心** | 多模型 Agent Engine（DeepSeek + 任意 OpenAI 兼容服务，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
-| **数据库** | [mysql2](https://github.com/sidorares/node-mysql2) |
-| **UI** | React 19 + [Tailwind CSS v4](https://tailwindcss.com/) + [Lucide Icons](https://lucide.dev/) |
-| **图表** | [Recharts](https://recharts.org/) |
-| **Markdown** | [react-markdown](https://github.com/remarkjs/react-markdown) + [remark-gfm](https://github.com/remarkjs/remark-gfm) |
-| **校验** | [Zod](https://zod.dev/) + [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser)（AST SQL 分析） |
-| **流式传输** | Server-Sent Events (SSE) |
-| **构建** | [Vite](https://vite.dev/) |
+|---|---|
+| **全栈框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) + [Vite](https://vite.dev/) |
+| **AI 引擎** | 自研内联多模型 Agent Engine（DeepSeek 原生 + OpenAI 兼容，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
+| **数据库与安全** | [mysql2](https://github.com/sidorares/node-mysql2) · [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser)（AST 校验）· [Zod](https://zod.dev/) |
+| **前端与可视化** | React 19 · [Tailwind CSS v4](https://tailwindcss.com/) · [Recharts](https://recharts.org/) · [Lucide Icons](https://lucide.dev/) |
+| **流式与渲染** | Server-Sent Events (SSE) · [react-markdown](https://github.com/remarkjs/react-markdown) · [remark-gfm](https://github.com/remarkjs/remark-gfm) |
 
----
+<details>
+<summary>查看项目目录结构</summary>
 
-## 项目结构
-
-```
+```text
 src/
-├── core/               # 多模型 Agent 引擎
-│   ├── agent/          # Agent 创建与执行
-│   ├── client/         # HTTP 客户端、SSE 流式请求、重试
-│   ├── model/          # 模型封装（OpenAI 兼容协议）
-│   ├── provider.ts     # Provider 注册与端点解析
-│   ├── tool/           # 工具定义与校验
-│   ├── generate/       # Agent 循环、流式生成、结构化输出
-│   ├── context/        # 上下文压缩
-│   └── index.ts        # 公共 API 导出
+├── core/               # 多模型 Agent 引擎（agent / client / model / provider / tool / generate / context）
 ├── server/             # 服务端逻辑
-│   ├── agent.ts        # 数据库 Agent 配置 & 分层系统提示词（核心 + 工作流 + few-shot）
+│   ├── agent.ts        # 数据库 Agent 配置与分层系统提示词
 │   ├── tools.ts        # 数据库工具（overview, list_tables, get_schema, explain_sql, execute_sql）
 │   ├── database.ts     # MySQL 连接池、外键提取、EXPLAIN、自动 LIMIT
-│   ├── knowledge/      # 知识库 RAG：切块、分词、BM25、向量、混合检索、流水线
+│   ├── knowledge/      # 应用内 RAG：切块、分词、BM25、向量、RRF 混合检索、流水线
 │   └── functions/      # TanStack Server Functions（聊天、知识问答、连接管理）
-├── components/         # React 组件
-│   ├── chat/           # 聊天 UI（消息、SQL 确认、图表、思考过程）
-│   └── layout/         # 侧边栏、对话框、数据库列表
+├── components/         # React 组件（chat / knowledge / layout）
 ├── hooks/              # React Hooks（useChat, useDatabase, useSettings）
-├── lib/                # 类型、常量、工具函数、PII 脱敏、AST SQL 校验器
-├── routes/             # TanStack Router 页面
-└── styles/             # 全局 CSS（Tailwind）
+├── lib/                # 类型、常量、PII 脱敏、AST SQL 校验器
+├── routes/             # TanStack Router 页面（/workbench/dbpilot, /knowledge, /evals）
+└── styles/             # Tailwind CSS 样式
 knowledge/
 ├── corpus/             # 知识库语料（Markdown + 元数据）
 └── kb-index.json       # pnpm kb:ingest 生成的检索索引
+evals/                  # Text-to-SQL 与知识库 RAG 自动化评测套件
 ```
+
+</details>
 
 ---
 
+## 回归检查与文档
 
+- **本地一键验收**：运行 `pnpm check` 依次执行源码/测试 TypeScript 类型检查、离线单测回归与生产构建（使用合成 fixtures，无需真实 API Key）。
+- **更多文档**：[运行与回归说明（OPERATIONS.md）](./OPERATIONS.md) · [英文文档目录（`docs/`）](./docs/getting-started.md)
 
-## 回归检查
+## License
 
-执行 `pnpm check` 依次运行源代码与测试类型检查、离线回归及生产构建。测试使用合成数据和模拟模型/数据库，不需要真实 API Key。真实业务准确率与浏览器端到端验收应另行验证，详见 [OPERATIONS.md](./OPERATIONS.md)。
+本项目基于 [MIT License](./LICENSE) 开源。

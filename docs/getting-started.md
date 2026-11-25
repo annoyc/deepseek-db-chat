@@ -29,10 +29,10 @@ Before you begin, make sure you have:
 
 | Requirement | Notes |
 |-------------|-------|
-| **Node.js >= 18.0.0** | [Download Node.js](https://nodejs.org/) |
+| **Node.js >= 22.0.0** | [Download Node.js](https://nodejs.org/) |
 | **pnpm** | Install with `npm install -g pnpm` |
-| **MySQL database** | Any reachable MySQL 5.7+ or 8.x instance |
-| **DeepSeek API key** | [Get one at platform.deepseek.com](https://platform.deepseek.com/api_keys) |
+| **MySQL database** | Any reachable MySQL 5.7+ or 8.x instance (or use a configured read-only demo DB) |
+| **LLM API key** | DeepSeek ([platform.deepseek.com](https://platform.deepseek.com/api_keys)) or any OpenAI-compatible provider |
 
 > **Tip:** You only need network access to your MySQL host and the DeepSeek API. No cloud account or registration is required to use the app itself.
 
@@ -103,7 +103,7 @@ You should see the DBPilot interface with an empty sidebar and a chat panel. Bef
 
 ## Adding Your First Database
 
-Database connections are managed from the sidebar. Each connection is stored locally on the server in `data/connections.json`.
+Personal database connections are managed from the sidebar and stored locally in your browser's **IndexedDB** with passwords encrypted via **AES-256-GCM** (optional server-managed built-in demo connections can be configured with `DEMO_DB_*` environment variables).
 
 ### Step-by-step
 
@@ -250,20 +250,18 @@ Your selection is persisted in `IndexedDB` (`deepseek-model`) and applies to all
 
 ## Privacy & Security
 
-DBPilot is designed with a local-first, privacy-conscious architecture:
+DataQuery Workbench is designed with a local-first, privacy-conscious architecture:
 
 | Aspect | Behavior |
 |--------|----------|
-| **Chat history** | Stored in browser `IndexedDB` only (`deepseek-chat-sessions`). Never sent to a third-party server except as part of DeepSeek API requests. |
+| **Chat history** | Stored in browser `IndexedDB` only. Never stored in a server-side user database. |
 | **Authentication** | No login or registration required. |
 | **Server-side data** | No user accounts, no chat persistence on the server. |
-| **SQL execution** | Every query requires explicit user confirmation. Nothing runs automatically. |
-| **Database credentials** | Stored locally in `data/connections.json` on the machine running the server. Passwords are never returned to the client API (masked as `***`). |
-| **API keys** | Server key in `.env`; optional per-browser key in `IndexedDB`. |
+| **SQL execution** | Server-enforced read-only default + AST validation (`sql-guard`) + explicit user confirmation before execution. |
+| **Database credentials** | Personal connections are stored in browser `IndexedDB` with passwords encrypted via AES-256-GCM. Built-in demo credentials (when configured via `DEMO_DB_*`) remain strictly on the server. |
+| **API keys** | Server keys live in `.env`; user-supplied keys are encrypted with AES-256-GCM in browser `IndexedDB`. |
 
-> **Tip:** Because credentials live in `data/connections.json`, treat that file like a secret. Add `data/` to your backup exclusions if you deploy on a shared machine, or restrict filesystem permissions.
-
-> **Tip:** Use a read-only MySQL user for everyday exploration. Grant write privileges only when you intentionally need `INSERT`/`UPDATE`/`DELETE` operations.
+> **Tip:** Use a read-only MySQL user for everyday exploration. Production connections forbid writes by default, and non-production writes require an explicit server allowlist.
 
 ---
 
