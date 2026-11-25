@@ -100,21 +100,21 @@ export function ResultTable({ result }: ResultTableProps) {
   }, [columns, sortedRows])
 
   const SortIcon = ({ col }: { col: string }) => {
-    if (sortCol !== col || !sortDir) return <ArrowUpDown className="w-3 h-3 text-stone-300" />
+    if (sortCol !== col || !sortDir) return <ArrowUpDown className="w-3 h-3 text-ink-faint" />
     if (sortDir === 'asc') return <ArrowUp className="w-3 h-3 text-primary" />
     return <ArrowDown className="w-3 h-3 text-primary" />
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-stone-100">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-line-subtle">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-stone-400">{rows.length > 0 ? `已返回 ${rows.length} 行` : `${rowCount} 行结果`}</span>
+          <span className="text-xs text-ink-faint">{rows.length > 0 ? `已返回 ${rows.length} 行` : `${rowCount} 行结果`}</span>
           {rows.length > 0 && (
             <div className="flex items-center gap-1">
               <button
                 onClick={() => exportCSV(columns, sortedRows, `query-${Date.now()}.csv`)}
-                className="p-1 rounded hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-600"
+                className="p-1 rounded hover:bg-surface-hover transition-colors text-ink-faint hover:text-ink-secondary"
                 title={`导出全部已返回的 ${rows.length} 行 CSV（当前排序）`}
                 aria-label={`导出全部已返回的 ${rows.length} 行 CSV`}
               >
@@ -122,7 +122,7 @@ export function ResultTable({ result }: ResultTableProps) {
               </button>
               <button
                 onClick={handleCopy}
-                className="p-1 rounded hover:bg-stone-100 transition-colors text-stone-400 hover:text-stone-600"
+                className="p-1 rounded hover:bg-surface-hover transition-colors text-ink-faint hover:text-ink-secondary"
                 title={`复制全部已返回的 ${rows.length} 行（当前排序）`}
                 aria-label={`复制全部已返回的 ${rows.length} 行`}
               >
@@ -134,17 +134,17 @@ export function ResultTable({ result }: ResultTableProps) {
             </div>
           )}
         </div>
-        <div className="flex items-center rounded-md overflow-hidden border border-stone-200">
+        <div className="flex items-center rounded-md overflow-hidden border border-line">
           {(['table', 'chart', 'summary'] as const).map((mode, i) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={cn(
                 'px-2.5 py-1 text-xs font-medium transition-colors',
-                i > 0 && 'border-l border-stone-200',
+                i > 0 && 'border-l border-line',
                 viewMode === mode
-                  ? 'bg-stone-800 text-white'
-                  : 'bg-white text-stone-500 hover:bg-stone-50'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-surface text-ink-muted hover:bg-surface-hover',
               )}
             >
               {{ table: '表格', chart: '图表', summary: '摘要' }[mode]}
@@ -154,11 +154,11 @@ export function ResultTable({ result }: ResultTableProps) {
       </div>
 
       {result.truncated && (
-        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <p className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/45 dark:text-amber-300">
           结果已达到 {result.maxRows ?? rows.length} 行上限，可能还有更多数据。图表、统计、复制和导出仅覆盖已返回的行，请缩小查询范围或使用汇总查询。
         </p>
       )}
-      {copyError && <p role="alert" className="px-3 pt-2 text-xs text-red-600">{copyError}</p>}
+      {copyError && <p role="alert" className="px-3 pt-2 text-xs text-red-600 dark:text-red-400">{copyError}</p>}
 
       {viewMode === 'table' ? (
         columns.length > 0 && rows.length > 0 ? (
@@ -171,7 +171,7 @@ export function ResultTable({ result }: ResultTableProps) {
                       key={col}
                       onClick={() => handleSort(col)}
                       aria-sort={sortCol === col && sortDir ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                      className="px-3 py-2 text-left font-semibold text-stone-700 border-b-2 border-stone-200 bg-stone-50 whitespace-nowrap cursor-pointer select-none hover:bg-stone-100 transition-colors"
+                      className="px-3 py-2 text-left font-semibold text-ink-secondary border-b-2 border-line bg-surface-muted whitespace-nowrap cursor-pointer select-none hover:bg-surface-hover transition-colors"
                     >
                       <div className={cn('flex items-center gap-1', numericColumns.has(col) && 'justify-end')}>
                         {col}
@@ -183,7 +183,7 @@ export function ResultTable({ result }: ResultTableProps) {
               </thead>
               <tbody>
                 {currentPage.rows.map((row, idx) => (
-                  <tr key={idx} className={cn('hover:bg-stone-50/50 transition-colors', idx % 2 === 1 && 'bg-stone-50/30')}>
+                  <tr key={idx} className={cn('hover:bg-surface-hover/60 transition-colors', idx % 2 === 1 && 'bg-surface-muted/40')}>
                     {columns.map((col) => {
                       const text = formatCell(row[col], col)
                       return (
@@ -191,8 +191,8 @@ export function ResultTable({ result }: ResultTableProps) {
                           key={col}
                           title={text.length > 24 ? text : undefined}
                           className={cn(
-                            'px-3 py-1.5 border-b border-stone-100 whitespace-nowrap max-w-52 truncate',
-                            row[col] === null || row[col] === undefined ? 'text-stone-300' : 'text-stone-600',
+                            'px-3 py-1.5 border-b border-line-subtle whitespace-nowrap max-w-52 truncate',
+                            row[col] === null || row[col] === undefined ? 'text-ink-faint' : 'text-ink-secondary',
                             numericColumns.has(col) && 'text-right tabular-nums',
                           )}
                         >
@@ -205,22 +205,22 @@ export function ResultTable({ result }: ResultTableProps) {
               </tbody>
               {columnStats && (
                 <tfoot>
-                  <tr className="bg-stone-50/60 border-t-2 border-stone-200">
+                  <tr className="bg-surface-muted/70 border-t-2 border-line">
                     {columns.map((col) => {
                       const s = columnStats[col]
-                      if (!s) return <td key={col} className="px-3 py-1.5 text-stone-400 text-xs" />
+                      if (!s) return <td key={col} className="px-3 py-1.5 text-ink-faint text-xs" />
                       if (s.count >= rows.length * 0.5) {
                         const avg = s.sum / s.count
                         return (
-                          <td key={col} className={cn('px-3 py-1.5 text-xs text-stone-500 whitespace-nowrap tabular-nums', numericColumns.has(col) && 'text-right')}>
+                          <td key={col} className={cn('px-3 py-1.5 text-xs text-ink-muted whitespace-nowrap tabular-nums', numericColumns.has(col) && 'text-right')}>
                             <span className="font-medium">Σ</span> {formatNumber(s.sum)}
-                            <span className="mx-1 text-stone-300">·</span>
+                            <span className="mx-1 text-ink-faint">·</span>
                             <span className="font-medium">μ</span> {formatNumber(avg)}
                           </td>
                         )
                       }
                       return (
-                        <td key={col} className="px-3 py-1.5 text-xs text-stone-400 whitespace-nowrap">
+                        <td key={col} className="px-3 py-1.5 text-xs text-ink-faint whitespace-nowrap">
                           {s.distinct.size} 种值
                         </td>
                       )
@@ -231,7 +231,7 @@ export function ResultTable({ result }: ResultTableProps) {
             </table>
           </div>
         ) : (
-          <div className="px-3 py-5 text-center text-xs text-stone-400">
+          <div className="px-3 py-5 text-center text-xs text-ink-faint">
             {rowCount === 0 ? '查询成功，无返回数据' : '执行成功'}
           </div>
         )
@@ -250,12 +250,12 @@ export function ResultTable({ result }: ResultTableProps) {
       )}
 
       {viewMode === 'table' && rows.length > 100 && (
-        <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-stone-500 border-t border-stone-100">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-ink-muted border-t border-line-subtle">
           <span>第 {currentPage.start + 1}–{currentPage.end} 行 / 已返回 {rows.length} 行</span>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage(currentPage.page - 1)} disabled={currentPage.page === 0} className="rounded px-2 py-1 hover:bg-stone-100 disabled:opacity-40">上一页</button>
+            <button onClick={() => setPage(currentPage.page - 1)} disabled={currentPage.page === 0} className="rounded px-2 py-1 hover:bg-surface-hover disabled:opacity-40">上一页</button>
             <span>{currentPage.page + 1}/{currentPage.pageCount}</span>
-            <button onClick={() => setPage(currentPage.page + 1)} disabled={currentPage.page + 1 === currentPage.pageCount} className="rounded px-2 py-1 hover:bg-stone-100 disabled:opacity-40">下一页</button>
+            <button onClick={() => setPage(currentPage.page + 1)} disabled={currentPage.page + 1 === currentPage.pageCount} className="rounded px-2 py-1 hover:bg-surface-hover disabled:opacity-40">下一页</button>
           </div>
         </div>
       )}

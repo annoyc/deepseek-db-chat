@@ -5,8 +5,10 @@ import { ChatProvider } from '@/hooks/useChat'
 import { KnowledgeChatProvider } from '@/hooks/useKnowledgeChat'
 import { KnowledgeDocumentsProvider } from '@/hooks/useKnowledgeDocuments'
 import { SettingsProvider } from '@/hooks/useSettings'
+import { ThemeProvider } from '@/hooks/useTheme'
 import { LayoutProvider } from '@/hooks/useLayout'
 import { APP_TAGLINE, APP_TITLE } from '@/lib/constants'
+import { buildThemeInitScript, DEFAULT_THEME_ACCENT } from '@/lib/theme'
 import '@/styles/globals.css'
 
 export const Route = createRootRoute({
@@ -24,33 +26,38 @@ export const Route = createRootRoute({
   component: RootComponent,
 })
 
+const THEME_INIT_SCRIPT = buildThemeInitScript()
+
 function RootComponent() {
   return (
     <RootDocument>
-      <SettingsProvider>
-        <DatabaseProvider>
-          <ChatProvider>
-            <KnowledgeDocumentsProvider>
-              <KnowledgeChatProvider>
-                <LayoutProvider>
-                  <Outlet />
-                </LayoutProvider>
-              </KnowledgeChatProvider>
-            </KnowledgeDocumentsProvider>
-          </ChatProvider>
-        </DatabaseProvider>
-      </SettingsProvider>
+      <ThemeProvider>
+        <SettingsProvider>
+          <DatabaseProvider>
+            <ChatProvider>
+              <KnowledgeDocumentsProvider>
+                <KnowledgeChatProvider>
+                  <LayoutProvider>
+                    <Outlet />
+                  </LayoutProvider>
+                </KnowledgeChatProvider>
+              </KnowledgeDocumentsProvider>
+            </ChatProvider>
+          </DatabaseProvider>
+        </SettingsProvider>
+      </ThemeProvider>
     </RootDocument>
   )
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" data-theme="light" data-accent={DEFAULT_THEME_ACCENT} suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="h-dvh overflow-hidden bg-white text-gray-900 antialiased">
+      <body className="h-dvh overflow-hidden bg-background text-foreground antialiased">
         {children}
         <Scripts />
       </body>

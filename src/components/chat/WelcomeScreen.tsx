@@ -1,5 +1,6 @@
 import { Brain, DatabaseZap, Eye, Lock, ShieldCheck } from 'lucide-react'
 import { APP_NAME } from '@/lib/constants'
+import { BrandLogo } from '@/components/layout/BrandLogo'
 
 interface WelcomeScreenProps {
   onSuggestionClick: (text: string) => void
@@ -27,22 +28,22 @@ const features = [
     icon: ShieldCheck,
     title: '安全执行',
     description: '默认只读 + AST 校验，执行前确认',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-50 dark:bg-indigo-950/50',
   },
   {
     icon: Eye,
     title: '过程透明',
     description: '思考过程与工具调用全程可追踪',
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 dark:bg-amber-950/50',
   },
   {
     icon: Lock,
     title: '本地优先',
     description: '凭据加密，历史保存在本地浏览器',
-    color: 'text-stone-700',
-    bg: 'bg-stone-100',
+    color: 'text-ink-secondary',
+    bg: 'bg-surface-muted',
   },
 ]
 
@@ -53,7 +54,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
         <section className="glass-panel rounded-[20px] p-4 lg:p-5 2xl:p-7">
           <div className="flex items-start gap-3.5 2xl:gap-4">
             <div className="anim-logo d-0 h-11 w-11 flex-shrink-0 2xl:h-14 2xl:w-14">
-              <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
+              <BrandLogo className="h-full w-full" title={APP_NAME} />
             </div>
             <div className="min-w-0">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -62,14 +63,14 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                   {APP_NAME} · 数据库分析
                 </span>
                 {zeroConfigReady && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/45 dark:text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     免配置 · 直接提问
                   </span>
                 )}
               </div>
-              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-stone-950 lg:text-2xl 2xl:text-3xl">数据分析助手</h1>
-              <p className="anim-up d-2 mt-1 text-sm text-stone-500">
+              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-ink lg:text-2xl 2xl:text-3xl">数据分析助手</h1>
+              <p className="anim-up d-2 mt-1 text-sm text-ink-muted">
                 用自然语言查数、审 SQL、看图表。
               </p>
             </div>
@@ -79,15 +80,15 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
+                className={`group rounded-xl border border-line bg-surface/75 p-3 transition-all hover:border-primary/25 hover:bg-surface hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
               >
                 <div className="flex items-start gap-2.5">
                   <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-8 2xl:w-8 ${feature.bg}`}>
                     <feature.icon className={`h-4 w-4 ${feature.color}`} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-stone-900">{feature.title}</h3>
-                    <p className="mt-0.5 text-xs leading-relaxed text-stone-500">{feature.description}</p>
+                    <h3 className="text-sm font-semibold text-ink">{feature.title}</h3>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{feature.description}</p>
                   </div>
                 </div>
               </div>
@@ -97,7 +98,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
 
         <div className="glass-panel space-y-2.5 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">建议问题</p>
             {hasConnection && connectionName && (
               <span className="truncate rounded-full border border-primary/15 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                 {connectionName}
@@ -110,7 +111,7 @@ export function WelcomeScreen({ onSuggestionClick, hasConnection, connectionName
                 key={item}
                 onClick={() => onSuggestionClick(item)}
                 disabled={!hasConnection}
-                className="rounded-xl border border-stone-200/70 bg-white/72 px-3.5 py-2.5 text-left text-sm leading-5 text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 2xl:px-4 2xl:py-3"
+                className="rounded-xl border border-line bg-surface/75 px-3.5 py-2.5 text-left text-sm leading-5 text-ink-secondary transition-all hover:border-primary/35 hover:bg-surface hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 2xl:px-4 2xl:py-3"
               >
                 {item}
               </button>

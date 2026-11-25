@@ -108,15 +108,15 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
   if (isLoading) {
     return (
-      <div className="border border-stone-200 rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-stone-100">
+      <div className="border border-line rounded-xl overflow-hidden bg-surface animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-line-subtle">
           <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-stone-800">查询参数微调</span>
-          <span className="text-xs text-stone-400 ml-0.5">分析中...</span>
+          <span className="text-[13px] font-semibold text-ink">查询参数微调</span>
+          <span className="text-xs text-ink-faint ml-0.5">分析中...</span>
         </div>
         <div className="px-3 py-2.5 space-y-2">
-          <div className="h-6 bg-stone-50 border border-stone-200 rounded-lg animate-pulse" />
-          <div className="h-6 bg-stone-50 border border-stone-200 rounded-lg animate-pulse w-3/4" />
+          <div className="h-6 bg-surface-muted border border-line rounded-lg animate-pulse" />
+          <div className="h-6 bg-surface-muted border border-line rounded-lg animate-pulse w-3/4" />
         </div>
       </div>
     )
@@ -126,36 +126,32 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
   return (
     <div className={cn(
-      'border rounded-xl overflow-hidden bg-white animate-in fade-in slide-in-from-bottom-2 duration-300',
-      isCancelled ? 'border-stone-200' : isConfirmed ? 'border-green-300' : 'border-stone-200',
+      'border rounded-xl overflow-hidden bg-surface animate-in fade-in slide-in-from-bottom-2 duration-300',
+      isCancelled ? 'border-line' : isConfirmed ? 'border-green-300 dark:border-green-700/60' : 'border-line',
     )}>
       {/* Header */}
       <div className={cn(
         'flex items-center gap-1.5 px-3 py-2 border-b',
-        isCancelled ? 'border-stone-100' : isConfirmed ? 'border-green-100' : 'border-stone-100',
+        isCancelled ? 'border-line-subtle' : isConfirmed ? 'border-green-100 dark:border-green-900/50' : 'border-line-subtle',
       )}>
         {isDone ? (
-          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
         ) : isConfirmed ? (
           <Loader2 className="w-3.5 h-3.5 text-primary flex-shrink-0 animate-spin" />
         ) : isRevised ? (
           <RotateCcw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
         ) : isCancelled ? (
-          <XCircle className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+          <XCircle className="w-3.5 h-3.5 text-ink-faint flex-shrink-0" />
         ) : (
           <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
         )}
-        <span className="text-[13px] font-semibold text-stone-800">查询参数微调</span>
-        {isPending && <span className="text-xs text-stone-400 ml-0.5">等待确认，不会自动跳过</span>}
+        <span className="text-[13px] font-semibold text-ink">查询参数微调</span>
+        {isPending && <span className="text-xs text-ink-faint ml-0.5">等待确认，不会自动跳过</span>}
         {isConfirmed && <span className="text-xs text-primary ml-0.5 font-medium">处理中...</span>}
-        {isDone && (
-          <span className="text-xs bg-green-600 text-white px-1.5 py-px rounded-full font-medium ml-0.5">
-            已确认
-          </span>
-        )}
-        {isCancelled && <span className="text-xs text-stone-400 ml-0.5">已跳过</span>}
+        {isDone && <span className="sr-only">已确认</span>}
+        {isCancelled && <span className="text-xs text-ink-faint ml-0.5">已跳过</span>}
         {isRevised && (
-          <span className="text-xs bg-primary text-white px-1.5 py-px rounded-full font-medium ml-0.5">
+          <span className="text-xs border border-primary/20 bg-primary/10 text-primary px-1.5 py-px rounded-full font-medium ml-0.5">
             已修改
           </span>
         )}
@@ -186,7 +182,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
 
       {/* Actions */}
       {isPending && (
-        <div className="border-t border-stone-100">
+        <div className="border-t border-line-subtle">
           <div className="px-3 pt-2.5 pb-2">
             <div className="relative">
               <textarea
@@ -195,7 +191,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
                 onChange={(e) => setFeedback(e.target.value)}
                 onKeyDown={handleFeedbackKeyDown}
                 placeholder="对筛选不满意？输入修改建议，如：增加按地区筛选、去掉时间范围、改为按周统计..."
-                className="w-full text-xs border border-stone-200 rounded-lg px-3 py-2 pr-9 resize-none bg-stone-50/50 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
+                className="w-full text-xs border border-line rounded-lg px-3 py-2 pr-9 resize-none bg-surface-muted/60 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/50 leading-relaxed transition-colors"
                 rows={1}
               />
               {feedback.trim() && (
@@ -212,7 +208,7 @@ export function SmartFilterConfirmBlock({ info, messageId }: SmartFilterConfirmB
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 border-t border-stone-50 bg-stone-50/30">
+          <div className="flex items-center gap-2 px-3 py-2 border-t border-line-subtle bg-surface-muted/40">
             {feedback.trim() ? (
               <Button onClick={handleSubmitFeedback} disabled={isStreaming} size="sm" className="h-7 text-xs px-3">
                 <RotateCcw className="size-3 mr-1" />

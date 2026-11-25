@@ -94,7 +94,7 @@ export function MessageList({ messages }: MessageListProps) {
       <button
         type="button"
         onClick={scrollToBottom}
-        className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-600 shadow-md transition-colors hover:border-primary/30 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary animate-in fade-in slide-in-from-bottom-1 duration-200"
+        className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-secondary shadow-md transition-colors hover:border-primary/30 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary animate-in fade-in slide-in-from-bottom-1 duration-200"
       >
         <ArrowDown className="h-3.5 w-3.5" />
         {isStreaming ? '回到最新内容 · 生成中' : '回到最新内容'}

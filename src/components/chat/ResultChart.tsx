@@ -24,8 +24,8 @@ interface ResultChartProps {
   chartHint?: ChartHint
 }
 
-// Brand teal first, then hues that stay distinguishable beside it.
-const COLORS = ['#0f766e', '#d97706', '#4f46e5', '#e11d48', '#0284c7', '#65a30d', '#9333ea', '#ea580c']
+// Primary accent CSS variable first, then distinguishable hues beside it.
+const COLORS = ['var(--color-primary)', '#d97706', '#6366f1', '#f43f5e', '#0ea5e9', '#84cc16', '#a855f7', '#f97316']
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}|T\d{2}:\d{2}|^\d{4}\/\d{2}/
 const CATEGORICAL_COL_PATTERN = /^(id|code|type|status|category|flag|level|rank|no|seq|sort|index|月份|类型|状态|编码|编号|序号|分类|等级|标记|排序)$/i
@@ -268,7 +268,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     })
   }, [])
 
-  if (!chartData) return <p className="py-4 text-center text-xs text-stone-400">当前结果没有可绘制的数值指标，请查看表格。</p>
+  if (!chartData) return <p className="py-4 text-center text-xs text-ink-faint">当前结果没有可绘制的数值指标，请查看表格。</p>
 
   const { data, valueCols, recommended, title } = chartData
   const requestedType = chartType ?? defaultChartType ?? recommended
@@ -276,18 +276,27 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
   const activeType = requestedType === 'pie' && pieDisabled ? recommended : requestedType
 
   const tooltipStyle = {
-    contentStyle: { fontSize: 11, padding: '4px 8px', borderRadius: 6, border: '1px solid #e5e7eb' },
-    labelStyle: { fontSize: 11, fontWeight: 600, marginBottom: 2 },
+    contentStyle: {
+      fontSize: 11,
+      padding: '6px 10px',
+      borderRadius: 8,
+      backgroundColor: 'var(--color-popover)',
+      border: '1px solid var(--color-border)',
+      color: 'var(--color-popover-foreground)',
+    },
+    labelStyle: { fontSize: 11, fontWeight: 600, marginBottom: 2, color: 'var(--color-foreground)' },
     itemStyle: { fontSize: 11, padding: 0 },
   }
 
+  const axisTick = { fontSize: 11, fill: 'var(--color-ink-muted)' }
+  const axisLine = { stroke: 'var(--color-line)' }
   const axes = splitResultChartAxes(data, valueCols)
   const dualAxis = axes.right.length > 0
   const axisOf = (col: string) => (axes.right.includes(col) ? 'right' : 'left')
   const chartMargin = { top: 10, right: dualAxis ? 4 : 30, left: 0, bottom: 0 }
   const yAxes = [
-    <YAxis key="left" yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={formatResultAxisTick} width={48} />,
-    dualAxis && <YAxis key="right" yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={formatResultAxisTick} width={48} />,
+    <YAxis key="left" yAxisId="left" tick={axisTick} axisLine={axisLine} tickLine={axisLine} tickFormatter={formatResultAxisTick} width={48} />,
+    dualAxis && <YAxis key="right" yAxisId="right" orientation="right" tick={axisTick} axisLine={axisLine} tickLine={axisLine} tickFormatter={formatResultAxisTick} width={48} />,
   ]
 
   const legendProps = {
@@ -296,7 +305,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onClick: (e: any) => { const key = String(e?.dataKey ?? ''); if (key) handleLegendClick(key) },
     formatter: (value: string) => (
-      <span style={{ color: hiddenSeries.has(value) ? '#ccc' : '#666', fontSize: 11 }}>{value}</span>
+      <span style={{ color: hiddenSeries.has(value) ? 'var(--color-ink-faint)' : 'var(--color-ink-secondary)', fontSize: 11 }}>{value}</span>
     ),
   }
 
@@ -304,7 +313,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
     <div>
       <div className="flex items-center justify-between mb-2">
         <div className="flex min-w-0 items-center gap-0.5">
-          <span className="text-xs text-stone-500 truncate">{title}</span>
+          <span className="text-xs text-ink-muted truncate">{title}</span>
           <InfoHint label="图表数据范围">
             图表覆盖全部已返回的 {data.length} 行，缺失值留空不补零。点击图例可隐藏或显示对应指标。
           </InfoHint>
@@ -322,10 +331,10 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
                 className={cn(
                   'p-1.5 rounded transition-colors',
                   activeType === type
-                    ? 'bg-stone-800 text-white'
+                    ? 'bg-primary text-primary-foreground'
                     : disabled
-                      ? 'text-stone-300 cursor-not-allowed'
-                      : 'text-stone-400 hover:bg-stone-100 hover:text-stone-600'
+                      ? 'text-ink-faint/50 cursor-not-allowed'
+                      : 'text-ink-faint hover:bg-surface-hover hover:text-ink-secondary'
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -336,7 +345,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
       </div>
 
       {(result.truncated || (dualAxis && activeType !== 'pie')) && (
-        <p className="mb-2 text-xs text-stone-400">
+        <p className="mb-2 text-xs text-ink-faint">
           {result.truncated && '查询结果已达到行数上限，图表不能代表完整数据。'}
           {dualAxis && activeType !== 'pie' && `指标量级相差较大，已分轴显示：左轴 ${axes.left.join('、')}；右轴 ${axes.right.join('、')}。`}
         </p>
@@ -354,7 +363,7 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
                 cy="50%"
                 outerRadius={80}
                 label={({ name, percent, x, y, textAnchor }) => (
-                  <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fontSize={11} fill="#57534e">
+                  <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" fontSize={11} fill="var(--color-ink-secondary)">
                     {String(name).length > 8 ? String(name).slice(0, 7) + '…' : name} {((percent ?? 0) * 100).toFixed(0)}%
                   </text>
                 )}
@@ -369,8 +378,8 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
             </PieChart>
           ) : activeType === 'line' ? (
             <LineChart data={data} margin={chartMargin}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line-subtle)" />
+              <XAxis dataKey="name" tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
               {yAxes}
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
@@ -380,8 +389,8 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
             </LineChart>
           ) : activeType === 'area' ? (
             <AreaChart data={data} margin={chartMargin}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line-subtle)" />
+              <XAxis dataKey="name" tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
               {yAxes}
               <Tooltip {...tooltipStyle} />
               <Legend {...legendProps} />
@@ -402,10 +411,10 @@ export function ResultChart({ result, defaultChartType, chartHint }: ResultChart
             </AreaChart>
           ) : (
             <BarChart data={data} margin={chartMargin}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line-subtle)" />
+              <XAxis dataKey="name" tick={axisTick} axisLine={axisLine} tickLine={axisLine} />
               {yAxes}
-              <Tooltip {...tooltipStyle} />
+              <Tooltip {...tooltipStyle} cursor={{ fill: 'color-mix(in oklab, var(--color-foreground) 6%, transparent)' }} />
               <Legend {...legendProps} />
               {valueCols.map((col, idx) => (
                 <Bar key={col} yAxisId={axisOf(col)} dataKey={col} fill={COLORS[idx % COLORS.length]} radius={[4, 4, 0, 0]} hide={hiddenSeries.has(col)} />

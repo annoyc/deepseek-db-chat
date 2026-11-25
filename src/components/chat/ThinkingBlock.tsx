@@ -17,7 +17,7 @@ function renderInlineCode(text: string): ReactNode[] {
       return (
         <code
           key={i}
-          className="bg-stone-200/60 text-stone-700 px-1 py-0.5 rounded text-[12px] font-mono"
+          className="bg-surface-hover text-ink-secondary px-1 py-0.5 rounded text-[12px] font-mono"
         >
           {part.slice(1, -1)}
         </code>
@@ -73,19 +73,19 @@ export function ThinkingBlock({ content, index, isStreaming = false, collapseMod
     : (index && index > 1) ? `思考过程 #${index}` : '思考过程'
 
   return (
-    <div className="border border-stone-200 rounded-xl overflow-hidden bg-white">
+    <div className="border border-line rounded-xl overflow-hidden bg-surface">
       <button
         type="button"
         onClick={handleToggle}
-        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-stone-50 transition-colors border-b border-stone-100"
+        className="w-full flex items-center gap-1.5 px-3 py-2 text-[13px] hover:bg-surface-hover transition-colors border-b border-line-subtle"
       >
         {isStreaming && <span className="streaming-thinking-dot flex-shrink-0" aria-hidden="true" />}
         {expanded ? (
-          <ChevronDown className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+          <ChevronDown className="w-3.5 h-3.5 text-ink-faint flex-shrink-0" />
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-stone-400 flex-shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-ink-faint flex-shrink-0" />
         )}
-        <span className="font-medium text-stone-500" aria-live="polite">{title}</span>
+        <span className="font-medium text-ink-muted" aria-live="polite">{title}</span>
       </button>
       <div
         className={cn(
@@ -97,7 +97,7 @@ export function ThinkingBlock({ content, index, isStreaming = false, collapseMod
           ref={scrollRef}
           onScroll={handleInnerScroll}
           className={cn(
-            'px-3 pb-3 text-[13px] text-stone-500 leading-[1.8] whitespace-pre-wrap overflow-y-auto',
+            'px-3 pb-3 text-[13px] text-ink-muted leading-[1.8] whitespace-pre-wrap overflow-y-auto',
             collapseMode === 'auto' && isStreaming && !manualToggle ? 'max-h-[220px]' : 'max-h-[500px]',
           )}
         >

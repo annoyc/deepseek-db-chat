@@ -40,7 +40,7 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
       ? 'bg-yellow-500 animate-pulse-dot'
       : connectionStatus === 'success'
         ? 'bg-green-500'
-        : 'bg-stone-300'
+        : 'bg-ink-faint'
 
   return (
     <div className="app-canvas flex h-full flex-col">
@@ -51,22 +51,22 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
               onClick={onOpenSidebar}
               aria-label="打开侧边栏"
               title="打开侧边栏"
-              className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-white/80 hover:text-stone-800"
+              className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface/80 hover:text-ink"
             >
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl sm:flex border border-stone-200/70 bg-white/80 text-primary shadow-sm">
+          <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl sm:flex border border-line bg-surface/85 text-primary shadow-sm">
             <DatabaseZap className="h-4.5 w-4.5" />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold tracking-tight text-stone-950">数据分析助手</div>
-            <div className="flex min-w-0 items-center gap-2 text-xs text-stone-500">
+            <div className="truncate text-sm font-semibold tracking-tight text-ink">数据分析助手</div>
+            <div className="flex min-w-0 items-center gap-2 text-xs text-ink-muted">
               {sessionConnection ? (
                 <>
                   <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${dotColor}`} />
-                  <span className="truncate font-medium text-stone-700">{sessionConnection.name}</span>
-                  <span className="truncate text-stone-400">{sessionConnection.database}</span>
+                  <span className="truncate font-medium text-ink-secondary">{sessionConnection.name}</span>
+                  <span className="truncate text-ink-faint">{sessionConnection.database}</span>
                 </>
               ) : (
                 <span className="truncate">选择连接后开始查询</span>
@@ -84,12 +84,12 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
             >
               <PanelRight className="w-4 h-4" />
               <span>数据面板</span>
-              <span className="rounded-full bg-primary px-1.5 text-xs leading-4 text-white">{vizCount}</span>
+              <span className="rounded-full bg-primary px-1.5 text-xs leading-4 text-primary-foreground">{vizCount}</span>
             </button>
           )}
           <button
             onClick={() => setShowSettings(true)}
-            className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-white/80 hover:text-stone-700"
+            className="rounded-lg p-2 text-ink-faint transition-colors hover:bg-surface/80 hover:text-ink-secondary"
             title="设置"
             aria-label="设置"
           >

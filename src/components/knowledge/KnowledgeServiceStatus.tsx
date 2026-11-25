@@ -10,32 +10,32 @@ export function getKnowledgeServiceLabel(health: KnowledgeHealth | null, checkin
 export function KnowledgeServiceStatus({ health, checking }: { health: KnowledgeHealth | null; checking: boolean }) {
   const online = health?.status === 'ok'
   return (
-    <div className="border-y border-stone-200/70 py-3" aria-live="polite">
+    <div className="border-y border-line-subtle py-3" aria-live="polite">
       <div className="mb-2 flex items-center justify-between px-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-          <Cpu className="h-4 w-4 text-stone-500" />
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          <Cpu className="h-4 w-4 text-ink-muted" />
           知识库服务
         </span>
-        <span className={`flex items-center gap-1 text-xs ${online && !checking ? 'text-primary' : 'text-stone-500'}`}>
+        <span className={`flex items-center gap-1 text-xs ${online && !checking ? 'text-primary' : 'text-ink-muted'}`}>
           {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : online ? <CheckCircle2 className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
           {getKnowledgeServiceLabel(health, checking)}
         </span>
       </div>
-      <div className="space-y-2 px-2 text-xs text-stone-500">
+      <div className="space-y-2 px-2 text-xs text-ink-muted">
         {online && health.index && (
           <div className="flex items-center gap-2">
-            <Database className="h-3.5 w-3.5 text-stone-400" />
+            <Database className="h-3.5 w-3.5 text-ink-faint" />
             <span>
               {health.index.documents} 份文件 · {health.index.chunks} 个片段 · {health.index.retrieval === 'hybrid' ? '混合检索' : '关键词检索'}
             </span>
           </div>
         )}
         <div className="flex items-center gap-2">
-          <Globe2 className="h-3.5 w-3.5 text-stone-400" />
+          <Globe2 className="h-3.5 w-3.5 text-ink-faint" />
           <span>{online ? health.webSearchAvailable ? '联网搜索可用' : '联网搜索未配置' : '联网搜索状态未知'}</span>
         </div>
         {health?.status === 'offline' && !checking && (
-          <div className="flex items-start gap-2 rounded-lg bg-amber-50/70 px-2 py-1.5 text-amber-700">
+          <div className="flex items-start gap-2 rounded-lg bg-amber-50/70 px-2 py-1.5 text-amber-700 dark:bg-amber-950/45 dark:text-amber-300">
             <CircleAlert className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
             <span>知识库服务暂不可用，请重新检测；若持续失败，请联系管理员。</span>
           </div>

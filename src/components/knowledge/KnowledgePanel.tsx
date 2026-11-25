@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, BookOpenText, Brain, Eye, FileUp, Globe2, Loader2, 
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { ContextUsageIndicator } from '@/components/chat/ContextUsageIndicator'
 import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
+import { BrandLogo } from '@/components/layout/BrandLogo'
 import { cn } from '@/lib/utils'
 import { computeKnowledgeContextUsage } from '@/lib/context-window'
 import { modelLabel } from '@/lib/providers'
@@ -43,22 +44,22 @@ const features = [
     icon: Globe2,
     title: '联网补充',
     description: '可选联网搜索，保留来源线索',
-    color: 'text-indigo-600',
-    bg: 'bg-indigo-50',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bg: 'bg-indigo-50 dark:bg-indigo-950/50',
   },
   {
     icon: Eye,
     title: '证据可查',
     description: '条款引用与有效期集中在证据面板',
-    color: 'text-amber-600',
-    bg: 'bg-amber-50',
+    color: 'text-amber-600 dark:text-amber-400',
+    bg: 'bg-amber-50 dark:bg-amber-950/50',
   },
   {
     icon: FileUp,
     title: '私有文档与本地历史',
     description: '本地解析 PDF / Word / Markdown，历史存浏览器',
-    color: 'text-stone-700',
-    bg: 'bg-stone-100',
+    color: 'text-ink-secondary',
+    bg: 'bg-surface-muted',
   },
 ]
 
@@ -79,9 +80,9 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
   const doneCount = toolSteps.filter((s) => s.status !== 'running').length
 
   return (
-    <div className="rounded-xl border border-stone-200/70 bg-white/78 p-4 shadow-sm">
+    <div className="rounded-xl border border-line bg-surface/85 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-stone-900">
+        <div className="flex items-center gap-2 text-sm font-semibold text-ink">
           {running ? (
             <Loader2 className="h-4 w-4 animate-spin text-primary" />
           ) : (
@@ -90,11 +91,11 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
           工具使用链
         </div>
         {toolSteps.length > 0 ? (
-          <span className="text-xs text-stone-400">
+          <span className="text-xs text-ink-faint">
             {doneCount}/{toolSteps.length} 已完成
           </span>
         ) : (
-          message.statusText && <span className="text-xs text-stone-400">{message.statusText}</span>
+          message.statusText && <span className="text-xs text-ink-faint">{message.statusText}</span>
         )}
       </div>
 
@@ -103,7 +104,7 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
       ) : (
         <div className="space-y-2">
           {progress.map((item, index) => (
-            <div key={`${item}-${index}`} className="flex items-center gap-2 text-sm text-stone-600">
+            <div key={`${item}-${index}`} className="flex items-center gap-2 text-sm text-ink-secondary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               <span>{item}</span>
             </div>
@@ -117,8 +118,8 @@ function ProcessCard({ message }: { message: KnowledgeMessage }) {
 function UserMessage({ content }: { content: string }) {
   return (
     <div className="group flex items-center justify-end gap-1.5">
-      <CopyButton text={content} label="复制问题" className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
-      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+      <CopyButton text={content} label="复制问题" className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-surface/80" />
+      <div className="max-w-[min(72%,760px)] rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-user-bubble-foreground shadow-sm">
         <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
@@ -167,12 +168,12 @@ function AssistantMessage({
       <ProcessCard message={message} />
 
       {message.content ? (
-        <div className="max-w-none text-sm leading-relaxed text-stone-900">
+        <div className="max-w-none text-sm leading-relaxed text-ink">
           <MarkdownContent content={message.content} />
         </div>
       ) : (
         isStreaming && !hasProcessCard && (
-          <div className="flex items-center gap-2 py-3 text-sm text-stone-400">
+          <div className="flex items-center gap-2 py-3 text-sm text-ink-faint">
             <Loader2 className="h-4 w-4 animate-spin" />
             {message.statusText || '正在生成...'}
           </div>
@@ -193,7 +194,7 @@ function AssistantMessage({
       )}
 
       {message.error && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/45 dark:text-amber-300">
           {message.error}
         </div>
       )}
@@ -201,23 +202,23 @@ function AssistantMessage({
       {evidenceCount > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {(evidence?.subQuestions.length ?? 0) > 0 && (
-            <span className="rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-xs text-stone-600">
+            <span className="rounded-full border border-line bg-surface/80 px-3 py-1 text-xs text-ink-secondary">
               拆解 {evidence?.subQuestions.length} 个子问题
             </span>
           )}
           {(evidence?.memorySnippets.length ?? 0) > 0 && (
-            <span className="rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-xs text-stone-600">
+            <span className="rounded-full border border-line bg-surface/80 px-3 py-1 text-xs text-ink-secondary">
               记忆检索 {evidence?.memorySnippets.length} 条
             </span>
           )}
           {(evidence?.webResults.length ?? 0) > 0 && (
-            <span className="rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-xs text-stone-600">
+            <span className="rounded-full border border-line bg-surface/80 px-3 py-1 text-xs text-ink-secondary">
               联网来源 {evidence?.webResults.length} 条
             </span>
           )}
           <button
             onClick={onOpenContext}
-            className="flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
+            className="flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <PanelRightOpen className="h-3.5 w-3.5" />
             查看证据
@@ -235,7 +236,7 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled, zeroConfigReady = fa
         <section className="glass-panel rounded-[20px] p-4 lg:p-5 2xl:p-7">
           <div className="flex items-start gap-3.5 2xl:gap-4">
             <div className="anim-logo d-0 h-11 w-11 flex-shrink-0 2xl:h-14 2xl:w-14">
-              <img src={`${import.meta.env.BASE_URL}logo.svg`} alt={APP_NAME} className="h-full w-full" />
+              <BrandLogo className="h-full w-full" title={APP_NAME} />
             </div>
             <div className="min-w-0">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -244,14 +245,14 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled, zeroConfigReady = fa
                   {APP_NAME} · 知识问答
                 </span>
                 {zeroConfigReady && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/90 bg-emerald-50/85 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/45 dark:text-emerald-300">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     免配置 · 直接提问
                   </span>
                 )}
               </div>
-              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-stone-950 lg:text-2xl 2xl:text-3xl">知识库问答</h1>
-              <p className="anim-up d-2 mt-1 text-sm text-stone-500">
+              <h1 className="anim-up d-1 text-xl font-semibold tracking-tight text-ink lg:text-2xl 2xl:text-3xl">知识库问答</h1>
+              <p className="anim-up d-2 mt-1 text-sm text-ink-muted">
                 查规则原文、看条款出处，支持上传私有文档。
               </p>
             </div>
@@ -261,15 +262,15 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled, zeroConfigReady = fa
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className={`group rounded-xl border border-stone-200/70 bg-white/70 p-3 transition-all hover:border-primary/25 hover:bg-white hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
+                className={`group rounded-xl border border-line bg-surface/75 p-3 transition-all hover:border-primary/25 hover:bg-surface hover:shadow-sm 2xl:p-4 anim-up d-${index + 3}`}
               >
                 <div className="flex items-start gap-2.5">
                   <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg 2xl:h-8 2xl:w-8 ${feature.bg}`}>
                     <feature.icon className={`h-4 w-4 ${feature.color}`} />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-stone-900">{feature.title}</h3>
-                    <p className="mt-0.5 text-xs leading-relaxed text-stone-500">{feature.description}</p>
+                    <h3 className="text-sm font-semibold text-ink">{feature.title}</h3>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">{feature.description}</p>
                   </div>
                 </div>
               </div>
@@ -278,14 +279,14 @@ function EmptyKnowledgeState({ onSuggestionClick, disabled, zeroConfigReady = fa
         </section>
 
         <div className="glass-panel space-y-2.5 rounded-[20px] p-4 2xl:p-5 anim-up d-7">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">建议问题</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">建议问题</p>
           <div className="grid gap-2 lg:grid-cols-2">
             {suggestions.map((item) => (
               <button
                 key={item}
                 onClick={() => onSuggestionClick(item)}
                 disabled={disabled}
-                className="rounded-xl border border-stone-200/70 bg-white/72 px-3.5 py-2.5 text-left text-sm leading-5 text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 2xl:px-4 2xl:py-3"
+                className="rounded-xl border border-line bg-surface/75 px-3.5 py-2.5 text-left text-sm leading-5 text-ink-secondary transition-all hover:border-primary/35 hover:bg-surface hover:text-primary hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-45 2xl:px-4 2xl:py-3"
               >
                 {item}
               </button>
@@ -419,17 +420,17 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
               onClick={onOpenSidebar}
               aria-label="打开侧边栏"
               title="打开侧边栏"
-              className="rounded-lg p-2 text-stone-500 transition-colors hover:bg-white/80 hover:text-stone-800"
+              className="rounded-lg p-2 text-ink-muted transition-colors hover:bg-surface/80 hover:text-ink"
             >
               <Menu className="h-5 w-5" />
             </button>
           )}
-          <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200/70 bg-white/80 text-primary shadow-sm sm:flex">
+          <div className="hidden h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-line bg-surface/85 text-primary shadow-sm sm:flex">
             <BookOpenText className="h-4.5 w-4.5" />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold tracking-tight text-stone-950">知识库问答</div>
-            <div className="truncate text-xs text-stone-500">规则检索 / 私有文档 / 联网补充</div>
+            <div className="truncate text-sm font-semibold tracking-tight text-ink">知识库问答</div>
+            <div className="truncate text-xs text-ink-muted">规则检索 / 私有文档 / 联网补充</div>
           </div>
         </div>
         <div className="flex flex-shrink-0 items-center gap-1.5">
@@ -439,7 +440,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
               'flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
               contextOpen
                 ? 'border-primary/20 bg-primary/10 text-primary'
-                : 'border-stone-200 bg-white/80 text-stone-500 hover:bg-white hover:text-stone-800',
+                : 'border-line bg-surface/80 text-ink-muted hover:bg-surface hover:text-ink',
             )}
           >
             <PanelRightOpen className="h-4 w-4" />
@@ -447,7 +448,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
           </button>
           <button
             onClick={() => setShowSettings(true)}
-            className="rounded-lg p-2 text-stone-400 transition-colors hover:bg-white/80 hover:text-stone-700"
+            className="rounded-lg p-2 text-ink-faint transition-colors hover:bg-surface/80 hover:text-ink-secondary"
             title="设置"
             aria-label="设置"
           >
@@ -491,7 +492,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
           </div>
         )}
         {showScrollToBottom && (
-          <button onClick={scrollToBottom} className="absolute bottom-3 right-6 flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs text-stone-600 shadow-sm hover:text-primary">
+          <button onClick={scrollToBottom} className="absolute bottom-3 right-6 flex items-center gap-1 rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-secondary shadow-sm hover:text-primary">
             <ArrowDown className="h-3.5 w-3.5" />
             回到最新内容
           </button>
@@ -501,7 +502,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
       <div className="px-4 pb-4 pt-2 md:px-6 lg:px-[6%] 2xl:px-[12%]">
         <div className="mx-auto max-w-4xl 2xl:max-w-5xl">
           <PersistenceNotice state={persistenceState} onRetry={retrySave} />
-          <div className="glass-panel rounded-[18px] transition-all focus-within:border-primary/35 focus-within:shadow-[0_20px_55px_rgba(15,118,110,0.14)]">
+          <div className="glass-panel composer-shell rounded-[18px] transition-all">
             <textarea
               ref={textareaRef}
               value={input}
@@ -519,7 +520,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                 : zeroConfigReady
                   ? '规则库与模型已就绪，无需配置，直接输入电力市场或私有文档问题…'
                   : '输入关于电力市场、现货、售电或交易规则的问题…'}
-              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-60"
+              className="max-h-[180px] w-full resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-faint disabled:opacity-60"
             />
 
             <div className="flex items-center justify-between gap-3 p-3 pt-0">
@@ -529,7 +530,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                   title={useBaseModel ? '知识库依据不足时，允许补充模型的通用知识（单独标注）' : '仅依据知识库条款回答，找不到依据时直接说明'}
                   className={cn(
                     'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all',
-                    useBaseModel ? 'border-primary/50 bg-primary/5 text-primary' : 'border-stone-300 text-stone-500',
+                    useBaseModel ? 'border-primary/50 bg-primary/5 text-primary' : 'border-line-strong text-ink-muted',
                   )}
                 >
                   <Brain className="h-3.5 w-3.5" />
@@ -540,21 +541,21 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                   disabled={!useBaseModel}
                   className={cn(
                     'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all',
-                    useWebSearch ? 'border-primary/50 bg-primary/5 text-primary' : 'border-stone-300 text-stone-500',
+                    useWebSearch ? 'border-primary/50 bg-primary/5 text-primary' : 'border-line-strong text-ink-muted',
                     !useBaseModel && 'opacity-45',
                   )}
                 >
                   <Globe2 className="h-3.5 w-3.5" />
                   联网搜索
                 </button>
-                <div className="flex rounded-full border border-stone-300 bg-white/40 p-0.5">
+                <div className="flex rounded-full border border-line-strong bg-surface/50 p-0.5">
                   {answerModes.map((mode) => (
                     <button
                       key={mode.id}
                       onClick={() => setAnswerMode(mode.id)}
                       className={cn(
                         'rounded-full px-2.5 py-0.5 text-xs transition-colors',
-                        answerMode === mode.id ? 'bg-primary text-white' : 'text-stone-500 hover:text-stone-800',
+                        answerMode === mode.id ? 'bg-primary text-primary-foreground' : 'text-ink-muted hover:text-ink',
                       )}
                     >
                       {mode.label}
@@ -591,8 +592,8 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                     className={cn(
                       'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all',
                       input.trim() && !historyUnavailable
-                        ? 'bg-primary text-white shadow-sm hover:bg-primary/90'
-                        : 'bg-stone-200 text-stone-400',
+                        ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
+                        : 'bg-surface-hover text-ink-faint',
                     )}
                     title="发送"
                     aria-label="发送"
@@ -604,7 +605,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
             </div>
           </div>
 
-          <p className="mt-2 text-center text-xs text-stone-400">
+          <p className="mt-2 text-center text-xs text-ink-faint">
             {historyUnavailable ? historyHint : isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
           </p>
         </div>

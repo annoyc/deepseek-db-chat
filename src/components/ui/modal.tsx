@@ -30,7 +30,7 @@ export function Modal({ open, onClose, children, className, dismissible = true, 
           onEscapeKeyDown={(event) => { if (!dismissible) event.preventDefault() }}
           onInteractOutside={(event) => { if (!dismissible || !closeOnBackdrop) event.preventDefault() }}
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-2xl outline-none animate-in fade-in zoom-in-95 duration-150',
+            'fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-line bg-surface text-ink shadow-2xl outline-none animate-in fade-in zoom-in-95 duration-150',
             className,
           )}
         >
@@ -60,18 +60,18 @@ export function ConfirmDialog({ open, title, description, confirmLabel, cancelLa
   return (
     <Modal open={open} onClose={onClose}>
       <div className="flex items-center justify-between p-5 pb-2">
-        <ModalTitle className="text-lg font-bold text-stone-900">{title}</ModalTitle>
-        <button onClick={onClose} aria-label="关闭" className="rounded-lg p-1.5 transition-colors hover:bg-stone-100">
-          <X className="h-5 w-5 text-stone-500" />
+        <ModalTitle className="text-lg font-bold text-ink">{title}</ModalTitle>
+        <button onClick={onClose} aria-label="关闭" className="rounded-lg p-1.5 transition-colors hover:bg-surface-hover">
+          <X className="h-5 w-5 text-ink-muted" />
         </button>
       </div>
       <div className="space-y-4 px-5 pb-5">
-        <div className="text-sm text-stone-600">{description}</div>
+        <div className="text-sm text-ink-secondary">{description}</div>
         <div className="flex justify-end gap-3 pt-2">
           <button
             autoFocus
             onClick={onClose}
-            className="rounded-xl border border-stone-300 px-6 py-2.5 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="rounded-xl border border-line-strong px-6 py-2.5 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {cancelLabel}
           </button>

@@ -103,7 +103,7 @@ export function MessageInput() {
   return (
     <div className="px-4 pb-4 pt-2 md:px-6 lg:px-[6%] 2xl:px-[12%]">
       <div className="mx-auto max-w-4xl 2xl:max-w-5xl">
-        <div className="glass-panel rounded-[18px] transition-all focus-within:border-primary/35 focus-within:shadow-[0_20px_55px_rgba(15,118,110,0.14)]">
+        <div className="glass-panel composer-shell rounded-[18px] transition-all">
           <textarea
             ref={textareaRef}
             value={input}
@@ -118,14 +118,14 @@ export function MessageInput() {
                   : `你可以问关于数据库${connectionName}的任何问题`}
             disabled={!activeConnectionId || historyUnavailable}
             rows={1}
-            className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-stone-900 outline-none placeholder:text-stone-400 disabled:opacity-50"
+            className="w-full max-h-[200px] resize-none bg-transparent px-4 pt-3.5 pb-2 text-sm leading-relaxed text-ink outline-none placeholder:text-ink-faint disabled:opacity-50"
           />
           <div className="flex items-center justify-between gap-3 px-3 pb-3">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <div className="relative">
                 <button
                   onClick={() => setShowModelMenu(!showModelMenu)}
-                  className="control-chip flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-stone-600 transition-colors hover:bg-white hover:text-stone-900"
+                  className="control-chip flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface hover:text-ink"
                 >
                   <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-primary" />
                   <span className="truncate">{currentLabel}</span>
@@ -135,8 +135,8 @@ export function MessageInput() {
                 {showModelMenu && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setShowModelMenu(false)} />
-                    <div className="absolute bottom-full left-0 z-20 mb-2 min-w-64 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-xl">
-                      <div className="flex overflow-x-auto border-b border-stone-100">
+                    <div className="absolute bottom-full left-0 z-20 mb-2 min-w-64 overflow-hidden rounded-xl border border-line bg-popover text-popover-foreground py-1 shadow-xl">
+                      <div className="flex overflow-x-auto border-b border-line-subtle">
                         {providers.map((p) => (
                           <button
                             key={p.id}
@@ -144,7 +144,7 @@ export function MessageInput() {
                             className={`flex-1 shrink-0 whitespace-nowrap px-3 py-2 text-xs font-semibold transition-colors ${
                               p.id === provider
                                 ? 'text-primary border-b-2 border-primary'
-                                : 'text-stone-500 hover:text-stone-800'
+                                : 'text-ink-muted hover:text-ink'
                             }`}
                           >
                             {p.name}
@@ -152,21 +152,21 @@ export function MessageInput() {
                         ))}
                       </div>
                       {providerModels.length === 0 && (
-                        <div className="px-4 py-3 text-xs text-stone-500">该服务尚未添加模型，请在设置中编辑</div>
+                        <div className="px-4 py-3 text-xs text-ink-muted">该服务尚未添加模型，请在设置中编辑</div>
                       )}
                       <div className="max-h-72 overflow-y-auto">
                       {providerModels.map((m) => (
                         <button
                           key={m.id}
                           onClick={() => { setModel(m.id); setShowModelMenu(false) }}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors flex items-center justify-between ${
-                            m.id === model ? 'text-primary font-medium' : 'text-stone-700'
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-surface-hover transition-colors flex items-center justify-between ${
+                            m.id === model ? 'text-primary font-medium' : 'text-ink-secondary'
                           }`}
                         >
                           <div>
                             <div className="font-medium">{modelLabel(m)}</div>
                             {(m.description || (m.name && m.name !== m.id)) && (
-                              <div className="text-xs text-stone-400">{m.description ?? m.id}</div>
+                              <div className="text-xs text-ink-faint">{m.description ?? m.id}</div>
                             )}
                           </div>
                           {m.id === model && (
@@ -186,22 +186,24 @@ export function MessageInput() {
                   className={`flex items-center gap-1 border px-2.5 py-1 text-xs font-medium transition-all ${
                     thinkingMode === 'enabled'
                       ? 'border-primary/50 bg-primary/5 text-primary'
-                      : 'border-stone-300 text-stone-500'
+                      : 'border-line-strong text-ink-muted'
                   } ${thinkingMode === 'enabled' && thinkingStyle === 'deepseek' ? 'rounded-l-full border-r-0' : 'rounded-full'}`}
                 >
                   <Atom className="w-3.5 h-3.5" />
                   <span>深度思考</span>
                 </button>
                 {thinkingMode === 'enabled' && thinkingStyle === 'deepseek' && (
-                  <select
-                    value={reasoningEffort}
-                    onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
-                    className="appearance-none border border-primary/50 bg-primary/5 text-primary rounded-r-full pl-1.5 pr-4 py-1 text-xs outline-none cursor-pointer hover:bg-primary/10 transition-colors"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%230f766e' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
-                  >
-                    <option value="high">高</option>
-                    <option value="max">最高</option>
-                  </select>
+                  <div className="relative flex items-center">
+                    <select
+                      value={reasoningEffort}
+                      onChange={(e) => setReasoningEffort(e.target.value as 'high' | 'max')}
+                      className="appearance-none border border-primary/50 bg-primary/5 text-primary rounded-r-full pl-1.5 pr-5 py-1 text-xs outline-none cursor-pointer hover:bg-primary/10 transition-colors"
+                    >
+                      <option value="high">高</option>
+                      <option value="max">最高</option>
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-1.5 h-3 w-3 text-primary" />
+                  </div>
                 )}
               </div>}
 
@@ -216,8 +218,8 @@ export function MessageInput() {
                   }}
                   className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
                     sqlPermission === 'write'
-                      ? 'border-amber-500 text-amber-600'
-                      : 'border-stone-300 text-stone-500'
+                      ? 'border-amber-500 text-amber-600 dark:border-amber-600 dark:text-amber-400'
+                      : 'border-line-strong text-ink-muted'
                   }`}
                   title={sqlPermission === 'write' ? '已允许写操作（INSERT/UPDATE/DELETE），AI 生成的写 SQL 需二次确认' : '仅允许查询操作'}
                 >
@@ -252,8 +254,8 @@ export function MessageInput() {
                   disabled={!canSend}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                     canSend
-                      ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
-                      : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                      : 'bg-surface-hover text-ink-faint cursor-not-allowed'
                   }`}
                   title="发送"
                   aria-label="发送"
@@ -265,7 +267,7 @@ export function MessageInput() {
           </div>
         </div>
 
-        <p className="mt-2 text-center text-xs text-stone-400">
+        <p className="mt-2 text-center text-xs text-ink-faint">
           {historyUnavailable ? historyHint : isStreaming ? '正在生成中，可随时停止' : '内容由 AI 生成，请仔细甄别'}
         </p>
       </div>
@@ -273,23 +275,23 @@ export function MessageInput() {
       <Modal open={showSqlWarning} onClose={() => setShowSqlWarning(false)}>
             <div className="px-6 pt-6 pb-4">
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-950/60">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
-                <ModalTitle className="text-base font-semibold text-stone-900">开启写入模式</ModalTitle>
+                <ModalTitle className="text-base font-semibold text-ink">开启写入模式</ModalTitle>
               </div>
 
-              <div className="space-y-3 text-sm text-stone-600">
+              <div className="space-y-3 text-sm text-ink-secondary">
                 <p>开启后，AI 将能够生成并执行以下写操作指令：</p>
                 <div className="flex flex-wrap gap-1.5">
                   {['INSERT', 'UPDATE', 'DELETE', 'REPLACE'].map((cmd) => (
-                    <span key={cmd} className="rounded-md bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700">
+                    <span key={cmd} className="rounded-md bg-amber-50 px-2 py-0.5 font-mono text-xs font-medium text-amber-700 dark:bg-amber-950/45 dark:text-amber-300">
                       {cmd}
                     </span>
                   ))}
                 </div>
 
-                <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700">
+                <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700 dark:bg-red-950/45 dark:text-red-300">
                   <p className="font-medium mb-1">风险提醒</p>
                   <ul className="space-y-1 list-disc list-inside">
                     <li>AI 生成的 SQL 可能修改或删除数据库中的真实数据</li>
@@ -307,11 +309,11 @@ export function MessageInput() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-stone-100 px-6 py-3">
+            <div className="flex items-center justify-end gap-2 border-t border-line-subtle px-6 py-3">
               <button
                 autoFocus
                 onClick={() => setShowSqlWarning(false)}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-ink-secondary hover:bg-surface-hover transition-colors"
               >
                 取消
               </button>

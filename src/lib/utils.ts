@@ -78,11 +78,11 @@ export const timeGroupLabels: Record<TimeGroup, string> = {
 export const timeGroupOrder: TimeGroup[] = ['today', 'yesterday', 'last7days', 'older']
 
 export const envConfig: Record<string, { label: string; color: string; bg: string }> = {
-  prod: { label: 'PROD', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
-  dev: { label: 'DEV', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
-  test: { label: 'PRE', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
-  staging: { label: 'UAT', color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200' },
-  unknown: { label: '', color: 'text-gray-500', bg: 'bg-gray-50 border-gray-200' },
+  prod: { label: 'PROD', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-50 border-red-200 dark:bg-red-950/45 dark:border-red-800/50' },
+  dev: { label: 'DEV', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-50 border-green-200 dark:bg-green-950/45 dark:border-green-800/50' },
+  test: { label: 'PRE', color: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50 border-blue-200 dark:bg-blue-950/45 dark:border-blue-800/50' },
+  staging: { label: 'UAT', color: 'text-yellow-700 dark:text-yellow-300', bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/45 dark:border-yellow-800/50' },
+  unknown: { label: '', color: 'text-ink-muted', bg: 'bg-surface-muted border-line' },
 }
 
 /** Detect database type from port or name heuristics */

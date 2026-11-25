@@ -10,6 +10,7 @@ import { SessionLoadingIndicator } from './SessionLoadingIndicator'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { BrandHeader } from './BrandHeader'
+import { ThemeToggleButton } from './ThemeToggleButton'
 import { getChatSessionActivity, getSessionActivityLabel } from '@/lib/session-activity'
 
 interface SidebarProps {
@@ -62,7 +63,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
           {!collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm"
+              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-ink-secondary transition-all hover:border-primary/35 hover:bg-surface hover:text-primary hover:shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               添加数据库连接
@@ -71,7 +72,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
           {collapsed && (
             <button
               onClick={() => setShowAddDialog(true)}
-              className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+              className="rounded-lg p-2 text-sm text-ink-muted transition-colors hover:bg-surface/75 hover:text-primary"
               title="添加数据库连接"
               aria-label="添加数据库连接"
             >
@@ -87,16 +88,16 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             className={cn('flex items-center gap-2 py-1.5 cursor-pointer select-none', collapsed ? 'justify-center' : 'px-2')}
             onClick={() => !collapsed && setDbSectionCollapsed(!dbSectionCollapsed)}
           >
-            <Database className="w-4 h-4 text-stone-500" />
+            <Database className="w-4 h-4 text-ink-muted" />
             {!collapsed && (
               <>
-                <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">数据库连接</span>
-                <span className="rounded-full bg-stone-200/70 px-1.5 py-0.5 text-[11px] font-semibold leading-none text-stone-500">{connections.length}</span>
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">数据库连接</span>
+                <span className="rounded-full bg-surface-hover px-1.5 py-0.5 text-[11px] font-semibold leading-none text-ink-muted">{connections.length}</span>
                 <div className={cn(
                   'transition-transform duration-200',
                   dbSectionCollapsed ? '-rotate-90' : ''
                 )}>
-                  <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-ink-faint" />
                 </div>
               </>
             )}
@@ -117,7 +118,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
 
           {/* Divider between sections */}
           {!collapsed && (
-            <div className="my-3 border-t border-stone-200/70" />
+            <div className="my-3 border-t border-line-subtle" />
           )}
 
           {/* Chat section - collapsible */}
@@ -126,15 +127,15 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             onClick={() => !collapsed && setChatSectionCollapsed(!chatSectionCollapsed)}
           >
             <div className="flex items-center gap-1.5">
-              <MessageSquarePlus className="w-4 h-4 text-stone-500" />
+              <MessageSquarePlus className="w-4 h-4 text-ink-muted" />
               {!collapsed && (
                 <>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">对话历史</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">对话历史</span>
                   <div className={cn(
                     'transition-transform duration-200',
                     chatSectionCollapsed ? '-rotate-90' : ''
                   )}>
-                    <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+                    <ChevronDown className="w-3.5 h-3.5 text-ink-faint" />
                   </div>
                 </>
               )}
@@ -143,7 +144,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
               <button
                 data-drawer-close
                 onClick={(e) => { e.stopPropagation(); createNewSession() }}
-                className="rounded-md p-0.5 text-stone-500 transition-colors hover:bg-primary/10 hover:text-primary"
+                className="rounded-md p-0.5 text-ink-muted transition-colors hover:bg-primary/10 hover:text-primary"
                 title="新对话"
                 aria-label="新对话"
               >
@@ -169,9 +170,9 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
                       'w-7 h-7 rounded-lg flex items-center justify-center text-xs font-medium transition-colors',
                       activeSessionId === session.id
                         ? 'bg-primary/10 text-primary border border-primary/20'
-                        : 'bg-stone-100 text-stone-500 hover:bg-white border border-transparent',
-                      isSessionInProgress && 'bg-white text-primary border-primary/30 shadow-sm',
-                      activityState === 'waiting' && 'text-amber-700 border-amber-300/70'
+                        : 'bg-surface-muted text-ink-muted hover:bg-surface border border-transparent',
+                      isSessionInProgress && 'bg-surface text-primary border-primary/30 shadow-sm',
+                      activityState === 'waiting' && 'text-amber-700 border-amber-300/70 dark:text-amber-300 dark:border-amber-700/70'
                     )}
                     title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
                   >
@@ -192,22 +193,23 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
         </div>
 
         {/* Footer */}
-        <div className="border-t border-stone-200/75">
+        <div className="border-t border-line-subtle">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
               <a
                 href={`${import.meta.env.BASE_URL}evals`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-primary"
+                className="p-2.5 hover:bg-surface/75 rounded-lg transition-colors text-ink-muted hover:text-primary"
                 title="评测报告"
                 aria-label="打开评测报告"
               >
                 <BarChart3 className="w-3.5 h-3.5" />
               </a>
+              <ThemeToggleButton compact />
               <button
                 onClick={() => setShowApiKeyDialog(true)}
-                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
+                className="p-2.5 hover:bg-surface/75 rounded-lg transition-colors text-ink-muted hover:text-ink"
                 title="设置"
                 aria-label="设置"
               >
@@ -215,7 +217,7 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
               </button>
               <button
                 onClick={onToggleCollapse}
-                className="p-2.5 hover:bg-white/75 rounded-lg transition-colors text-stone-500 hover:text-stone-800"
+                className="p-2.5 hover:bg-surface/75 rounded-lg transition-colors text-ink-muted hover:text-ink"
                 title="展开侧边栏"
                 aria-label="展开侧边栏"
               >
@@ -224,18 +226,21 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
             </div>
           ) : (
             <div className="flex items-center justify-between gap-1 px-3 py-2">
-              <button
-                onClick={() => setShowApiKeyDialog(true)}
-                className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                设置
-              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => setShowApiKeyDialog(true)}
+                  className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface/75 hover:text-ink"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  设置
+                </button>
+                <ThemeToggleButton />
+              </div>
               <a
                 href={`${import.meta.env.BASE_URL}evals`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface/75 hover:text-primary"
                 title="查看 Text-to-SQL 评测报告"
               >
                 <BarChart3 className="w-3.5 h-3.5" />

@@ -63,19 +63,19 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
         <span
           className={cn(
             'absolute left-[11px] top-6 h-[calc(100%-8px)] w-px',
-            step.status === 'done' ? 'bg-emerald-200' : 'bg-stone-200',
+            step.status === 'done' ? 'bg-emerald-200 dark:bg-emerald-800/60' : 'bg-line',
           )}
         />
       )}
 
       <span
         className={cn(
-          'absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border bg-white',
+          'absolute left-0 top-0.5 flex h-6 w-6 items-center justify-center rounded-full border bg-surface',
           step.status === 'error'
-            ? 'border-red-200'
+            ? 'border-red-200 dark:border-red-800/60'
             : step.status === 'running'
               ? 'border-primary/30'
-              : 'border-emerald-200',
+              : 'border-emerald-200 dark:border-emerald-800/60',
         )}
       >
         {step.status === 'running' ? (
@@ -83,7 +83,7 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
         ) : step.status === 'error' ? (
           <AlertCircle className="h-3.5 w-3.5 text-red-500" />
         ) : (
-          <Check className="h-3.5 w-3.5 text-emerald-600" />
+          <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
         )}
       </span>
 
@@ -97,16 +97,16 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
           )}
         >
           <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', accent)} />
-          <span className="text-sm font-medium text-stone-800">{step.title}</span>
+          <span className="text-sm font-medium text-ink">{step.title}</span>
           {duration && (
-            <span className="rounded-full bg-stone-100 px-1.5 py-0.5 text-[11px] font-medium text-stone-400">
+            <span className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-ink-faint">
               {duration}
             </span>
           )}
           {hasDetail && (
             <ChevronRight
               className={cn(
-                'ml-auto h-3.5 w-3.5 flex-shrink-0 text-stone-300 transition-transform',
+                'ml-auto h-3.5 w-3.5 flex-shrink-0 text-ink-faint transition-transform',
                 expanded && 'rotate-90',
               )}
             />
@@ -114,25 +114,25 @@ function ToolStepRow({ step, isLast }: { step: KnowledgeToolStep; isLast: boolea
         </button>
 
         {step.output && !expanded && (
-          <p className="mt-0.5 line-clamp-1 text-xs text-stone-500">{step.output}</p>
+          <p className="mt-0.5 line-clamp-1 text-xs text-ink-muted">{step.output}</p>
         )}
 
         {expanded && (
           <div className="mt-2 space-y-2">
             {step.detail && (
-              <div className="rounded-lg bg-stone-50 p-2.5">
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+              <div className="rounded-lg bg-surface-muted p-2.5">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
                   输入
                 </div>
-                <p className="whitespace-pre-wrap text-xs leading-5 text-stone-600">{step.detail}</p>
+                <p className="whitespace-pre-wrap text-xs leading-5 text-ink-secondary">{step.detail}</p>
               </div>
             )}
             {step.output && (
-              <div className="rounded-lg border border-stone-200/70 bg-white p-2.5">
-                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+              <div className="rounded-lg border border-line bg-surface p-2.5">
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
                   输出
                 </div>
-                <p className="whitespace-pre-wrap text-xs leading-5 text-stone-600">{step.output}</p>
+                <p className="whitespace-pre-wrap text-xs leading-5 text-ink-secondary">{step.output}</p>
               </div>
             )}
           </div>

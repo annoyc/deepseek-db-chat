@@ -17,19 +17,19 @@ export function TaskCompleteIndicator({ duration, queryCount, modelName, usage }
 
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-0 pb-1 px-1">
-      <Clock className="w-3.5 h-3.5 text-stone-400" />
-      <span className="text-xs text-stone-400 tabular-nums">
+      <Clock className="w-3.5 h-3.5 text-ink-faint" />
+      <span className="text-xs text-ink-faint tabular-nums">
         总耗时 {formatted}
       </span>
-      <span className="text-stone-300">·</span>
-      <span className="text-xs text-stone-400 tabular-nums">
+      <span className="text-ink-faint/60">·</span>
+      <span className="text-xs text-ink-faint tabular-nums">
         {queryCount}次查询
       </span>
       {hasTokens && usage && (
         <>
-          <span className="text-stone-300">·</span>
+          <span className="text-ink-faint/60">·</span>
           <span
-            className="text-xs text-stone-400 tabular-nums cursor-help decoration-stone-300 hover:text-stone-600"
+            className="text-xs text-ink-faint tabular-nums cursor-help decoration-line-strong hover:text-ink-secondary"
             title={usageTooltip}
           >
             {formatTokenCount(usage.totalTokens)} tokens
@@ -38,9 +38,9 @@ export function TaskCompleteIndicator({ duration, queryCount, modelName, usage }
       )}
       {hasCost && usage && usage.cost !== undefined && (
         <>
-          <span className="text-stone-300">·</span>
+          <span className="text-ink-faint/60">·</span>
           <span
-            className="text-xs text-stone-400 tabular-nums cursor-help hover:text-stone-600"
+            className="text-xs text-ink-faint tabular-nums cursor-help hover:text-ink-secondary"
             title={usageTooltip}
           >
             {formatUsageCost(usage.cost, usage.costCurrency)}
@@ -49,8 +49,8 @@ export function TaskCompleteIndicator({ duration, queryCount, modelName, usage }
       )}
       {modelName && (
         <>
-          <span className="text-stone-300">·</span>
-          <span className="text-xs text-stone-400">
+          <span className="text-ink-faint/60">·</span>
+          <span className="text-xs text-ink-faint">
             {modelName}
           </span>
         </>

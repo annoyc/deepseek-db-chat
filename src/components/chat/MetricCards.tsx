@@ -22,12 +22,12 @@ export function MetricCards({ result }: MetricCardsProps) {
         return (
           <div
             key={col}
-            className="bg-gradient-to-br from-stone-50 to-white border border-stone-200 rounded-xl px-4 py-3 flex flex-col gap-1"
+            className="bg-gradient-to-br from-surface-muted to-surface border border-line rounded-xl px-4 py-3 flex flex-col gap-1"
           >
-            <span className="text-xs text-stone-500 font-medium truncate" title={col}>
+            <span className="text-xs text-ink-muted font-medium truncate" title={col}>
               {col}
             </span>
-            <span className="text-xl font-bold text-stone-900 tracking-tight">
+            <span className="text-xl font-bold text-ink tracking-tight">
               {formatResultMetricValue(row[col])}
             </span>
           </div>

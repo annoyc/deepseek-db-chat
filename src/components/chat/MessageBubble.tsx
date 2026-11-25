@@ -258,13 +258,13 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
   if (message.role === 'user') {
     return (
       <div className="group flex gap-3 justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
-        <CopyButton text={message.content} label="复制问题" className="mt-2 self-start opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-white/80" />
+        <CopyButton text={message.content} label="复制问题" className="mt-2 self-start opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:bg-surface/80" />
         <div className="max-w-[min(72%,760px)]">
-          <div className="rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+          <div className="rounded-2xl rounded-tr-md bg-user-bubble px-4 py-2.5 text-sm leading-relaxed text-user-bubble-foreground shadow-sm">
             <p className="whitespace-pre-wrap">{message.content}</p>
           </div>
         </div>
-        <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white/80 text-stone-600 shadow-sm">
+        <div className="mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-line bg-surface/85 text-ink-secondary shadow-sm">
           <User className="w-4 h-4" />
         </div>
       </div>

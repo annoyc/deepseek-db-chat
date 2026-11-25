@@ -63,7 +63,7 @@ export function ResizeHandle({ width, min, max, onResize, label }: ResizeHandleP
       className="group relative z-30 w-1 flex-shrink-0 cursor-col-resize touch-none transition-colors hover:bg-primary/45 focus-visible:bg-primary/60 focus-visible:outline-none active:bg-primary/70"
     >
       <div className="absolute inset-y-0 -left-1.5 -right-1.5 cursor-col-resize bg-transparent" />
-      <div className="absolute left-1/2 top-1/2 h-10 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-stone-300/70 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+      <div className="absolute left-1/2 top-1/2 h-10 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-line-strong opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
     </div>
   )
 }

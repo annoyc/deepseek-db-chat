@@ -74,7 +74,7 @@ export function ChatHistory() {
 
   if (sorted.length === 0 && !searchQuery.trim()) {
     return (
-      <div className="px-3 py-2 text-xs text-stone-400 italic">
+      <div className="px-3 py-2 text-xs text-ink-faint italic">
         暂无对话
       </div>
     )
@@ -88,18 +88,18 @@ export function ChatHistory() {
       {showSearch && (
         <div className="px-2 pb-1">
           <div className="control-chip flex items-center gap-1.5 rounded-lg px-2.5 py-1.5">
-            <Search className="w-3 h-3 text-stone-400 flex-shrink-0" />
+            <Search className="w-3 h-3 text-ink-faint flex-shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="搜索对话..."
-              className="flex-1 bg-transparent text-xs text-stone-700 placeholder:text-stone-400 outline-none min-w-0"
+              className="flex-1 bg-transparent text-xs text-ink-secondary placeholder:text-ink-faint outline-none min-w-0"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="p-0.5 hover:bg-stone-200/70 rounded text-stone-400 hover:text-stone-700"
+                className="p-0.5 hover:bg-surface-hover rounded text-ink-faint hover:text-ink-secondary"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -110,7 +110,7 @@ export function ChatHistory() {
 
       {/* Empty search result */}
       {sorted.length === 0 && searchQuery.trim() && (
-        <div className="px-3 py-2 text-xs text-stone-400 italic">
+        <div className="px-3 py-2 text-xs text-ink-faint italic">
           未找到匹配的对话
         </div>
       )}
@@ -121,7 +121,7 @@ export function ChatHistory() {
         if (!groupSessions || groupSessions.length === 0) return null
         return (
           <div key={group}>
-            <div className="px-3 pt-2.5 pb-0.5 text-[11px] font-semibold text-stone-400 uppercase tracking-[0.14em]">
+            <div className="px-3 pt-2.5 pb-0.5 text-[11px] font-semibold text-ink-faint uppercase tracking-[0.14em]">
               {timeGroupLabels[group]}
             </div>
             <div className="space-y-0.5">
@@ -139,10 +139,10 @@ export function ChatHistory() {
                     className={cn(
                       'group relative flex items-center rounded-xl border px-3 py-2 text-xs transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
                       isActive
-                        ? 'bg-white text-primary border-primary/25 shadow-sm'
-                        : 'text-stone-600 hover:bg-white/70 hover:text-stone-900 border-transparent',
-                      isSessionInProgress && 'border-primary/35 bg-white text-primary shadow-[0_8px_24px_rgba(15,118,110,0.08)]',
-                      activityState === 'waiting' && 'border-amber-300/70 text-amber-700 shadow-[0_8px_24px_rgba(245,158,11,0.08)]',
+                        ? 'bg-surface text-primary border-primary/25 shadow-sm'
+                        : 'text-ink-secondary hover:bg-surface/75 hover:text-ink border-transparent',
+                      isSessionInProgress && 'border-primary/35 bg-surface text-primary session-active-glow',
+                      activityState === 'waiting' && 'border-amber-300/70 text-amber-700 dark:border-amber-700/60 dark:text-amber-300 shadow-[0_8px_24px_rgba(245,158,11,0.08)]',
                     )}
                     title={isSessionInProgress ? `${session.title} · ${activityLabel}` : session.title}
                     role="button"
@@ -172,7 +172,7 @@ export function ChatHistory() {
                               if (e.key === 'Enter') confirmRename(session.id)
                               if (e.key === 'Escape') cancelRename()
                             }}
-                            className="flex-1 bg-white px-1.5 py-0.5 text-xs text-stone-800 rounded border border-primary/50 outline-none min-w-0"
+                            className="flex-1 bg-surface px-1.5 py-0.5 text-xs text-ink rounded border border-primary/50 outline-none min-w-0"
                           />
                           <button
                             onClick={(e) => { e.stopPropagation(); confirmRename(session.id) }}
@@ -182,7 +182,7 @@ export function ChatHistory() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); cancelRename() }}
-                            className="p-0.5 hover:bg-stone-200 rounded text-stone-500"
+                            className="p-0.5 hover:bg-surface-hover rounded text-ink-muted"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -214,12 +214,12 @@ export function ChatHistory() {
                             </span>
                           )}
                           {connInfo.name && (
-                            <span className="text-[11px] text-stone-400 truncate min-w-0" title={connInfo.name}>
+                            <span className="text-[11px] text-ink-faint truncate min-w-0" title={connInfo.name}>
                               {connInfo.name}
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-stone-400 flex-shrink-0">
+                        <span className="text-[11px] text-ink-faint flex-shrink-0">
                           {getRelativeTime(session.updatedAt)}
                         </span>
                       </div>
@@ -227,10 +227,10 @@ export function ChatHistory() {
 
                     {/* Actions on hover — positioned absolutely to not occupy layout space */}
                     {!isRenaming && (
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-lg bg-white/95 p-0.5 opacity-0 shadow-sm ring-1 ring-stone-200/80 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded-lg bg-surface/95 p-0.5 opacity-0 shadow-sm ring-1 ring-line transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <button
                           onClick={(e) => { e.stopPropagation(); startRename(session) }}
-                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                          className="p-1 hover:bg-surface-hover rounded text-ink-muted hover:text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary"
                           title="重命名"
                           aria-label={`重命名对话：${session.title}`}
                         >
@@ -238,7 +238,7 @@ export function ChatHistory() {
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(session.id) }}
-                          className="p-1 hover:bg-stone-100 rounded text-stone-500 hover:text-red-600 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+                          className="p-1 hover:bg-surface-hover rounded text-ink-muted hover:text-red-600 dark:hover:text-red-400 transition-colors focus-visible:outline-2 focus-visible:outline-primary"
                           title="删除对话"
                           aria-label={`删除对话：${session.title}`}
                         >

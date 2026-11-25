@@ -26,8 +26,8 @@ interface PlanData {
 }
 
 const COMPLEXITY_CONFIG = {
-  moderate: { label: '中等', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  complex: { label: '复杂', className: 'bg-red-50 text-red-700 border-red-200' },
+  moderate: { label: '中等', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/45 dark:text-amber-300 dark:border-amber-800/50' },
+  complex: { label: '复杂', className: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/45 dark:text-red-300 dark:border-red-800/50' },
 } as const
 
 export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlockProps) {
@@ -50,11 +50,11 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
 
   if (isLoading) {
     return (
-      <div className="border border-primary/20 rounded-xl overflow-hidden bg-white">
+      <div className="border border-primary/20 rounded-xl overflow-hidden bg-surface">
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-primary/10">
           <Loader2 className="w-3.5 h-3.5 text-primary animate-spin flex-shrink-0" />
           <ListChecks className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-          <span className="text-[13px] font-semibold text-stone-800">查询规划</span>
+          <span className="text-[13px] font-semibold text-ink">查询规划</span>
           <span className="text-xs text-primary ml-0.5 font-medium">分析中...</span>
         </div>
         <div className="px-3 py-3 space-y-2">
@@ -72,7 +72,7 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
   const complexityConfig = COMPLEXITY_CONFIG[plan.complexity] ?? COMPLEXITY_CONFIG.moderate
 
   return (
-    <div className="border border-primary/20 rounded-xl overflow-hidden bg-white">
+    <div className="border border-primary/20 rounded-xl overflow-hidden bg-surface">
       <button
         type="button"
         onClick={() => {
@@ -85,11 +85,11 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
           ? <ChevronDown className="w-3.5 h-3.5 text-primary flex-shrink-0" />
           : <ChevronRight className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
         <ListChecks className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-        <span className="text-[13px] font-semibold text-stone-800">查询规划</span>
+        <span className="text-[13px] font-semibold text-ink">查询规划</span>
         <span className={cn('text-xs px-1.5 py-px rounded-full border font-medium ml-0.5', complexityConfig.className)}>
           {complexityConfig.label}
         </span>
-        <span className="text-xs text-stone-400 ml-auto">
+        <span className="text-xs text-ink-faint ml-auto">
           {plan.steps.length} 步 · {plan.total_queries} 条 SQL
         </span>
       </button>
@@ -98,7 +98,7 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
         <div className="px-3 py-2.5 space-y-3">
           {plan.involved_tables?.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs text-stone-400">涉及表:</span>
+              <span className="text-xs text-ink-faint">涉及表:</span>
               {plan.involved_tables.map((t) => (
                 <span key={t} className="text-xs px-1.5 py-0.5 rounded bg-primary/5 text-primary font-mono border border-primary/10">
                   {t}
@@ -114,24 +114,24 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
                   <div className={cn(
                     'w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold',
                     isCompleted
-                      ? 'bg-green-100 text-green-700 border border-green-200'
+                      ? 'bg-green-100 text-green-700 border border-green-200 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800/50'
                       : 'bg-primary/10 text-primary border border-primary/20',
                   )}>
                     {step.step}
                   </div>
                   {idx < plan.steps.length - 1 && (
-                    <div className="w-px h-3 bg-stone-200 my-0.5" />
+                    <div className="w-px h-3 bg-line my-0.5" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 pb-1">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[13px] text-stone-700">{step.description}</span>
-                    <span className="text-[11px] px-1.5 py-px rounded bg-stone-100 text-stone-500 border border-stone-200 whitespace-nowrap">
+                    <span className="text-[13px] text-ink-secondary">{step.description}</span>
+                    <span className="text-[11px] px-1.5 py-px rounded bg-surface-muted text-ink-muted border border-line whitespace-nowrap">
                       {step.sql_type}
                     </span>
                   </div>
                   {step.depends_on && step.depends_on.length > 0 && (
-                    <div className="flex items-center gap-1 mt-0.5 text-xs text-stone-400">
+                    <div className="flex items-center gap-1 mt-0.5 text-xs text-ink-faint">
                       <ArrowRight className="w-3 h-3" />
                       依赖步骤 {step.depends_on.join(', ')}
                     </div>
@@ -142,8 +142,8 @@ export function QueryPlanBlock({ toolCall, collapseMode = 'auto' }: QueryPlanBlo
           </div>
 
           {plan.strategy_note && (
-            <div className="text-xs text-stone-500 bg-stone-50 border border-stone-100 rounded-lg px-2.5 py-2 leading-relaxed">
-              <span className="font-medium text-stone-600">策略: </span>{plan.strategy_note}
+            <div className="text-xs text-ink-muted bg-surface-muted border border-line-subtle rounded-lg px-2.5 py-2 leading-relaxed">
+              <span className="font-medium text-ink-secondary">策略: </span>{plan.strategy_note}
             </div>
           )}
         </div>

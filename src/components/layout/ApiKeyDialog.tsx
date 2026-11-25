@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck } from 'lucide-react'
+import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activity, CircleCheck, CircleX, CircleMinus, ArrowRightLeft, Cpu, PanelsTopLeft, ShieldCheck, Sun, Moon, Monitor, Check } from 'lucide-react'
 import { useSettings } from '@/hooks/useSettings'
+import { useTheme } from '@/hooks/useTheme'
+import { THEME_ACCENTS, type ThemeMode } from '@/lib/theme'
 import { Modal, ModalTitle } from '@/components/ui/modal'
 import type { CollapseMode, ProviderConfig } from '@/hooks/useSettings'
 import { listProviderModels, testProviderConnectionFn, type FetchedProviderModel } from '@/server/functions/settings'
@@ -48,16 +50,16 @@ const ADD_TAB = '__add__'
 
 type SettingsSection = 'models' | 'display' | 'sql'
 
-const inputClass = 'w-full px-3.5 py-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
-const labelClass = 'block text-sm font-medium text-stone-700 mb-1.5'
-const hintClass = 'text-xs text-stone-500 mt-1.5'
+const inputClass = 'w-full px-3.5 py-2.5 text-sm border border-line-strong bg-surface text-ink placeholder:text-ink-faint rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all'
+const labelClass = 'block text-sm font-medium text-ink-secondary mb-1.5'
+const hintClass = 'text-xs text-ink-muted mt-1.5'
 
 function SectionHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <h3 className="text-base font-semibold text-stone-900">{title}</h3>
-        {description && <p className="mt-0.5 text-xs text-stone-500">{description}</p>}
+        <h3 className="text-base font-semibold text-ink">{title}</h3>
+        {description && <p className="mt-0.5 text-xs text-ink-muted">{description}</p>}
       </div>
       {action}
     </div>
@@ -67,7 +69,7 @@ function SectionHeader({ title, description, action }: { title: string; descript
 function CollapseToggle({ value, onChange, label }: { value: CollapseMode; onChange: (v: CollapseMode) => void; label: string }) {
   const options = [['auto', '智能'], ['expanded', '展开'], ['collapsed', '折叠']] as const
   return (
-    <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-stone-100 p-0.5">
+    <div role="radiogroup" aria-label={label} className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5">
       {options.map(([v, text]) => (
         <button
           key={v}
@@ -75,7 +77,7 @@ function CollapseToggle({ value, onChange, label }: { value: CollapseMode; onCha
           aria-checked={value === v}
           onClick={() => onChange(v)}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            value === v ? 'bg-white text-primary shadow-sm' : 'text-stone-500 hover:text-stone-700'
+            value === v ? 'bg-surface text-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'
           }`}
         >
           {text}
@@ -122,7 +124,7 @@ function ApiKeyInput({ value, onChange, placeholder }: { value: string; onChange
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-600"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-ink-faint hover:text-ink-secondary"
         aria-label={show ? '隐藏密钥' : '显示密钥'}
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -141,7 +143,7 @@ function SavedKeyNotice({ onClear }: { onClear: () => void }) {
       <button
         type="button"
         onClick={onClear}
-        className="rounded px-1.5 py-0.5 text-xs text-stone-500 underline-offset-2 transition-colors hover:text-red-600 hover:underline"
+        className="rounded px-1.5 py-0.5 text-xs text-ink-muted underline-offset-2 transition-colors hover:text-red-600 dark:hover:text-red-400 hover:underline"
       >
         清除已保存的 Key
       </button>
@@ -211,15 +213,15 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-stone-200 p-3">
+    <div className="space-y-2 rounded-xl border border-line p-3">
       <div className="flex items-center gap-2">
-        <span className="shrink-0 text-sm font-medium text-stone-700">连接测试</span>
+        <span className="shrink-0 text-sm font-medium text-ink-secondary">连接测试</span>
         <select
           value={model}
           onChange={(e) => { setSelected(e.target.value); setResult(null) }}
           disabled={running || models.length === 0}
           aria-label="测试使用的模型"
-          className="min-w-0 flex-1 rounded-lg border border-stone-300 px-2 py-1.5 text-xs font-mono outline-none focus:border-primary"
+          className="min-w-0 flex-1 rounded-lg border border-line-strong bg-surface px-2 py-1.5 text-xs font-mono text-ink outline-none focus:border-primary"
         >
           {models.length === 0 && <option value="">尚未添加模型</option>}
           {models.map((m) => (
@@ -236,30 +238,30 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
           {running ? '测试中…' : '测试连接'}
         </button>
       </div>
-      <p className="text-xs text-stone-500">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
-      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      <p className="text-xs text-ink-muted">使用当前填写（未保存）的配置，依次检查流式工具调用、JSON 输出与思考参数，会产生少量 token 消耗。</p>
+      {error && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       {result && (
         <ul className="space-y-1.5" aria-label="连接测试结果">
           {result.checks.map((check) => (
             <li key={check.key} className="flex items-start gap-1.5 text-xs">
-              {check.status === 'pass' && <CircleCheck className="mt-px h-3.5 w-3.5 shrink-0 text-green-600" />}
+              {check.status === 'pass' && <CircleCheck className="mt-px h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />}
               {check.status === 'fail' && <CircleX className="mt-px h-3.5 w-3.5 shrink-0 text-red-500" />}
-              {check.status === 'skip' && <CircleMinus className="mt-px h-3.5 w-3.5 shrink-0 text-stone-400" />}
+              {check.status === 'skip' && <CircleMinus className="mt-px h-3.5 w-3.5 shrink-0 text-ink-faint" />}
               <div className="min-w-0">
-                <span className={check.status === 'fail' ? 'text-red-700' : 'text-stone-700'}>{check.label}</span>
-                {check.latencyMs !== undefined && <span className="ml-1 text-stone-400 tabular-nums">{(check.latencyMs / 1000).toFixed(1)}s</span>}
-                {check.detail && <div className="break-words text-stone-500">{check.detail}</div>}
+                <span className={check.status === 'fail' ? 'text-red-700 dark:text-red-300' : 'text-ink-secondary'}>{check.label}</span>
+                {check.latencyMs !== undefined && <span className="ml-1 text-ink-faint tabular-nums">{(check.latencyMs / 1000).toFixed(1)}s</span>}
+                {check.detail && <div className="break-words text-ink-muted">{check.detail}</div>}
               </div>
             </li>
           ))}
           <li className="flex items-center justify-between gap-2 pt-0.5">
-            <span className={`min-w-0 break-words text-xs font-medium ${result.ok ? 'text-green-700' : 'text-amber-700'}`}>
+            <span className={`min-w-0 break-words text-xs font-medium ${result.ok ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'}`}>
               {result.ok ? `模型 ${result.model} 可用` : '存在未通过的检查项，对话可能失败'}
             </span>
             {result.ok && onUseModel && usableModelIds && !usableModelIds.has(result.model) ? (
-              <span className="shrink-0 text-xs text-stone-500" title="内置服务的模型列表由服务器配置">未配置，需管理员添加后使用</span>
+              <span className="shrink-0 text-xs text-ink-muted" title="内置服务的模型列表由服务器配置">未配置，需管理员添加后使用</span>
             ) : result.ok && onUseModel && (currentModel === result.model ? (
-              <span className="flex shrink-0 items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700">
+              <span className="flex shrink-0 items-center gap-1 rounded-lg bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 dark:bg-green-950/45 dark:text-green-300">
                 <CircleCheck className="h-3.5 w-3.5" />
                 当前模型
               </span>
@@ -270,7 +272,7 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
                 disabled={switching}
                 title="保存设置，并在对话中切换到此模型"
                 aria-label="保存设置，并在对话中切换到此模型"
-                className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+                className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {switching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
                 设为当前模型
@@ -338,12 +340,12 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
       <SectionHeader title={provider.name} description="内置模型服务，模型列表由服务器配置。" />
 
       {provider.hasEnvKey && (
-        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-          <Server className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-          <div className="text-xs text-blue-700">
+        <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-800/50 dark:bg-blue-950/45">
+          <Server className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+          <div className="text-xs text-blue-700 dark:text-blue-300">
             <p className="font-medium">服务器已配置 API Key</p>
-            <p className="mt-0.5 text-blue-600">服务器密钥仅在服务端使用，不会保存到浏览器。</p>
-            <p className="mt-1 text-blue-500">
+            <p className="mt-0.5 text-blue-600 dark:text-blue-300/90">服务器密钥仅在服务端使用，不会保存到浏览器。</p>
+            <p className="mt-1 text-blue-500 dark:text-blue-400">
               {draft.hasSavedKey ? '当前使用浏览器本地保存的 Key（优先级更高）' : '如需覆盖，可在下方输入新的 Key'}
             </p>
           </div>
@@ -357,7 +359,7 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
         <ApiKeyInput value={draft.apiKeyInput} onChange={(v) => onChange({ apiKeyInput: v })} />
         {draft.hasSavedKey && <SavedKeyNotice onClear={onClearKey} />}
         {!hasAnyKey && (
-          <p className="mt-1.5 text-xs text-amber-700">
+          <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-300">
             未检测到 {provider.name} 的 API Key，请输入后保存，或联系管理员在服务器配置
           </p>
         )}
@@ -379,7 +381,7 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-sm font-medium text-stone-700">模型</label>
+          <label className="text-sm font-medium text-ink-secondary">模型</label>
           <button
             type="button"
             onClick={handleFetchModels}
@@ -392,27 +394,27 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
             从服务获取
           </button>
         </div>
-        <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200" aria-label="已配置的模型">
+        <ul className="divide-y divide-line-subtle rounded-xl border border-line" aria-label="已配置的模型">
           {provider.models.map((m) => {
             const notReturned = comparison?.missing.some((x) => x.id === m.id)
             return (
               <li key={m.id} className="flex items-center gap-2 px-3 py-2 text-xs">
-                <span className="font-mono text-stone-800">{m.id}</span>
-                {m.name && m.name !== m.id && <span className="text-stone-500">{m.name}</span>}
+                <span className="font-mono text-ink">{m.id}</span>
+                {m.name && m.name !== m.id && <span className="text-ink-muted">{m.name}</span>}
                 {m.id === provider.defaultModel && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">默认</span>}
                 {comparison && (notReturned ? (
-                  <span className="ml-auto shrink-0 text-amber-700" title="服务的模型列表中没有此 ID，可能已更名或下线">服务未返回</span>
+                  <span className="ml-auto shrink-0 text-amber-700 dark:text-amber-300" title="服务的模型列表中没有此 ID，可能已更名或下线">服务未返回</span>
                 ) : (
-                  <span className="ml-auto shrink-0 text-green-700">服务可用</span>
+                  <span className="ml-auto shrink-0 text-green-700 dark:text-green-300">服务可用</span>
                 ))}
               </li>
             )
           })}
         </ul>
         <p className={hintClass}>内置服务的模型列表由服务器配置，此处只能查看，不能修改。</p>
-        {fetchError && <p role="alert" className="mt-1 text-xs text-red-600">{fetchError}</p>}
+        {fetchError && <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">{fetchError}</p>}
         {comparison && (
-          <div className="mt-2 space-y-1.5 rounded-xl bg-stone-50 p-3 text-xs text-stone-700" aria-live="polite">
+          <div className="mt-2 space-y-1.5 rounded-xl bg-surface-muted p-3 text-xs text-ink-secondary" aria-live="polite">
             <p>
               服务返回 {fetchedIds?.length ?? 0} 个模型：{comparison.configured.length} 个已配置
               {comparison.unconfigured.length > 0 && `，${comparison.unconfigured.length} 个未配置`}
@@ -422,10 +424,10 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
               <>
                 <ul className="flex flex-wrap gap-1.5" aria-label="服务提供但未配置的模型">
                   {comparison.unconfigured.map((id) => (
-                    <li key={id} className="rounded-md border border-stone-200 bg-white px-1.5 py-0.5 font-mono">{id}</li>
+                    <li key={id} className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono">{id}</li>
                   ))}
                 </ul>
-                <p className="text-stone-500">未配置的模型可在下方连接测试；如需在对话中使用，请联系管理员加入服务器配置。</p>
+                <p className="text-ink-muted">未配置的模型可在下方连接测试；如需在对话中使用，请联系管理员加入服务器配置。</p>
               </>
             )}
           </div>
@@ -487,7 +489,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onModelsFetched, 
           <button
             type="button"
             onClick={onRemove}
-            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-stone-500 transition-colors hover:bg-red-50 hover:text-red-600"
+            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400"
           >
             <Trash2 className="h-3.5 w-3.5" />
             删除服务
@@ -540,7 +542,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onModelsFetched, 
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-sm font-medium text-stone-700">模型</label>
+          <label className="text-sm font-medium text-ink-secondary">模型</label>
           <button
             type="button"
             onClick={handleFetchModels}
@@ -559,7 +561,7 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onModelsFetched, 
           className={`${inputClass} font-mono leading-relaxed resize-none`}
         />
         <p className={hintClass}>每行一个，第一个为默认模型。本应用依赖工具调用（function calling），请选择支持工具调用的模型。</p>
-        {fetchMessage && <p className="mt-1 text-xs text-stone-700">{fetchMessage}</p>}
+        {fetchMessage && <p className="mt-1 text-xs text-ink-secondary">{fetchMessage}</p>}
       </div>
 
       <ConnectionTester
@@ -595,6 +597,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     toolCallCollapseMode, setToolCallCollapseMode,
     maxSqlExecutions, setMaxSqlExecutions,
   } = useSettings()
+  const { themeMode, setThemeMode, themeAccent, setThemeAccent } = useTheme()
 
   const [activeTab, setActiveTab] = useState(provider)
   const [section, setSection] = useState<SettingsSection>('models')
@@ -757,7 +760,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
 
   const navItemClass = (selected: boolean, indent = false) => `flex w-auto shrink-0 items-center gap-2 whitespace-nowrap rounded-lg py-2 text-sm transition-colors sm:w-full ${
     indent ? 'px-3 sm:pl-9' : 'px-3'
-  } ${selected ? 'bg-white font-medium text-primary shadow-sm ring-1 ring-stone-200' : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'}`
+  } ${selected ? 'bg-surface font-medium text-primary shadow-sm ring-1 ring-line' : 'text-ink-secondary hover:bg-surface-hover hover:text-ink'}`
 
   const providerNavItems = [
     ...serverProviders.map((p) => ({ id: p.id, name: p.name, configured: p.hasEnvKey || !!serverDrafts[p.id]?.hasSavedKey })),
@@ -772,18 +775,18 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       closeOnBackdrop={false}
       className="flex h-[min(720px,calc(100dvh-2rem))] max-w-4xl flex-col overflow-hidden"
     >
-        <div className="flex shrink-0 items-center justify-between border-b border-stone-200 px-6 py-4">
-          <ModalTitle className="text-lg font-bold text-stone-900">设置</ModalTitle>
-          <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-stone-100">
-            <X className="h-5 w-5 text-stone-500" />
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-6 py-4">
+          <ModalTitle className="text-lg font-bold text-ink">设置</ModalTitle>
+          <button onClick={onClose} aria-label="关闭设置" className="rounded-lg p-1.5 transition-colors hover:bg-surface-hover">
+            <X className="h-5 w-5 text-ink-muted" />
           </button>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
           {/* Section navigation: a column on wide screens, a scrolling strip on phones */}
-          <nav aria-label="设置分类" className="flex shrink-0 gap-1 overflow-x-auto border-b border-stone-200 bg-stone-50 p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3">
-            <div className="hidden items-center gap-2 px-3 py-2 text-sm font-medium text-stone-900 sm:flex">
-              <Cpu className="h-4 w-4 text-stone-500" />
+          <nav aria-label="设置分类" className="flex shrink-0 gap-1 overflow-x-auto border-b border-line bg-surface-muted p-2 sm:w-56 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:border-b-0 sm:border-r sm:p-3">
+            <div className="hidden items-center gap-2 px-3 py-2 text-sm font-medium text-ink sm:flex">
+              <Cpu className="h-4 w-4 text-ink-muted" />
               模型服务
             </div>
             {providerNavItems.map((item) => (
@@ -797,7 +800,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 <span
                   title={item.configured ? '已配置 API Key' : '未配置 API Key'}
                   aria-label={item.configured ? '已配置 API Key' : '未配置 API Key'}
-                  className={`h-2 w-2 shrink-0 rounded-full ${item.configured ? 'bg-green-500' : 'border border-stone-400'}`}
+                  className={`h-2 w-2 shrink-0 rounded-full ${item.configured ? 'bg-green-500' : 'border border-ink-faint'}`}
                 />
               </button>
             ))}
@@ -810,7 +813,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
               添加服务
             </button>
 
-            <div className="my-2 hidden border-t border-stone-200 sm:block" />
+            <div className="my-2 hidden border-t border-line sm:block" />
 
             <button onClick={() => setSection('display')} aria-current={section === 'display' ? 'page' : undefined} className={navItemClass(section === 'display')}>
               <PanelsTopLeft className="h-4 w-4" />
@@ -857,10 +860,10 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                     <button
                       key={t.key}
                       onClick={() => addFromTemplate(t)}
-                      className="rounded-xl border border-stone-200 px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      className="rounded-xl border border-line px-3 py-2.5 text-left text-sm transition-colors hover:border-primary/50 hover:bg-primary/5"
                     >
-                      <div className="font-medium text-stone-800">{t.name}</div>
-                      <div className="truncate font-mono text-xs text-stone-500">{t.baseURL || '手动填写地址'}</div>
+                      <div className="font-medium text-ink">{t.name}</div>
+                      <div className="truncate font-mono text-xs text-ink-muted">{t.baseURL || '手动填写地址'}</div>
                     </button>
                   ))}
                 </div>
@@ -868,22 +871,92 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             )}
 
             {section === 'display' && (
-              <div className="space-y-5">
-                <SectionHeader title="默认折叠状态" description="控制聊天中思考过程与工具调用的展开/收起策略。" />
-                <div className="divide-y divide-stone-100 rounded-xl border border-stone-200">
-                  <div className="flex items-center justify-between gap-4 px-4 py-3">
-                    <div>
-                      <div className="text-sm text-stone-700">思考过程</div>
-                      <p className="mt-0.5 text-xs text-stone-400">智能模式：思考时自动展开预览，完成后自动收起</p>
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <SectionHeader title="外观与主题" description="切换界面明暗模式与主题强调色，选择后立即生效。" />
+                  <div className="divide-y divide-line-subtle rounded-xl border border-line">
+                    <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+                      <div>
+                        <div className="text-sm text-ink-secondary">外观模式</div>
+                        <p className="mt-0.5 text-xs text-ink-faint">跟随系统时将自动匹配操作系统的深浅色偏好</p>
+                      </div>
+                      <div role="radiogroup" aria-label="外观模式" className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5">
+                        {([
+                          ['light', '浅色', Sun],
+                          ['dark', '深色', Moon],
+                          ['system', '跟随系统', Monitor],
+                        ] as const satisfies readonly [ThemeMode, string, typeof Sun][]).map(([modeValue, modeLabel, Icon]) => (
+                          <button
+                            key={modeValue}
+                            type="button"
+                            role="radio"
+                            aria-checked={themeMode === modeValue}
+                            onClick={() => setThemeMode(modeValue)}
+                            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                              themeMode === modeValue ? 'bg-surface text-primary shadow-sm' : 'text-ink-muted hover:text-ink-secondary'
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            <span>{modeLabel}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <CollapseToggle value={localThinkingCollapse} onChange={setLocalThinkingCollapse} label="思考过程默认状态" />
+
+                    <div className="space-y-3 px-4 py-3.5">
+                      <div>
+                        <div className="text-sm text-ink-secondary">主题强调色</div>
+                        <p className="mt-0.5 text-xs text-ink-faint">作用于按钮、选中态、品牌标识与图表主色</p>
+                      </div>
+                      <div role="radiogroup" aria-label="主题色" className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {THEME_ACCENTS.map((item) => {
+                          const selected = themeAccent === item.id
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              onClick={() => setThemeAccent(item.id)}
+                              title={`${item.label} · ${item.description}`}
+                              className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-2.5 text-xs transition-all ${
+                                selected
+                                  ? 'border-primary bg-primary/10 font-semibold text-primary shadow-sm'
+                                  : 'border-line bg-surface-muted/50 text-ink-secondary hover:border-line-strong hover:bg-surface-hover'
+                              }`}
+                            >
+                              <span
+                                className="flex h-6 w-6 items-center justify-center rounded-full text-white shadow-xs ring-2 ring-surface"
+                                style={{ backgroundColor: item.swatch }}
+                              >
+                                {selected && <Check className="h-3.5 w-3.5 stroke-[2.5]" />}
+                              </span>
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-4 px-4 py-3">
-                    <div>
-                      <div className="text-sm text-stone-700">工具调用</div>
-                      <p className="mt-0.5 text-xs text-stone-400">智能模式：默认收起，调用出错时自动展开</p>
+                </div>
+
+                <div className="space-y-4">
+                  <SectionHeader title="默认折叠状态" description="控制聊天中思考过程与工具调用的展开/收起策略。" />
+                  <div className="divide-y divide-line-subtle rounded-xl border border-line">
+                    <div className="flex items-center justify-between gap-4 px-4 py-3">
+                      <div>
+                        <div className="text-sm text-ink-secondary">思考过程</div>
+                        <p className="mt-0.5 text-xs text-ink-faint">智能模式：思考时自动展开预览，完成后自动收起</p>
+                      </div>
+                      <CollapseToggle value={localThinkingCollapse} onChange={setLocalThinkingCollapse} label="思考过程默认状态" />
                     </div>
-                    <CollapseToggle value={localToolCallCollapse} onChange={setLocalToolCallCollapse} label="工具调用默认状态" />
+                    <div className="flex items-center justify-between gap-4 px-4 py-3">
+                      <div>
+                        <div className="text-sm text-ink-secondary">工具调用</div>
+                        <p className="mt-0.5 text-xs text-ink-faint">智能模式：默认收起，调用出错时自动展开</p>
+                      </div>
+                      <CollapseToggle value={localToolCallCollapse} onChange={setLocalToolCallCollapse} label="工具调用默认状态" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -892,12 +965,12 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
             {section === 'sql' && (
               <div className="space-y-5">
                 <SectionHeader title="SQL 执行限制" description="每个会话中最多允许执行的 SQL 次数，防止 AI 过度查询。" />
-                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/45 dark:text-amber-300">
                   <ShieldCheck className="mt-px h-4 w-4 shrink-0" />
                   <p>请使用 MySQL 只读账号连接生产库。默认仅允许查询；写入须由管理员在服务器为指定的非生产数据库显式开启。</p>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-stone-200 px-4 py-3">
-                  <label htmlFor="max-sql-executions" className="text-sm text-stone-700">最大执行次数</label>
+                <div className="flex items-center justify-between rounded-xl border border-line px-4 py-3">
+                  <label htmlFor="max-sql-executions" className="text-sm text-ink-secondary">最大执行次数</label>
                   <input
                     id="max-sql-executions"
                     type="number"
@@ -910,7 +983,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                         setLocalMaxSqlExecutions(Math.max(1, Math.min(100, v)))
                       }
                     }}
-                    className="w-20 rounded-lg border border-stone-300 px-3 py-1.5 text-center text-sm tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    className="w-20 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-center text-sm text-ink tabular-nums outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </div>
               </div>
@@ -918,18 +991,18 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-stone-200 bg-white px-6 py-3">
-          {saveError && <p ref={saveErrorRef} role="alert" className="mr-auto min-w-0 text-xs text-red-600">{saveError}</p>}
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-line bg-surface px-6 py-3">
+          {saveError && <p ref={saveErrorRef} role="alert" className="mr-auto min-w-0 text-xs text-red-600 dark:text-red-400">{saveError}</p>}
           <button
             onClick={onClose}
-            className="rounded-xl border border-stone-300 px-5 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50"
+            className="rounded-xl border border-line-strong px-5 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover"
           >
             关闭
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {saving ? '保存中...' : '保存'}

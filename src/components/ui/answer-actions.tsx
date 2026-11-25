@@ -18,7 +18,7 @@ export interface AnswerActionsBarProps {
 }
 
 const ACTION_BTN =
-  'inline-flex items-center justify-center rounded-md p-1.5 text-stone-400 transition-colors hover:bg-white/80 hover:text-stone-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-40'
+  'inline-flex items-center justify-center rounded-md p-1.5 text-ink-faint transition-colors hover:bg-surface/80 hover:text-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:pointer-events-none disabled:opacity-40'
 
 export function AnswerActionsBar({
   copyText,
@@ -55,7 +55,7 @@ export function AnswerActionsBar({
 
   return (
     <div className={cn('flex items-center gap-0.5 px-1', className)} role="toolbar" aria-label="回答操作">
-      <CopyButton text={copyText} label="复制回答" className="p-1.5 hover:bg-white/80" />
+      <CopyButton text={copyText} label="复制回答" className="p-1.5 hover:bg-surface/80" />
 
       {onRegenerate && (
         <button
@@ -100,7 +100,7 @@ export function AnswerActionsBar({
 
       {onFeedback && (
         <>
-          <span className="mx-1 h-3 w-px bg-stone-200/90" aria-hidden="true" />
+          <span className="mx-1 h-3 w-px bg-line" aria-hidden="true" />
           <button
             type="button"
             onClick={() => handleFeedback('up')}
@@ -109,7 +109,7 @@ export function AnswerActionsBar({
             aria-pressed={feedback === 'up'}
             className={cn(
               ACTION_BTN,
-              feedback === 'up' && 'bg-emerald-50/90 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700',
+              feedback === 'up' && 'bg-emerald-50/90 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-300 dark:hover:bg-emerald-950/65 dark:hover:text-emerald-200',
             )}
           >
             <ThumbsUp className="h-3.5 w-3.5" />
@@ -122,7 +122,7 @@ export function AnswerActionsBar({
             aria-pressed={feedback === 'down'}
             className={cn(
               ACTION_BTN,
-              feedback === 'down' && 'bg-rose-50/90 text-rose-600 hover:bg-rose-50 hover:text-rose-700',
+              feedback === 'down' && 'bg-rose-50/90 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:bg-rose-950/45 dark:text-rose-300 dark:hover:bg-rose-950/65 dark:hover:text-rose-200',
             )}
           >
             <ThumbsDown className="h-3.5 w-3.5" />

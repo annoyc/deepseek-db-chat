@@ -16,6 +16,7 @@ import type { KnowledgeHealth } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
 import { knowledgeHealth } from '@/server/functions/knowledge-chat'
 import { BrandHeader } from '@/components/layout/BrandHeader'
+import { ThemeToggleButton } from '@/components/layout/ThemeToggleButton'
 import { getKnowledgeServiceLabel, KnowledgeServiceStatus } from './KnowledgeServiceStatus'
 import { KnowledgeDocuments } from './KnowledgeDocuments'
 import { DEFAULT_UPLOAD_LIMITS } from '@/lib/knowledge-documents'
@@ -90,7 +91,7 @@ export function KnowledgeSidebar({
             <button
               data-drawer-close
               onClick={createNewSession}
-              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-stone-700 transition-all hover:border-primary/35 hover:bg-white hover:text-primary hover:shadow-sm"
+              className="control-chip flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-ink-secondary transition-all hover:border-primary/35 hover:bg-surface hover:text-primary hover:shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               新建问答
@@ -99,7 +100,7 @@ export function KnowledgeSidebar({
             <button
               data-drawer-close
               onClick={createNewSession}
-              className="rounded-lg p-2 text-sm text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+              className="rounded-lg p-2 text-sm text-ink-muted transition-colors hover:bg-surface/75 hover:text-primary"
               title="新建问答"
               aria-label="新建问答"
             >
@@ -116,7 +117,7 @@ export function KnowledgeSidebar({
                   'flex h-7 w-7 items-center justify-center rounded-lg border',
                   online
                     ? 'border-primary/20 bg-primary/10 text-primary'
-                    : 'border-amber-200 bg-amber-50 text-amber-700',
+                    : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/50 dark:bg-amber-950/45 dark:text-amber-300',
                 )}
                 title={`知识库服务：${getKnowledgeServiceLabel(health, checkingHealth)}`}
               >
@@ -130,13 +131,13 @@ export function KnowledgeSidebar({
               {health?.mode !== 'remote' && <KnowledgeDocuments limits={health?.uploadLimits ?? DEFAULT_UPLOAD_LIMITS} defaultDocuments={health?.defaultDocuments} />}
 
               <div className="py-3">
-                <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-                  <MessageSquarePlus className="h-4 w-4 text-stone-500" />
+                <div className="mb-2 flex items-center gap-1.5 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+                  <MessageSquarePlus className="h-4 w-4 text-ink-muted" />
                   问答历史
                 </div>
 
                 {sortedSessions.length === 0 ? (
-                  <div className="px-2 py-8 text-center text-sm text-stone-400">暂无历史问答</div>
+                  <div className="px-2 py-8 text-center text-sm text-ink-faint">暂无历史问答</div>
                 ) : (
                   <div className="space-y-1">
                     {sortedSessions.map((session) => {
@@ -147,8 +148,8 @@ export function KnowledgeSidebar({
                           key={session.id}
                           className={cn(
                             'group flex items-center gap-2 rounded-xl px-3 py-2 transition-all duration-200',
-                            active ? 'bg-white text-primary shadow-sm ring-1 ring-primary/20' : 'text-stone-600 hover:bg-white/70 hover:text-stone-900',
-                            isSessionStreaming && 'bg-white text-primary shadow-[0_8px_24px_rgba(15,118,110,0.08)] ring-1 ring-primary/25',
+                            active ? 'bg-surface text-primary shadow-sm ring-1 ring-primary/20' : 'text-ink-secondary hover:bg-surface/75 hover:text-ink',
+                            isSessionStreaming && 'bg-surface text-primary session-active-glow ring-1 ring-primary/25',
                           )}
                           title={isSessionStreaming ? `${session.title} · AI 正在工作` : session.title}
                         >
@@ -157,11 +158,11 @@ export function KnowledgeSidebar({
                               {isSessionStreaming && <SessionLoadingIndicator className="mt-px" />}
                               <span className="truncate text-sm font-medium">{session.title}</span>
                             </div>
-                            <div className="text-xs text-stone-400">{getRelativeTime(session.updatedAt)}</div>
+                            <div className="text-xs text-ink-faint">{getRelativeTime(session.updatedAt)}</div>
                           </button>
                           <button
                             onClick={() => setConfirmDeleteId(session.id)}
-                            className="rounded-md p-1 text-stone-400 opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                            className="rounded-md p-1 text-ink-faint opacity-0 transition-opacity hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/50 dark:hover:text-red-400 group-hover:opacity-100"
                             title="删除问答"
                             aria-label="删除问答"
                           >
@@ -177,30 +178,31 @@ export function KnowledgeSidebar({
           )}
         </div>
 
-        <div className="border-t border-stone-200/75">
+        <div className="border-t border-line-subtle">
           {collapsed ? (
             <div className="flex flex-col items-center gap-1 py-2">
               <a
                 href={`${import.meta.env.BASE_URL}evals`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                className="rounded-lg p-2.5 text-ink-muted transition-colors hover:bg-surface/75 hover:text-primary"
                 title="评测报告"
                 aria-label="打开评测报告"
               >
                 <BarChart3 className="h-3.5 w-3.5" />
               </a>
+              <ThemeToggleButton compact />
               <button
                 onClick={() => void refreshHealth()}
                 disabled={checkingHealth}
-                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800 disabled:opacity-50"
+                className="rounded-lg p-2.5 text-ink-muted transition-colors hover:bg-surface/75 hover:text-ink disabled:opacity-50"
                 title={checkingHealth ? '正在检测知识库服务' : '重新检测知识库服务'}
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
               </button>
               <button
                 onClick={onToggleCollapse}
-                className="rounded-lg p-2.5 text-stone-500 transition-colors hover:bg-white/75 hover:text-stone-800"
+                className="rounded-lg p-2.5 text-ink-muted transition-colors hover:bg-surface/75 hover:text-ink"
                 title="展开侧边栏"
                 aria-label="展开侧边栏"
               >
@@ -209,21 +211,24 @@ export function KnowledgeSidebar({
             </div>
           ) : (
             <div className="flex items-center justify-between gap-1 px-3 py-2">
-              <button
-                onClick={() => void refreshHealth()}
-                disabled={checkingHealth}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-600 transition-colors hover:bg-white/75 hover:text-stone-900 disabled:opacity-50"
-                title="只检测知识库服务连接，不生成模型回答"
-                aria-label="只检测知识库服务连接，不生成模型回答"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
-                {checkingHealth ? '检测中...' : '检测服务'}
-              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => void refreshHealth()}
+                  disabled={checkingHealth}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface/75 hover:text-ink disabled:opacity-50"
+                  title="只检测知识库服务连接，不生成模型回答"
+                  aria-label="只检测知识库服务连接，不生成模型回答"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', checkingHealth && 'animate-spin')} />
+                  {checkingHealth ? '检测中...' : '检测服务'}
+                </button>
+                <ThemeToggleButton />
+              </div>
               <a
                 href={`${import.meta.env.BASE_URL}evals`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-stone-500 transition-colors hover:bg-white/75 hover:text-primary"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-muted transition-colors hover:bg-surface/75 hover:text-primary"
                 title="查看 Text-to-SQL 评测报告"
               >
                 <BarChart3 className="h-3.5 w-3.5" />
@@ -236,28 +241,28 @@ export function KnowledgeSidebar({
 
       {confirmDeleteSession && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/35 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm"
           onClick={() => setConfirmDeleteId(null)}
         >
           <div
-            className="mx-4 w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-5 shadow-2xl"
+            className="mx-4 w-full max-w-sm rounded-2xl border border-line bg-surface p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400">
                   <Trash2 className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-stone-950">删除这条问答？</h2>
-                  <p className="mt-1 text-xs leading-5 text-stone-500">
+                  <h2 className="text-sm font-semibold text-ink">删除这条问答？</h2>
+                  <p className="mt-1 text-xs leading-5 text-ink-muted">
                     删除后本地历史无法恢复。
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="rounded-lg p-1.5 text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+                className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-surface-hover hover:text-ink-secondary"
                 title="关闭"
                 aria-label="关闭"
               >
@@ -265,15 +270,15 @@ export function KnowledgeSidebar({
               </button>
             </div>
 
-            <div className="mb-5 rounded-xl border border-stone-200/75 bg-stone-50 px-3 py-2 text-sm font-medium text-stone-700">
+            <div className="mb-5 rounded-xl border border-line bg-surface-muted px-3 py-2 text-sm font-medium text-ink-secondary">
               <div className="truncate">{confirmDeleteSession.title}</div>
-              <div className="mt-0.5 text-xs font-normal text-stone-400">{getRelativeTime(confirmDeleteSession.updatedAt)}</div>
+              <div className="mt-0.5 text-xs font-normal text-ink-faint">{getRelativeTime(confirmDeleteSession.updatedAt)}</div>
             </div>
 
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteId(null)}
-                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-50 hover:text-stone-900"
+                className="rounded-xl border border-line bg-surface px-4 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
               >
                 取消
               </button>

@@ -18,10 +18,10 @@ function RemoveButton({ confirming, onAsk, onConfirm, onCancel, title }: {
   if (confirming) {
     return (
       <span className="flex flex-shrink-0 items-center gap-1 text-xs">
-        <button type="button" onClick={onConfirm} className="rounded px-1.5 py-0.5 font-medium text-red-600 hover:bg-red-50">
+        <button type="button" onClick={onConfirm} className="rounded px-1.5 py-0.5 font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50">
           移除
         </button>
-        <button type="button" onClick={onCancel} className="rounded px-1.5 py-0.5 text-stone-500 hover:bg-stone-100">
+        <button type="button" onClick={onCancel} className="rounded px-1.5 py-0.5 text-ink-muted hover:bg-surface-hover">
           取消
         </button>
       </span>
@@ -31,7 +31,7 @@ function RemoveButton({ confirming, onAsk, onConfirm, onCancel, title }: {
     <button
       type="button"
       onClick={onAsk}
-      className="flex-shrink-0 rounded p-1 text-stone-300 transition-colors hover:bg-red-50 hover:text-red-500"
+      className="flex-shrink-0 rounded p-1 text-ink-faint transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/50 dark:hover:text-red-400"
       title={title}
     >
       <Trash2 className="h-3.5 w-3.5" />
@@ -72,10 +72,10 @@ export function KnowledgeDocumentList({
   const activeDefaults = defaultDocuments.filter(doc => !removed.has(doc.id)).length
 
   return (
-    <div className="border-b border-stone-200/70 py-3">
+    <div className="border-b border-line-subtle py-3">
       <div className="mb-1.5 flex items-center justify-between px-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-          <FolderOpen className="h-4 w-4 text-stone-500" />
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
+          <FolderOpen className="h-4 w-4 text-ink-muted" />
           知识库文档
         </span>
         <button
@@ -83,7 +83,7 @@ export function KnowledgeDocumentList({
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(uploading) || full}
           title={full ? `最多保存 ${limits.maxDocuments} 份文档，请先移除不需要的文档` : '上传文档'}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:text-stone-400 disabled:hover:bg-transparent"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-transparent"
         >
           <Upload className="h-3.5 w-3.5" />
           上传
@@ -100,7 +100,7 @@ export function KnowledgeDocumentList({
           }}
         />
       </div>
-      <p className="px-2 text-xs leading-4 text-stone-400">
+      <p className="px-2 text-xs leading-4 text-ink-faint">
         {`PDF、Word、Markdown、TXT，单个不超过 ${formatBytes(limits.maxBytes)}。文件在本浏览器解析和保存，提问时只发送相关片段`}
       </p>
 
@@ -111,10 +111,10 @@ export function KnowledgeDocumentList({
         </div>
       )}
       {error && (
-        <div role="alert" className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50/80 px-2 py-1.5 text-xs text-amber-800">
+        <div role="alert" className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50/80 px-2 py-1.5 text-xs text-amber-800 dark:bg-amber-950/45 dark:text-amber-300">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
           <span className="flex-1">{error}</span>
-          <button type="button" onClick={onDismissError} className="text-amber-700/70 hover:text-amber-900" title="关闭">
+          <button type="button" onClick={onDismissError} className="text-amber-700/70 hover:text-amber-900 dark:text-amber-300/80 dark:hover:text-amber-200" title="关闭">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -122,30 +122,30 @@ export function KnowledgeDocumentList({
 
       {defaultDocuments.length > 0 && (
         <>
-          <div className="mt-3 flex items-center justify-between px-2 text-xs text-stone-500">
+          <div className="mt-3 flex items-center justify-between px-2 text-xs text-ink-muted">
             <span className="font-medium">默认文档 · 电力市场规则</span>
-            <span className="text-stone-400">{`${activeDefaults}/${defaultDocuments.length} 启用`}</span>
+            <span className="text-ink-faint">{`${activeDefaults}/${defaultDocuments.length} 启用`}</span>
           </div>
           <ul className="subtle-scrollbar mt-1 max-h-56 space-y-1 overflow-y-auto">
             {defaultDocuments.map((doc) => {
               const isRemoved = removed.has(doc.id)
               return (
-                <li key={doc.id} className="rounded-lg px-2 py-1.5 hover:bg-white/70">
+                <li key={doc.id} className="rounded-lg px-2 py-1.5 hover:bg-surface/75">
                   <div className="flex items-center gap-2">
-                    <ScrollText className={cn('h-3.5 w-3.5 flex-shrink-0', isRemoved ? 'text-stone-300' : 'text-primary/70')} />
+                    <ScrollText className={cn('h-3.5 w-3.5 flex-shrink-0', isRemoved ? 'text-ink-faint' : 'text-primary/70')} />
                     <div className="min-w-0 flex-1">
                       <div
-                        className={cn('truncate text-xs font-medium', isRemoved ? 'text-stone-400 line-through' : 'text-stone-700')}
+                        className={cn('truncate text-xs font-medium', isRemoved ? 'text-ink-faint line-through' : 'text-ink-secondary')}
                         title={doc.docNo ? `${doc.title}（${doc.docNo}）` : doc.title}
                       >
                         {doc.title}
                       </div>
-                      <div className="flex min-w-0 items-center gap-1 text-xs text-stone-400">
+                      <div className="flex min-w-0 items-center gap-1 text-xs text-ink-faint">
                         {isRemoved ? (
                           <span>已移除，不参与检索</span>
                         ) : (
                           <span
-                            className={cn('truncate', doc.status !== 'active' && 'text-amber-700')}
+                            className={cn('truncate', doc.status !== 'active' && 'text-amber-700 dark:text-amber-300')}
                             title={`${doc.statusLabel} · ${doc.chunks} 段`}
                           >
                             {`${doc.statusLabel} · ${doc.chunks} 段`}
@@ -192,20 +192,20 @@ export function KnowledgeDocumentList({
         </>
       )}
 
-      <div className="mt-3 flex items-center justify-between px-2 text-xs text-stone-500">
+      <div className="mt-3 flex items-center justify-between px-2 text-xs text-ink-muted">
         <span className="font-medium">我上传的</span>
-        <span className="text-stone-400">{`${documents.length}/${limits.maxDocuments}`}</span>
+        <span className="text-ink-faint">{`${documents.length}/${limits.maxDocuments}`}</span>
       </div>
-      {documents.length === 0 && <p className="px-2 pt-1 text-xs text-stone-400">暂无上传的文档</p>}
+      {documents.length === 0 && <p className="px-2 pt-1 text-xs text-ink-faint">暂无上传的文档</p>}
       {documents.length > 0 && (
         <ul className="subtle-scrollbar mt-1 max-h-48 space-y-1 overflow-y-auto">
           {documents.map((doc) => (
-            <li key={doc.id} className="group rounded-lg px-2 py-1.5 hover:bg-white/70">
+            <li key={doc.id} className="group rounded-lg px-2 py-1.5 hover:bg-surface/75">
               <div className="flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5 flex-shrink-0 text-stone-400" />
+                <FileText className="h-3.5 w-3.5 flex-shrink-0 text-ink-faint" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-medium text-stone-700" title={doc.name}>{doc.title}</div>
-                  <div className="text-xs text-stone-400">
+                  <div className="truncate text-xs font-medium text-ink-secondary" title={doc.name}>{doc.title}</div>
+                  <div className="text-xs text-ink-faint">
                     {`${KIND_LABEL[doc.kind]} · ${formatBytes(doc.size)} · ${doc.chunks.length} 段${doc.embeddingKey ? '' : ' · 关键词检索'}`}
                   </div>
                 </div>
