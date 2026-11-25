@@ -342,13 +342,13 @@ export function ContextUsageIndicator(props: ContextUsageIndicatorProps) {
           aria-label={label}
           title={label}
           className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
+            'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary',
             style.pill,
           )}
         >
           <svg
             viewBox="0 0 20 20"
-            className="h-4 w-4 -rotate-90 shrink-0"
+            className="h-3.5 w-3.5 -rotate-90 shrink-0"
             aria-hidden="true"
           >
             <circle
@@ -376,7 +376,7 @@ export function ContextUsageIndicator(props: ContextUsageIndicatorProps) {
       </PopoverTrigger>
       <PopoverContent
         side="top"
-        align="end"
+        align="start"
         sideOffset={8}
         className="w-80 rounded-2xl border border-line bg-popover/95 p-4 shadow-xl backdrop-blur-md"
       >

@@ -227,9 +227,6 @@ export function MessageInput() {
                   <span>{sqlPermission === 'write' ? '可写入' : '仅查询'}</span>
                 </button>
               )}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
               <ContextUsageIndicator
                 usage={contextUsage}
                 modelName={currentModelDisplay}
@@ -239,6 +236,9 @@ export function MessageInput() {
                 onSetContextWindow={model ? (tokens) => setModelContextWindow(provider, model, tokens) : undefined}
                 toolLabel="工具结果与 SQL 记录"
               />
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
               {isStreaming ? (
                 <button
                   onClick={stopStreaming}

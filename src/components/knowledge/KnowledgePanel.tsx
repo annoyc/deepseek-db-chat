@@ -562,9 +562,6 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div className="flex shrink-0 items-center gap-2">
                 <ContextUsageIndicator
                   usage={contextUsage}
                   modelName={currentModelDisplay}
@@ -576,6 +573,9 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                   toolLabel="检索与联网资料"
                   historyNote="知识库问答每次最多携带最近 6 轮历史对话与本轮检索条款。"
                 />
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
                 {isStreaming ? (
                   <button
                     onClick={stopStreaming}
