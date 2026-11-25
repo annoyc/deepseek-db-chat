@@ -340,12 +340,12 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
       <SectionHeader title={provider.name} description="内置模型服务，模型列表由服务器配置。" />
 
       {provider.hasEnvKey && (
-        <div className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-800/50 dark:bg-blue-950/45">
-          <Server className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-          <div className="text-xs text-blue-700 dark:text-blue-300">
-            <p className="font-medium">服务器已配置 API Key</p>
-            <p className="mt-0.5 text-blue-600 dark:text-blue-300/90">服务器密钥仅在服务端使用，不会保存到浏览器。</p>
-            <p className="mt-1 text-blue-500 dark:text-blue-400">
+        <div className="flex items-start gap-2.5 rounded-xl border border-primary/25 bg-primary/8 p-3 dark:bg-primary/10">
+          <Server className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+          <div className="text-xs">
+            <p className="font-medium text-primary">服务器已配置 API Key</p>
+            <p className="mt-0.5 text-ink-secondary">服务器密钥仅在服务端使用，不会保存到浏览器。</p>
+            <p className="mt-1 text-ink-muted">
               {draft.hasSavedKey ? '当前使用浏览器本地保存的 Key（优先级更高）' : '如需覆盖，可在下方输入新的 Key'}
             </p>
           </div>
