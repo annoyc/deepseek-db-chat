@@ -16,6 +16,8 @@ const CHAT_MIN_W = 520
 interface KnowledgeWorkbenchProps {
   activeApp: AppMode
   onAppChange: (app: AppMode) => void
+  pendingApp?: AppMode | null
+  onAppIntent?: (app: AppMode) => void
   sidebarCollapsed?: boolean
   onToggleSidebar?: () => void
 }
@@ -23,6 +25,8 @@ interface KnowledgeWorkbenchProps {
 export function KnowledgeWorkbench({
   activeApp,
   onAppChange,
+  pendingApp,
+  onAppIntent,
   sidebarCollapsed = false,
   onToggleSidebar,
 }: KnowledgeWorkbenchProps) {
@@ -50,6 +54,8 @@ export function KnowledgeWorkbench({
         <KnowledgeSidebar
           activeApp={activeApp}
           onAppChange={onAppChange}
+          pendingApp={pendingApp}
+          onAppIntent={onAppIntent}
           collapsed={isMobile ? false : sidebarCollapsed}
           onToggleCollapse={isMobile ? closeMobileNav : onToggleSidebar}
         />

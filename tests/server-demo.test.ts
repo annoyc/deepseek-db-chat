@@ -12,8 +12,8 @@ import {
   resolveManagedDatabaseConnection,
 } from '@/server/demo-database'
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
-import { databaseConnectionOptions } from '@/server/database-connection'
-import { executeQuery, getPool, closePool } from '@/server/database'
+import { databaseConnectionError, databaseConnectionOptions } from '@/server/database-connection'
+import { executeQuery, getPool, closePool, resolvePoolPolicy } from '@/server/database'
 import { resolveSqlPermission } from '@/server/sql-policy'
 
 const certificate = rootCertificates[0]!
@@ -215,4 +215,76 @@ test('the pool boundary resolves a public stub to the server target with verifie
     })
   } finally { await closePool(DEMO_CONNECTION_ID) }
   assert.equal(ended, 1)
+})
+
+test('resolvePoolPolicy tightens demo and personal pools in serverless runtimes and updates pool on policy change', async (t) => {
+  configureDemo(t)
+  const demo = getDemoDatabaseConnection()!
+  const personal = personalConnection({ ssl: { ca: certificate } })
+
+  assert.deepEqual(resolvePoolPolicy(demo, { VERCEL: '1' }), {
+    connectionLimit: 1,
+    maxIdle: 0,
+    idleTimeout: 10_000,
+    queueLimit: 16,
+  })
+  assert.deepEqual(resolvePoolPolicy(demo, { VERCEL: '1', DEMO_DB_POOL_LIMIT: '3' }), {
+    connectionLimit: 3,
+    maxIdle: 0,
+    idleTimeout: 10_000,
+    queueLimit: 16,
+  })
+  assert.deepEqual(resolvePoolPolicy(personal, { VERCEL: '1' }), {
+    connectionLimit: 2,
+    maxIdle: 0,
+    idleTimeout: 15_000,
+    queueLimit: 16,
+  })
+  assert.deepEqual(resolvePoolPolicy(personal, {}), {
+    connectionLimit: 5,
+    maxIdle: 2,
+    idleTimeout: 60_000,
+    queueLimit: 0,
+  })
+
+  const prevVercel = process.env.VERCEL
+  const prevLimit = process.env.DEMO_DB_POOL_LIMIT
+  const configs: mysql.PoolOptions[] = []
+  let ended = 0
+  t.mock.method(mysql, 'createPool', (config: mysql.PoolOptions) => {
+    configs.push(config)
+    return { end: async () => { ended++ } } as any
+  })
+  try {
+    process.env.VERCEL = '1'
+    delete process.env.DEMO_DB_POOL_LIMIT
+    const stub = { ...getPublicDemoConnection()!, password: '' }
+    getPool(stub)
+    assert.equal(configs[0]!.connectionLimit, 1)
+    assert.equal(configs[0]!.maxIdle, 0)
+    assert.equal(configs[0]!.queueLimit, 16)
+
+    process.env.DEMO_DB_POOL_LIMIT = '2'
+    getPool(stub)
+    assert.equal(configs.length, 2)
+    assert.equal(configs[1]!.connectionLimit, 2)
+    assert.equal(ended, 1)
+  } finally {
+    if (prevVercel === undefined) delete process.env.VERCEL
+    else process.env.VERCEL = prevVercel
+    if (prevLimit === undefined) delete process.env.DEMO_DB_POOL_LIMIT
+    else process.env.DEMO_DB_POOL_LIMIT = prevLimit
+    await closePool(DEMO_CONNECTION_ID)
+  }
+})
+
+test('databaseConnectionError surfaces friendly saturation message for too many connections', () => {
+  assert.equal(
+    databaseConnectionError(Object.assign(new Error('Too many connections'), { code: 'ER_CON_COUNT_ERROR' })),
+    '当前数据库连接繁忙（已达并发连接上限），请稍后重试',
+  )
+  assert.equal(
+    databaseConnectionError(Object.assign(new Error('Queue limit reached.'), { code: 'POOL_ENQUEUELIMIT' })),
+    '当前数据库连接繁忙（已达并发连接上限），请稍后重试',
+  )
 })

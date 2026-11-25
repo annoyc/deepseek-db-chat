@@ -18,9 +18,11 @@ interface SidebarProps {
   onToggleCollapse?: () => void
   activeApp: AppMode
   onAppChange: (app: AppMode) => void
+  pendingApp?: AppMode | null
+  onAppIntent?: (app: AppMode) => void
 }
 
-export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppChange }: SidebarProps) {
+export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppChange, pendingApp, onAppIntent }: SidebarProps) {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
   const [dbSectionCollapsed, setDbSectionCollapsed] = useState(false)
@@ -58,7 +60,13 @@ export function Sidebar({ collapsed = false, onToggleCollapse, activeApp, onAppC
         <div className={cn('p-3.5', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <BrandHeader collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
 
-          <AppModeSwitch activeApp={activeApp} onAppChange={onAppChange} collapsed={collapsed} />
+          <AppModeSwitch
+            activeApp={activeApp}
+            onAppChange={onAppChange}
+            pendingApp={pendingApp}
+            onAppIntent={onAppIntent}
+            collapsed={collapsed}
+          />
 
           {!collapsed && (
             <button

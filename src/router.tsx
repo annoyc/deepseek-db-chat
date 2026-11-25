@@ -5,6 +5,8 @@ export function getRouter() {
   const router = createRouter({
     routeTree,
     basepath: '/workbench',
+    defaultPreload: 'intent',
+    defaultPreloadStaleTime: 0,
     scrollRestoration: true,
     defaultNotFoundComponent: () => <p>Not Found</p>,
   })

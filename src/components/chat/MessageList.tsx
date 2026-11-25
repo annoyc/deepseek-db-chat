@@ -8,9 +8,10 @@ import { findTurnContext } from '@/lib/message-actions'
 
 interface MessageListProps {
   messages: ChatMessage[]
+  onOpenSettings?: () => void
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onOpenSettings }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const { isStreaming } = useChatStore()
   const shouldAutoScrollRef = useRef(true)
@@ -76,6 +77,7 @@ export function MessageList({ messages }: MessageListProps) {
                 questionText={turn?.userMessage?.content}
                 isLatestTurn={turn?.isLatestTurn ?? true}
                 vizMessageIds={turnVizIds.length > 0 ? turnVizIds : undefined}
+                onOpenSettings={onOpenSettings}
               />
               {message.role === 'assistant' && message.answerDuration != null && (
                 <TaskCompleteIndicator

@@ -12,6 +12,7 @@ import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
 import { CopyButton } from '@/components/ui/copy-button'
 import { AnswerActionsBar } from '@/components/ui/answer-actions'
+import { ErrorCallout } from '@/components/ui/error-callout'
 import { buildExportFilename, buildMarkdownExport, downloadMarkdownFile } from '@/lib/message-actions'
 
 /** The answer as the user reads it: prose only, without thinking or tool output. */
@@ -85,6 +86,7 @@ interface MessageBubbleProps {
   questionText?: string
   isLatestTurn?: boolean
   vizMessageIds?: string[]
+  onOpenSettings?: () => void
 }
 
 function formatStreamingStatus(text?: string) {
@@ -108,7 +110,7 @@ function StreamingIndicator({ text }: { text?: string }) {
 }
 
 
-function AssistantPartsView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
+function AssistantPartsView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds, onOpenSettings }: MessageBubbleProps) {
   const parts = message.parts!
   const toolCalls = message.toolCalls ?? []
   let thinkingIdx = 0
@@ -156,6 +158,8 @@ function AssistantPartsView({ message, isStreaming, thinkingCollapseMode, toolCa
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
+      {message.error && <ErrorCallout message={message.error} onOpenSettings={onOpenSettings} />}
+
       <AnswerActions
         message={message}
         isStreaming={isStreaming}
@@ -182,7 +186,7 @@ function AssistantPartsView({ message, isStreaming, thinkingCollapseMode, toolCa
   )
 }
 
-function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
+function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolCallCollapseMode, questionText, isLatestTurn, vizMessageIds, onOpenSettings }: MessageBubbleProps) {
   const nonSqlToolCalls = message.toolCalls?.filter((tc) => tc.name !== 'execute_sql' && tc.name !== 'smart_filter' && tc.name !== 'plan_query' && tc.name !== 'report_analysis') ?? []
   const planToolCalls = message.toolCalls?.filter((tc) => tc.name === 'plan_query') ?? []
   const hasThinking = Boolean(message.thinking)
@@ -190,7 +194,8 @@ function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolC
   const hasSqlConfirm = Boolean(message.sqlConfirm)
   const hasSmartFilterConfirm = Boolean(message.smartFilterConfirm)
   const hasContent = Boolean(message.content)
-  const hasAnyContent = hasThinking || hasToolCalls || hasSqlConfirm || hasSmartFilterConfirm || hasContent
+  const hasError = Boolean(message.error)
+  const hasAnyContent = hasThinking || hasToolCalls || hasSqlConfirm || hasSmartFilterConfirm || hasContent || hasError
 
   if (!hasAnyContent) return null
 
@@ -226,6 +231,8 @@ function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolC
 
       {showTailIndicator && <StreamingIndicator text={message.statusText} />}
 
+      {message.error && <ErrorCallout message={message.error} onOpenSettings={onOpenSettings} />}
+
       <AnswerActions
         message={message}
         isStreaming={isStreaming}
@@ -252,7 +259,7 @@ function AssistantLegacyView({ message, isStreaming, thinkingCollapseMode, toolC
   )
 }
 
-export function MessageBubble({ message, isStreaming, questionText, isLatestTurn, vizMessageIds }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming, questionText, isLatestTurn, vizMessageIds, onOpenSettings }: MessageBubbleProps) {
   const { thinkingCollapseMode, toolCallCollapseMode } = useSettings()
 
   if (message.role === 'user') {
@@ -273,7 +280,7 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
 
   // Show loading indicator when streaming and message has no content yet
   const hasContent = message.parts && message.parts.length > 0
-  const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm || message.smartFilterConfirm
+  const hasLegacyContent = message.content || message.thinking || (message.toolCalls && message.toolCalls.length > 0) || message.sqlConfirm || message.smartFilterConfirm || message.error
 
   if (isStreaming && !hasContent && !hasLegacyContent) {
     return <StreamingIndicator text={message.statusText} />
@@ -289,6 +296,7 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
         questionText={questionText}
         isLatestTurn={isLatestTurn}
         vizMessageIds={vizMessageIds}
+        onOpenSettings={onOpenSettings}
       />
     )
   }
@@ -302,6 +310,7 @@ export function MessageBubble({ message, isStreaming, questionText, isLatestTurn
       questionText={questionText}
       isLatestTurn={isLatestTurn}
       vizMessageIds={vizMessageIds}
+      onOpenSettings={onOpenSettings}
     />
   )
 }

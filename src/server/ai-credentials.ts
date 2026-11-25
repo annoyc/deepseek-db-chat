@@ -33,6 +33,11 @@ export interface AiTarget {
   defaultModel?: string
 }
 
+export interface AiTargetWithMeta extends AiTarget {
+  /** True when the request relies on a server-managed API key. */
+  usesServerKey: boolean
+}
+
 function normalizeEndpoint(value: string): string {
   let url: URL
   try {
@@ -58,7 +63,7 @@ function isServerKey(key: string): boolean {
  * - Custom (`custom-*`) providers: always the user's own key and endpoint, never a
  *   server key — they are defined in the browser and cannot be trusted.
  */
-export function resolveAiTarget(request: AiRequestConfig): AiTarget {
+export function resolveAiTargetWithMeta(request: AiRequestConfig): AiTargetWithMeta {
   const providerId = request.provider?.trim() || 'deepseek'
   if (!PROVIDER_ID_PATTERN.test(providerId)) throw new Error('模型服务标识无效')
 
@@ -78,6 +83,7 @@ export function resolveAiTarget(request: AiRequestConfig): AiTarget {
       baseURL: normalizeEndpoint(requestedBaseURL),
       thinkingStyle,
       supportsBeta: false,
+      usesServerKey: false,
     }
   }
 
@@ -105,7 +111,13 @@ export function resolveAiTarget(request: AiRequestConfig): AiTarget {
     thinkingStyle: provider.thinkingStyle,
     supportsBeta: provider.supportsBeta,
     defaultModel: provider.defaultModel,
+    usesServerKey,
   }
+}
+
+export function resolveAiTarget(request: AiRequestConfig): AiTarget {
+  const { usesServerKey: _unused, ...target } = resolveAiTargetWithMeta(request)
+  return target
 }
 
 /** @deprecated Prefer resolveAiTarget; kept for callers that only need key + endpoint. */

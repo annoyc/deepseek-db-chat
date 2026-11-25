@@ -7,6 +7,8 @@ import { DataSummary } from '../src/components/chat/DataSummary'
 import { AnalysisReportCard } from '../src/components/chat/AnalysisReportCard'
 import { KnowledgeContextPanel } from '../src/components/knowledge/KnowledgeContextPanel'
 import { getKnowledgeServiceLabel, KnowledgeServiceStatus } from '../src/components/knowledge/KnowledgeServiceStatus'
+import { ErrorCallout } from '../src/components/ui/error-callout'
+import { AppModeSwitch } from '../src/components/layout/AppModeSwitch'
 import { formatResultMetricValue, formatResultStatistic } from '../src/lib/result-data'
 import type { SqlResultInfo } from '../src/lib/types'
 import type { KnowledgeHealth, KnowledgeMessage } from '../src/lib/knowledge-types'
@@ -73,4 +75,33 @@ test('knowledge Q/A evidence is marked unverified while real web source links re
   assert.ok(markup.includes('历史问答片段，未核验原始依据'))
   assert.ok(markup.includes('历史回答'))
   assert.ok(markup.includes('href="https://example.com/rules"'))
+})
+
+test('ErrorCallout shows one-click settings button only for API key / demo quota errors', () => {
+  const rateLimitHtml = renderToStaticMarkup(createElement(ErrorCallout, {
+    message: '公共演示通道请求较频繁，请在 15 秒后重试，或点击「设置 → 模型服务」填入自有 API Key 继续无限使用。',
+    onOpenSettings() {},
+  }))
+  assert.ok(rateLimitHtml.includes('role="alert"'))
+  assert.ok(rateLimitHtml.includes('打开设置配置 API Key'))
+
+  const unrelatedHtml = renderToStaticMarkup(createElement(ErrorCallout, {
+    message: '知识库服务暂不可用，请稍后重试',
+    onOpenSettings() {},
+  }))
+  assert.equal(unrelatedHtml.includes('打开设置配置 API Key'), false)
+})
+
+test('AppModeSwitch renders semantic navigation links with optimistic pending highlight', () => {
+  const html = renderToStaticMarkup(createElement(AppModeSwitch, {
+    activeApp: 'database',
+    pendingApp: 'knowledge',
+    onAppChange() {},
+  }))
+  assert.ok(html.includes('href="/workbench/dbpilot"'))
+  assert.ok(html.includes('href="/workbench/knowledge"'))
+  assert.ok(html.includes('data-drawer-close'))
+  // Optimistic pendingApp moves aria-current="page" to knowledge immediately.
+  assert.match(html, /href="\/workbench\/knowledge"[^>]*aria-current="page"/)
+  assert.doesNotMatch(html, /href="\/workbench\/dbpilot"[^>]*aria-current="page"/)
 })

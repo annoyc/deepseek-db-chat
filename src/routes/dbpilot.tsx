@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { VisualizationPanel, VizPanelContext } from '@/components/chat/VisualizationPanel'
 import { ResizeHandle } from '@/components/layout/ResizeHandle'
 import { SidebarFrame, SidePanelOverlay } from '@/components/layout/ResponsiveFrames'
-import type { AppMode } from '@/components/layout/AppModeSwitch'
+import { useAppNavigation } from '@/hooks/useAppNavigation'
 import { useChatStore } from '@/hooks/useChat'
 import { MOBILE_QUERY, NARROW_QUERY, useLayout, useMediaQuery, useViewportWidth } from '@/hooks/useLayout'
 
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/dbpilot')({
 })
 
 function DbpilotPage() {
-  const navigate = useNavigate()
+  const { pendingApp, preloadApp, handleAppChange } = useAppNavigation('database')
   const { sidebarCollapsed, toggleSidebar, vizWidth, setVizWidth } = useLayout()
   const isMobile = useMediaQuery(MOBILE_QUERY)
   const isNarrow = useMediaQuery(NARROW_QUERY)
@@ -54,10 +54,6 @@ function DbpilotPage() {
   useEffect(() => {
     setFocusedVizId(null)
   }, [vizCount])
-
-  const handleAppChange = useCallback((app: AppMode) => {
-    navigate({ to: app === 'knowledge' ? '/knowledge' : '/dbpilot' })
-  }, [navigate])
 
   const focusVizItem = useCallback((messageId: string) => {
     setVizOpenPref(true)
@@ -98,6 +94,8 @@ function DbpilotPage() {
             onToggleCollapse={isMobile ? closeMobileNav : toggleSidebar}
             activeApp="database"
             onAppChange={handleAppChange}
+            pendingApp={pendingApp}
+            onAppIntent={preloadApp}
           />
         </SidebarFrame>
         <main className="flex-1 flex min-w-0">

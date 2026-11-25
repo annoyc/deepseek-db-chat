@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { executeQuery } from '@/server/database'
+import { databaseConnectionError } from '@/server/database-connection'
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { validateSql } from '@/lib/sql-guard'
 import { resolveSqlPermission } from '@/server/sql-policy'
@@ -54,7 +55,21 @@ export const confirmAndExecuteSql = createServerFn({ method: 'POST', strict: fal
         return { success: true, data: result }
       } catch (err) {
         console.error('[confirm-sql] Execute error:', err)
-        return { success: false, error: err instanceof Error ? err.message : String(err) }
+        const code = (err as { code?: string } | null)?.code ?? ''
+        const message = [
+          'ER_CON_COUNT_ERROR',
+          'ER_USER_LIMIT_REACHED',
+          'ER_TOO_MANY_USER_CONNECTIONS',
+          'POOL_ENQUEUELIMIT',
+          'ETIMEDOUT',
+          'ESOCKETTIMEDOUT',
+          'ECONNREFUSED',
+          'ECONNRESET',
+          'PROTOCOL_CONNECTION_LOST',
+        ].includes(code)
+          ? databaseConnectionError(err)
+          : err instanceof Error ? err.message : String(err)
+        return { success: false, error: message }
       }
     }
   )

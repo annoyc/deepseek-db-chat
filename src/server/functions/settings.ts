@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { THINKING_STYLES } from '@/core/provider'
 import { checkServerKey, describeServerProviders, fetchProviderModelInfos, testProviderConnection, type ConnectionTestResult, type FetchedProviderModel, type ServerProviderInfo } from '@/server/providers'
+import { enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { z } from 'zod'
 
 const providerIdSchema = z.string().max(64)
@@ -29,7 +30,11 @@ export const listProviderModels = createServerFn({ method: 'POST' })
     baseURL: z.string().max(2_048).optional(),
     thinkingStyle: z.enum(THINKING_STYLES).optional(),
   }).parse(data))
-  .handler(async ({ data }): Promise<FetchedProviderModel[]> => fetchProviderModelInfos(data, getRequest().signal))
+  .handler(async ({ data }): Promise<FetchedProviderModel[]> => {
+    const request = getRequest()
+    enforceServerKeyRateLimit(data, request, 'aux')
+    return fetchProviderModelInfos(data, request.signal)
+  })
 
 /** Probe streaming + tool calls, JSON output and the thinking parameter for one model. */
 export const testProviderConnectionFn = createServerFn({ method: 'POST' })
@@ -40,4 +45,8 @@ export const testProviderConnectionFn = createServerFn({ method: 'POST' })
     baseURL: z.string().max(2_048).optional(),
     thinkingStyle: z.enum(THINKING_STYLES).optional(),
   }).parse(data))
-  .handler(async ({ data }): Promise<ConnectionTestResult> => testProviderConnection(data, getRequest().signal))
+  .handler(async ({ data }): Promise<ConnectionTestResult> => {
+    const request = getRequest()
+    enforceServerKeyRateLimit(data, request, 'aux')
+    return testProviderConnection(data, request.signal)
+  })

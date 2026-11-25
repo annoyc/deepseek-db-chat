@@ -64,6 +64,8 @@ export interface ChatMessage {
   smartFilterConfirm?: SmartFilterConfirmInfo
   smartFilterValues?: Record<number, FilterValue>
   analysisReport?: AnalysisReport
+  /** User-visible error message when a turn fails or hits rate limits. */
+  error?: string
   /** Suspended agent run behind this message's pending confirmation. Dropped once a newer turn starts. */
   agentState?: { state: unknown; toolCallId: string }
   statusText?: string

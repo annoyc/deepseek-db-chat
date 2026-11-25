@@ -10,6 +10,7 @@ import { createChatEventMapper, parseResume, type ChatResumeInput } from '@/serv
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { resolveSqlPermission } from '@/server/sql-policy'
 import { langfuseSpanProcessor, flushTraces, resolveUserId } from '@/server/langfuse'
+import { describeAiServiceError, enforceServerKeyRateLimit } from '@/server/rate-limit'
 import type { DatabaseConnection, StreamChunk, ExecutionLogEntry } from '@/lib/types'
 
 interface ChatInput {
@@ -45,9 +46,25 @@ export const chatStream = createServerFn({ method: 'POST' })
         const controller = { enqueue }
 
         const runChat = async () => {
+          let usesServerKey = false
           try {
             if (!data.isContinuation && maskPII(data.message) !== data.message) {
               controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: '请使用非敏感内部编号查询，敏感标识不会发送给模型' })))
+              controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
+              return
+            }
+            try {
+              const target = enforceServerKeyRateLimit({
+                provider: data.provider,
+                model: data.model,
+                apiKey: data.apiKey,
+                baseURL: data.baseURL,
+                thinkingStyle: data.thinkingStyle,
+              }, request, 'chat')
+              usesServerKey = target.usesServerKey
+            } catch (err) {
+              const message = err instanceof Error ? err.message : '模型配置无效'
+              controller.enqueue(encoder.encode(formatSSE({ type: 'error', message })))
               controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
               return
             }
@@ -110,9 +127,11 @@ export const chatStream = createServerFn({ method: 'POST' })
           } catch (err) {
             signal.throwIfAborted()
             console.error('[chat] Agent stream error:', err instanceof Error ? err.name : 'UnknownError')
-            const msg = err instanceof Error && (err.name === 'TimeoutError' || (err as { type?: string }).type === 'timeout')
-              ? 'AI 响应超时，请重试'
-              : 'AI 服务异常，请稍后重试或检查服务配置'
+            const msg = describeAiServiceError(err, {
+              usesServerKey,
+              timeoutMessage: 'AI 响应超时，请重试',
+              fallbackMessage: 'AI 服务异常，请稍后重试或检查服务配置',
+            })
             controller.enqueue(encoder.encode(formatSSE({ type: 'error', message: msg })))
             controller.enqueue(encoder.encode(formatSSE({ type: 'finish' })))
           } finally {

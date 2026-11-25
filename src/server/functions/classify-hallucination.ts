@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { generateText } from '@/core'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
+import { enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { parseAnswerCheck, type AnswerCheck } from '@/lib/answer-check'
 import { normalizeModelUsage } from '@/lib/usage'
 import { withTrace } from '@/server/langfuse'
@@ -29,7 +30,8 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
   .inputValidator((data: ClassifyInput) => data)
   .handler(
     async ({ data }): Promise<AnswerCheck> => {
-      const signal = getRequest().signal
+      const request = getRequest()
+      const signal = request.signal
       return withTrace({
         name: 'classify-hallucination',
         sessionId: data.sessionId,
@@ -37,7 +39,8 @@ export const classifyHallucination = createServerFn({ method: 'POST' })
         tags: ['hallucination'],
       }, async () => {
         try {
-            const model = createRequestModel(data, { thinking: { type: 'disabled' } })
+          enforceServerKeyRateLimit(data, request, 'aux')
+          const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
           const promptParts = [
             `hasToolCalls：${data.hasToolCalls ? '是' : '否'}`,

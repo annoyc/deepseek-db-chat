@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { generateText } from '@/core'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
+import { enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { resolveDatabaseConnection } from '@/server/resolve-connection'
 import { withTrace } from '@/server/langfuse'
 import { listTables, getPool } from '@/server/database'
@@ -35,7 +36,8 @@ const SUGGESTION_PROMPT = `你是一个数据库分析专家。根据以下数�
 export const generateSuggestions = createServerFn({ method: 'POST' })
   .inputValidator((data: GenerateSuggestionsInput) => data)
   .handler(async ({ data }): Promise<string[]> => {
-    const signal = getRequest().signal
+    const request = getRequest()
+    const signal = request.signal
       return withTrace({
       name: 'generate-suggestions',
       sessionId: data.sessionId,
@@ -74,6 +76,7 @@ export const generateSuggestions = createServerFn({ method: 'POST' })
         const tableSummary = tableInfos.slice(0, 40).join('\n')
         const truncated = tableInfos.length > 40 ? `\n...共 ${tableInfos.length} 张表` : ''
 
+        enforceServerKeyRateLimit(data, request, 'aux')
         const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
         const nonce = data.refreshNonce ?? Math.random().toString(36).slice(2, 10)

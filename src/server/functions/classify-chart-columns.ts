@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { generateText } from '@/core'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
+import { enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { sanitizeModelData } from '@/lib/masking'
 import { withTrace } from '@/server/langfuse'
 
@@ -32,7 +33,8 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
   .inputValidator((data: ClassifyInput) => data)
   .handler(
     async ({ data }): Promise<ChartColumnClassification | null> => {
-      const signal = getRequest().signal
+      const request = getRequest()
+      const signal = request.signal
       return withTrace({
         name: 'classify-chart-columns',
         sessionId: data.sessionId,
@@ -40,7 +42,8 @@ export const classifyChartColumns = createServerFn({ method: 'POST' })
         tags: ['chart-classify'],
       }, async () => {
         try {
-            const model = createRequestModel(data, { thinking: { type: 'disabled' } })
+          enforceServerKeyRateLimit(data, request, 'aux')
+          const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
           const sample = sanitizeModelData(data.sampleRows.slice(0, 3)) as Record<string, unknown>[]
           const prompt = [

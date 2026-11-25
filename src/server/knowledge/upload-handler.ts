@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { consumeDemoQuota, DemoRateLimitError } from '@/server/rate-limit'
 import { createServerEmbedder } from './embedding'
 import { loadKnowledgeBase } from './knowledge-base'
 import { processUpload, readLimitedBody, UploadError, uploadLimits } from './upload'
@@ -32,6 +33,14 @@ export async function handleKnowledgeUpload(request: Request): Promise<Response>
 
     const kb = await loadKnowledgeBase()
     const embed = kb.embedding ? createServerEmbedder(kb.embedding) : null
+    if (embed) {
+      try {
+        consumeDemoQuota({ request, scope: 'upload' })
+      } catch (err) {
+        if (err instanceof DemoRateLimitError) throw new UploadError(err.message, 429)
+        throw err
+      }
+    }
     const document = await processUpload(parsed.data, {
       limits,
       embedding: kb.embedding && embed ? { info: kb.embedding, embed } : undefined,

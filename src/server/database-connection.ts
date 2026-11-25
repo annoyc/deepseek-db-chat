@@ -78,5 +78,8 @@ export function databaseConnectionError(error: unknown): string {
   if (['ECONNRESET', 'PROTOCOL_CONNECTION_LOST'].includes(code)) return '数据库连接被断开，请检查服务状态、网络和 TLS 配置后重试'
   if (['ER_ACCESS_DENIED_ERROR', 'ER_DBACCESS_DENIED_ERROR'].includes(code)) return '数据库认证或授权失败，请检查用户名、密码及该账号的数据库访问权限'
   if (code === 'ER_BAD_DB_ERROR') return '数据库不存在，请检查数据库名'
+  if (['ER_CON_COUNT_ERROR', 'ER_USER_LIMIT_REACHED', 'ER_TOO_MANY_USER_CONNECTIONS', 'POOL_ENQUEUELIMIT'].includes(code) || /too many connections/i.test(message)) {
+    return '当前数据库连接繁忙（已达并发连接上限），请稍后重试'
+  }
   return '数据库连接失败，请检查服务状态、连接参数和访问权限'
 }

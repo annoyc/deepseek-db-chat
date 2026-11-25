@@ -111,7 +111,7 @@ export function ChatPanel({ vizPanelOpen, onOpenVizPanel, vizCount = 0, onOpenSi
             }}
           />
         ) : (
-          <MessageList messages={messages} />
+          <MessageList messages={messages} onOpenSettings={() => setShowSettings(true)} />
         )}
       </div>
 

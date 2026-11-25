@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { generateText } from '@/core'
 import { createRequestModel, type AiRequestConfig } from '@/server/ai-credentials'
+import { enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { withTrace } from '@/server/langfuse'
 
 interface GenerateTitleInput extends AiRequestConfig {
@@ -22,7 +23,8 @@ const TITLE_PROMPT = `你是一个标题生成器。根据以下对话内容，�
 export const generateAiTitle = createServerFn({ method: 'POST' })
   .inputValidator((data: GenerateTitleInput) => data)
   .handler(async ({ data }): Promise<string> => {
-    const signal = getRequest().signal
+    const request = getRequest()
+    const signal = request.signal
       return withTrace({
       name: 'generate-title',
       input: { userMessage: data.userMessage.slice(0, 200) },
@@ -31,6 +33,7 @@ export const generateAiTitle = createServerFn({ method: 'POST' })
       tags: ['title'],
     }, async () => {
       try {
+        enforceServerKeyRateLimit(data, request, 'aux')
         const model = createRequestModel(data, { thinking: { type: 'disabled' } })
 
         const result = await generateText({

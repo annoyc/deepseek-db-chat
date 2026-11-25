@@ -1,7 +1,6 @@
-import { useCallback } from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { KnowledgeWorkbench } from '@/components/knowledge/KnowledgeWorkbench'
-import type { AppMode } from '@/components/layout/AppModeSwitch'
+import { useAppNavigation } from '@/hooks/useAppNavigation'
 import { useLayout } from '@/hooks/useLayout'
 
 export const Route = createFileRoute('/knowledge')({
@@ -9,17 +8,15 @@ export const Route = createFileRoute('/knowledge')({
 })
 
 function KnowledgePage() {
-  const navigate = useNavigate()
+  const { pendingApp, preloadApp, handleAppChange } = useAppNavigation('knowledge')
   const { sidebarCollapsed, toggleSidebar } = useLayout()
-
-  const handleAppChange = useCallback((app: AppMode) => {
-    navigate({ to: app === 'knowledge' ? '/knowledge' : '/dbpilot' })
-  }, [navigate])
 
   return (
     <KnowledgeWorkbench
       activeApp="knowledge"
       onAppChange={handleAppChange}
+      pendingApp={pendingApp}
+      onAppIntent={preloadApp}
       sidebarCollapsed={sidebarCollapsed}
       onToggleSidebar={toggleSidebar}
     />

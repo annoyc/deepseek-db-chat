@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise'
 import type { DatabaseConnection, SqlResultInfo } from '@/lib/types'
+import { isDemoConnectionId } from '@/lib/demo-connection'
 import { MAX_POOL_SIZE, QUERY_TIMEOUT_MS, MAX_RESULT_ROWS } from '@/lib/constants'
 import { prepareSqlForExecution } from '@/lib/sql-guard'
 import type { SqlPermission } from '@/lib/sql-guard'
@@ -7,7 +8,60 @@ import { resolveSqlPermission } from './sql-policy'
 import { subsetTables } from './schema-subsetting'
 import { databaseConnectionOptions, databaseConnectionFingerprint, databaseConnectionError } from './database-connection'
 import { probeDatabaseConnection } from './connection-probe'
-import { resolveManagedDatabaseConnection } from './demo-database'
+import { isDemoDatabaseTarget, resolveManagedDatabaseConnection } from './demo-database'
+
+export interface PoolPolicy {
+  connectionLimit: number
+  maxIdle: number
+  idleTimeout: number
+  queueLimit: number
+}
+
+function parsePoolLimit(raw: string | undefined): number | undefined {
+  if (!raw) return undefined
+  const n = Number(raw.trim())
+  return Number.isInteger(n) && n >= 1 && n <= 20 ? n : undefined
+}
+
+/**
+ * Tighten per-instance pool concurrency and idle connection lifetime in serverless
+ * runtimes and for the shared demo database so traffic bursts do not exhaust MySQL slots.
+ */
+export function resolvePoolPolicy(connection: DatabaseConnection, env: NodeJS.ProcessEnv = process.env): PoolPolicy {
+  const serverless = Boolean(env.VERCEL || env.AWS_LAMBDA_FUNCTION_NAME || env.AWS_EXECUTION_ENV || env.NETLIFY || env.CF_PAGES)
+  const isDemo = connection.managed === 'demo' || isDemoConnectionId(connection.id) || isDemoDatabaseTarget(connection)
+
+  if (isDemo && serverless) {
+    return {
+      connectionLimit: parsePoolLimit(env.DEMO_DB_POOL_LIMIT) ?? 1,
+      maxIdle: 0,
+      idleTimeout: 10_000,
+      queueLimit: 16,
+    }
+  }
+  if (isDemo) {
+    return {
+      connectionLimit: parsePoolLimit(env.DEMO_DB_POOL_LIMIT) ?? 2,
+      maxIdle: 1,
+      idleTimeout: 30_000,
+      queueLimit: 32,
+    }
+  }
+  if (serverless) {
+    return {
+      connectionLimit: parsePoolLimit(env.DB_POOL_LIMIT) ?? 2,
+      maxIdle: 0,
+      idleTimeout: 15_000,
+      queueLimit: 16,
+    }
+  }
+  return {
+    connectionLimit: parsePoolLimit(env.DB_POOL_LIMIT) ?? MAX_POOL_SIZE,
+    maxIdle: 2,
+    idleTimeout: 60_000,
+    queueLimit: 0,
+  }
+}
 
 const pools = new Map<string, mysql.Pool>()
 const poolFingerprints = new Map<string, string>()
@@ -174,7 +228,8 @@ function lookupDictEntries(cache: DictCache, tableName: string, columnName: stri
 export function getPool(connection: DatabaseConnection): mysql.Pool {
   connection = resolveManagedDatabaseConnection(connection)
   const options = databaseConnectionOptions(connection)
-  const fp = databaseConnectionFingerprint(connection, options)
+  const policy = resolvePoolPolicy(connection)
+  const fp = `${databaseConnectionFingerprint(connection, options)}:${policy.connectionLimit}:${policy.maxIdle}:${policy.idleTimeout}:${policy.queueLimit}`
   const existingPool = pools.get(connection.id)
   const existingFp = poolFingerprints.get(connection.id)
 
@@ -191,9 +246,10 @@ export function getPool(connection: DatabaseConnection): mysql.Pool {
 
   const pool = mysql.createPool({
     ...options,
-    connectionLimit: MAX_POOL_SIZE,
+    ...policy,
     waitForConnections: true,
-    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10_000,
     supportBigNumbers: true,
     bigNumberStrings: true,
   })

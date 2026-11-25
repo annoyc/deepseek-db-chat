@@ -6,7 +6,8 @@ import { abortable, createAbortScope, createManagedStream } from '@/core/client/
 import { readKnowledgeStream, requestKnowledgeBackend } from '@/core/client/knowledge-request'
 import { readResponseJson } from '@/core/client/response-body'
 import type { KnowledgeChatInput, KnowledgeHealth, KnowledgeStreamChunk } from '@/lib/knowledge-types'
-import { createRequestModel, resolveAiTarget } from '@/server/ai-credentials'
+import { createRequestModel } from '@/server/ai-credentials'
+import { consumeDemoQuota, DemoRateLimitError, describeAiServiceError, enforceServerKeyRateLimit } from '@/server/rate-limit'
 import { getActiveTraceId } from '@langfuse/tracing'
 import { resolveUserId, withTrace } from '@/server/langfuse'
 import { createServerEmbedder } from '@/server/knowledge/embedding'
@@ -209,27 +210,35 @@ async function streamFromRemote(
   }
 }
 
-async function localPipelineDeps(data: KnowledgeChatInput): Promise<KnowledgePipelineDeps> {
+async function localPipelineDeps(
+  data: KnowledgeChatInput,
+  request?: Pick<Request, 'headers'> | null,
+): Promise<{ deps: KnowledgePipelineDeps; usesServerKey: boolean }> {
   const aiRequest = { provider: data.provider, model: data.model, apiKey: data.apiKey, baseURL: data.baseURL, thinkingStyle: data.thinkingStyle }
+  let usesServerKey = false
   try {
-    // Validate once up front so configuration errors reach the user verbatim.
-    const target = resolveAiTarget(aiRequest)
+    // Validate once up front so configuration and demo-quota errors reach the user verbatim.
+    const target = enforceServerKeyRateLimit(aiRequest, request, 'chat')
+    usesServerKey = target.usesServerKey
     if (!aiRequest.model?.trim() && !target.defaultModel) throw new Error('请先为该模型服务选择模型')
   } catch (error) {
     throw new KnowledgeUserError(error instanceof Error ? error.message : '模型配置无效')
   }
   const knowledgeBase = await loadKnowledgeBase()
   return {
-    knowledgeBase: async () => knowledgeBase,
-    chatModel: ({ purpose, thinking }) => createRequestModel(aiRequest, {
-      thinking: { type: thinking ? 'enabled' : 'disabled' },
-      ...(purpose === 'analysis'
-        ? { temperature: 0, timeout: 15000, maxRetries: 0 }
-        : { timeout: 60000, streamOptions: { include_usage: true } }),
-    }),
-    embedder: knowledgeBase.embedding ? createServerEmbedder(knowledgeBase.embedding) : null,
-    webSearch: createBochaWebSearch(),
-    minSimilarity: Number(process.env.KB_MIN_SIMILARITY) || 0.3,
+    usesServerKey,
+    deps: {
+      knowledgeBase: async () => knowledgeBase,
+      chatModel: ({ purpose, thinking }) => createRequestModel(aiRequest, {
+        thinking: { type: thinking ? 'enabled' : 'disabled' },
+        ...(purpose === 'analysis'
+          ? { temperature: 0, timeout: 15000, maxRetries: 0 }
+          : { timeout: 60000, streamOptions: { include_usage: true } }),
+      }),
+      embedder: knowledgeBase.embedding ? createServerEmbedder(knowledgeBase.embedding) : null,
+      webSearch: createBochaWebSearch(),
+      minSimilarity: Number(process.env.KB_MIN_SIMILARITY) || 0.3,
+    },
   }
 }
 
@@ -240,12 +249,21 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
     const userId = resolveUserId(request)
     const backend = knowledgeBackend()
     const encoder = new TextEncoder()
+    let usesServerKey = false
     const stream = createManagedStream(async ({ signal, enqueue }) => {
       emit({ enqueue }, encoder, { type: 'status', message: '准备知识问答任务...' })
       if (backend === 'remote') {
+        try {
+          consumeDemoQuota({ request, scope: 'chat' })
+        } catch (error) {
+          if (error instanceof DemoRateLimitError) throw new KnowledgeUserError(error.message)
+          throw error
+        }
         await streamFromRemote(data, signal, enqueue, encoder)
       } else {
-        const deps = await localPipelineDeps(data)
+        const resolved = await localPipelineDeps(data, request)
+        usesServerKey = resolved.usesServerKey
+        const deps = resolved.deps
         await withTrace({
           name: 'knowledge-chat',
           input: data.message,
@@ -272,15 +290,19 @@ export const knowledgeChatStream = createServerFn({ method: 'POST' })
       signal: request.signal,
       deadlineMs: 180000,
       onError(error, enqueue) {
-        const message = error instanceof Error && error.name === 'TimeoutError'
-          ? '知识库响应超时，已停止请求，请稍后重试'
-          : error instanceof KnowledgeUserError
-            ? error.message
+        const message = error instanceof KnowledgeUserError
+          ? error.message
+          : error instanceof Error && error.name === 'TimeoutError'
+            ? '知识库响应超时，已停止请求，请稍后重试'
             : backend === 'remote'
               ? '知识库服务不可用，请稍后重试'
-              : error instanceof Error && error.name === 'ApiRequestError'
-                ? '模型服务调用失败，请检查模型配置后重试'
-                : '知识库问答失败，请稍后重试'
+              : describeAiServiceError(error, {
+                  usesServerKey,
+                  timeoutMessage: '知识库响应超时，已停止请求，请稍后重试',
+                  fallbackMessage: error instanceof Error && error.name === 'ApiRequestError'
+                    ? '模型服务调用失败，请检查模型配置后重试'
+                    : '知识库问答失败，请稍后重试',
+                })
         if (backend === 'local' && !(error instanceof KnowledgeUserError)) {
           console.error('[knowledge-chat] pipeline failed:', error instanceof Error ? error.name : 'UnknownError')
         }

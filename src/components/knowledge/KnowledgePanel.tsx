@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, BookOpenText, Brain, Eye, FileUp, Globe2, Loader2, 
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
 import { ContextUsageIndicator } from '@/components/chat/ContextUsageIndicator'
 import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
+import { ErrorCallout } from '@/components/ui/error-callout'
 import { BrandLogo } from '@/components/layout/BrandLogo'
 import { cn } from '@/lib/utils'
 import { computeKnowledgeContextUsage } from '@/lib/context-window'
@@ -135,6 +136,7 @@ function AssistantMessage({
   onRegenerate,
   onFeedback,
   onOpenContext,
+  onOpenSettings,
 }: {
   message: KnowledgeMessage
   isStreaming: boolean
@@ -144,6 +146,7 @@ function AssistantMessage({
   onRegenerate?: () => void
   onFeedback: (rating: AnswerFeedback | null) => void
   onOpenContext: () => void
+  onOpenSettings?: () => void
 }) {
   const evidence = message.evidence
   const evidenceCount =
@@ -194,9 +197,7 @@ function AssistantMessage({
       )}
 
       {message.error && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/45 dark:text-amber-300">
-          {message.error}
-        </div>
+        <ErrorCallout message={message.error} onOpenSettings={onOpenSettings} />
       )}
 
       {evidenceCount > 0 && (
@@ -483,6 +484,7 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                         onRegenerate={turn?.userMessage ? () => void regenerateMessage(message.id) : undefined}
                         onFeedback={(rating) => setMessageFeedback(message.id, rating)}
                         onOpenContext={() => openEvidence(message.id)}
+                        onOpenSettings={() => setShowSettings(true)}
                       />
                     )}
                   </div>

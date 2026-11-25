@@ -121,13 +121,7 @@ function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
       buffer.traceId = chunk.traceId
       break
     case 'error':
-      buffer.errorText += `\n\n错误: ${chunk.message}`
-      const lastPart2 = buffer.parts[buffer.parts.length - 1]
-      if (lastPart2 && lastPart2.type === 'text') {
-        (lastPart2 as { type: 'text'; content: string }).content += `\n\n错误: ${chunk.message}`
-      } else {
-        buffer.parts.push({ type: 'text', content: `\n\n错误: ${chunk.message}` })
-      }
+      buffer.errorText = buffer.errorText ? `${buffer.errorText}\n${chunk.message}` : chunk.message
       break
     case 'finish':
       buffer.finished = true
@@ -138,7 +132,8 @@ function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
 function flushBufferToMessage(msg: ChatMessage, buffer: StreamingBuffer, priorUsage?: TokenUsage): ChatMessage {
   const updated = { ...msg }
   updated.thinking = buffer.thinking || undefined
-  updated.content = buffer.text + buffer.errorText
+  updated.content = buffer.text
+  if (buffer.errorText) updated.error = buffer.errorText
   updated.toolCalls = buffer.toolCalls.length > 0 ? [...buffer.toolCalls] : updated.toolCalls
   updated.parts = buffer.parts.length > 0 ? [...buffer.parts] : updated.parts
   if (buffer.analysisReport) updated.analysisReport = buffer.analysisReport as ChatMessage['analysisReport']
@@ -780,7 +775,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       updateSession(sessionId, (s) => {
         const messages = [...s.messages]
         const lastMsg = { ...messages[messages.length - 1] }
-        lastMsg.content = `请求失败: ${err instanceof Error ? err.message : '未知错误'}`
+        lastMsg.error = err instanceof Error ? err.message : '未知错误'
+        lastMsg.statusText = undefined
         messages[messages.length - 1] = lastMsg
         return { ...s, messages }
       })
@@ -844,7 +840,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       updateSession(sessionId, (s) => {
         const messages = [...s.messages]
         const lastMsg = { ...messages[messages.length - 1] }
-        lastMsg.content = `请求失败: ${err instanceof Error ? err.message : '未知错误'}`
+        lastMsg.error = err instanceof Error ? err.message : '未知错误'
+        lastMsg.statusText = undefined
         messages[messages.length - 1] = lastMsg
         return { ...s, messages }
       })
@@ -917,9 +914,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const messages = [...session.messages]
         const last = messages[messages.length - 1]
         if (!last || last.role !== 'assistant') return session
-        const note = `\n\n分析未完成：${error instanceof Error ? error.message : '请求失败'}。已执行的 SQL 结果仍然保留。`
+        const note = `分析未完成：${error instanceof Error ? error.message : '请求失败'}。已执行的 SQL 结果仍然保留。`
         messages[messages.length - 1] = {
-          ...last, content: last.content + note, parts: [...(last.parts ?? []), { type: 'text', content: note }], statusText: undefined,
+          ...last, error: note, statusText: undefined,
           toolCalls: last.toolCalls?.map((tool) => tool.status === 'calling' ? { ...tool, status: 'error', error: '分析请求已结束，未收到结果' } : tool),
           smartFilterConfirm: last.smartFilterConfirm?.status === 'loading' ? undefined : last.smartFilterConfirm,
         }

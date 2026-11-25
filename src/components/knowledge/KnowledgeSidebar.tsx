@@ -24,6 +24,8 @@ import { DEFAULT_UPLOAD_LIMITS } from '@/lib/knowledge-documents'
 interface KnowledgeSidebarProps {
   activeApp: AppMode
   onAppChange: (app: AppMode) => void
+  pendingApp?: AppMode | null
+  onAppIntent?: (app: AppMode) => void
   collapsed?: boolean
   onToggleCollapse?: () => void
 }
@@ -31,6 +33,8 @@ interface KnowledgeSidebarProps {
 export function KnowledgeSidebar({
   activeApp,
   onAppChange,
+  pendingApp,
+  onAppIntent,
   collapsed = false,
   onToggleCollapse,
 }: KnowledgeSidebarProps) {
@@ -85,7 +89,13 @@ export function KnowledgeSidebar({
         <div className={cn('p-3.5', collapsed ? 'flex flex-col items-center gap-3' : 'space-y-3')}>
           <BrandHeader collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
 
-          <AppModeSwitch activeApp={activeApp} onAppChange={onAppChange} collapsed={collapsed} />
+          <AppModeSwitch
+            activeApp={activeApp}
+            onAppChange={onAppChange}
+            pendingApp={pendingApp}
+            onAppIntent={onAppIntent}
+            collapsed={collapsed}
+          />
 
           {!collapsed ? (
             <button

@@ -359,7 +359,7 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
 
           if (chunk.type === 'error') {
             last.error = chunk.message
-            last.content = last.content || `请求失败: ${chunk.message}`
+            last.statusText = undefined
             last.evidence = {
               ...evidence,
               toolSteps: settleToolSteps(evidence.toolSteps ?? [], true),
@@ -386,7 +386,6 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
         const last = { ...messages[messages.length - 1] }
         const evidence = last.evidence
         last.error = message
-        last.content = last.content || `请求失败: ${message}`
         last.statusText = undefined
         if (evidence) {
           last.evidence = {
