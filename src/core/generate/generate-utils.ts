@@ -21,12 +21,18 @@ export function lastAssistantMsg(messages: ChatMessage[]) {
 }
 
 export function mergeUsage(target: Usage, source: Usage): void {
-  const prompt = source.prompt_tokens ?? 0
-  const completion = source.completion_tokens ?? 0
+  const prompt = source.prompt_tokens ?? source.input_tokens ?? 0
+  const completion = source.completion_tokens ?? source.output_tokens ?? 0
   target.completion_tokens += completion
   target.prompt_tokens += prompt
   target.prompt_cache_hit_tokens = (target.prompt_cache_hit_tokens ?? 0) + (source.prompt_cache_hit_tokens ?? 0)
   target.prompt_cache_miss_tokens = (target.prompt_cache_miss_tokens ?? 0) + (source.prompt_cache_miss_tokens ?? 0)
+  if (source.cached_tokens !== undefined) {
+    target.cached_tokens = (target.cached_tokens ?? 0) + source.cached_tokens
+  }
+  if (source.cache_read_input_tokens !== undefined) {
+    target.cache_read_input_tokens = (target.cache_read_input_tokens ?? 0) + source.cache_read_input_tokens
+  }
   if (source.prompt_tokens_details?.cached_tokens !== undefined) {
     if (!target.prompt_tokens_details) {
       target.prompt_tokens_details = { cached_tokens: 0 }
@@ -43,6 +49,60 @@ export function mergeUsage(target: Usage, source: Usage): void {
   if (typeof source.cost === 'number' && Number.isFinite(source.cost) && source.cost >= 0) {
     target.cost = (target.cost ?? 0) + source.cost
     if (source.cost_currency && !target.cost_currency) {
+      target.cost_currency = source.cost_currency
+    }
+  }
+}
+
+function positiveInt(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : 0
+}
+
+/**
+ * Update a single stream's `Usage` from an SSE `chunk.usage` payload.
+ * Unlike `mergeUsage` (which sums across agent steps), providers that emit
+ * cumulative snapshots on every chunk (e.g. Gemini, DashScope, gateways) must
+ * overwrite rather than accumulate, while empty trailing chunks (`0`) must not
+ * erase earlier non-zero counts.
+ */
+export function applyStreamUsage(target: Usage, source: Usage): void {
+  const prompt = positiveInt(source.prompt_tokens ?? source.input_tokens)
+  const completion = positiveInt(source.completion_tokens ?? source.output_tokens)
+  if (prompt > 0) target.prompt_tokens = prompt
+  if (completion > 0) target.completion_tokens = completion
+
+  const total = positiveInt(source.total_tokens)
+  if (total > 0) {
+    target.total_tokens = total
+  } else if (target.prompt_tokens > 0 || target.completion_tokens > 0) {
+    target.total_tokens = target.prompt_tokens + target.completion_tokens
+  }
+
+  const cacheHit = positiveInt(source.prompt_cache_hit_tokens)
+  if (cacheHit > 0) target.prompt_cache_hit_tokens = cacheHit
+
+  const cacheMiss = positiveInt(source.prompt_cache_miss_tokens)
+  if (cacheMiss > 0) target.prompt_cache_miss_tokens = cacheMiss
+
+  const topCached = positiveInt(source.cached_tokens)
+  if (topCached > 0) target.cached_tokens = topCached
+
+  const anthropicCached = positiveInt(source.cache_read_input_tokens)
+  if (anthropicCached > 0) target.cache_read_input_tokens = anthropicCached
+
+  const detailsCached = positiveInt(source.prompt_tokens_details?.cached_tokens)
+  if (detailsCached > 0) {
+    target.prompt_tokens_details = { cached_tokens: detailsCached }
+  }
+
+  const reasoning = positiveInt(source.completion_tokens_details?.reasoning_tokens)
+  if (reasoning > 0) {
+    target.completion_tokens_details = { reasoning_tokens: reasoning }
+  }
+
+  if (typeof source.cost === 'number' && Number.isFinite(source.cost) && source.cost >= 0) {
+    target.cost = source.cost
+    if (source.cost_currency) {
       target.cost_currency = source.cost_currency
     }
   }

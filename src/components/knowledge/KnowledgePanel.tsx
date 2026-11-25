@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, BookOpenText, Brain, Eye, FileUp, Globe2, Loader2, Menu, PanelRightOpen, Settings, Sparkles, Square } from 'lucide-react'
 import { MarkdownContent } from '@/components/chat/MarkdownContent'
+import { ContextUsageIndicator } from '@/components/chat/ContextUsageIndicator'
 import { ApiKeyDialog } from '@/components/layout/ApiKeyDialog'
 import { cn } from '@/lib/utils'
+import { computeKnowledgeContextUsage } from '@/lib/context-window'
+import { modelLabel } from '@/lib/providers'
 import type { KnowledgeAnswerMode, KnowledgeMessage } from '@/lib/knowledge-types'
 import { useKnowledgeChatStore } from '@/hooks/useKnowledgeChat'
 import { useSettings } from '@/hooks/useSettings'
@@ -310,10 +313,11 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
     answerMode,
     setAnswerMode,
     setSelectedEvidenceMessage,
+    createNewSession,
     persistenceState,
     retrySave,
   } = useKnowledgeChatStore()
-  const { activeProvider, serverProviders } = useSettings()
+  const { provider, activeProvider, serverProviders, model, activeContextWindowOverride, setModelContextWindow } = useSettings()
   const zeroConfigReady = serverProviders.some((p) => p.id === activeProvider?.id && p.hasEnvKey)
   const [input, setInput] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -326,6 +330,18 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
 
   const messages = activeSession?.messages ?? []
   const activeSessionIsStreaming = Boolean(isStreaming && activeSession?.id === streamingSessionId)
+  const currentModel = activeProvider?.models.find((m) => m.id === model)
+  const currentModelDisplay = currentModel ? modelLabel(currentModel) : (model || '未选择模型')
+  const contextUsage = useMemo(
+    () => computeKnowledgeContextUsage({
+      messages,
+      draftText: input,
+      modelId: model,
+      contextWindowOverride: activeContextWindowOverride,
+      isStreaming: activeSessionIsStreaming,
+    }),
+    [messages, input, model, activeContextWindowOverride, activeSessionIsStreaming],
+  )
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant') return messages[i].id
@@ -547,31 +563,44 @@ export function KnowledgePanel({ contextOpen, onOpenContext, onOpenSidebar }: Kn
                 </div>
               </div>
 
-              {isStreaming ? (
-                <button
-                  onClick={stopStreaming}
-                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
-                  title="停止生成"
-                  aria-label="停止生成"
-                >
-                  <Square className="h-4 w-4" fill="currentColor" />
-                </button>
-              ) : (
-                <button
-                  onClick={() => submit()}
-                  disabled={!input.trim() || historyUnavailable}
-                  className={cn(
-                    'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all',
-                    input.trim() && !historyUnavailable
-                      ? 'bg-primary text-white shadow-sm hover:bg-primary/90'
-                      : 'bg-stone-200 text-stone-400',
-                  )}
-                  title="发送"
-                  aria-label="发送"
-                >
-                  <ArrowUp className="h-5 w-5" />
-                </button>
-              )}
+              <div className="flex shrink-0 items-center gap-2">
+                <ContextUsageIndicator
+                  usage={contextUsage}
+                  modelName={currentModelDisplay}
+                  isStreaming={activeSessionIsStreaming}
+                  canStartNewSession={messages.length > 0}
+                  onNewSession={createNewSession}
+                  onSetContextWindow={model ? (tokens) => setModelContextWindow(provider, model, tokens) : undefined}
+                  systemLabel="系统提示词"
+                  toolLabel="检索与联网资料"
+                  historyNote="知识库问答每次最多携带最近 6 轮历史对话与本轮检索条款。"
+                />
+                {isStreaming ? (
+                  <button
+                    onClick={stopStreaming}
+                    className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-red-500 text-white shadow-sm transition-colors hover:bg-red-600"
+                    title="停止生成"
+                    aria-label="停止生成"
+                  >
+                    <Square className="h-4 w-4" fill="currentColor" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => submit()}
+                    disabled={!input.trim() || historyUnavailable}
+                    className={cn(
+                      'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all',
+                      input.trim() && !historyUnavailable
+                        ? 'bg-primary text-white shadow-sm hover:bg-primary/90'
+                        : 'bg-stone-200 text-stone-400',
+                    )}
+                    title="发送"
+                    aria-label="发送"
+                  >
+                    <ArrowUp className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

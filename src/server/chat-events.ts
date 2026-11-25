@@ -103,6 +103,10 @@ export function createChatEventMapper() {
       }
       case 'suspend':
         return onSuspend(event.state, event.usage)
+      case 'step-usage': {
+        const usage = normalizeModelUsage(event.usage)
+        return usage ? [{ type: 'context-usage', usage }] : []
+      }
       case 'finish': {
         const chunks: StreamChunk[] = []
         if (!event.suspended) {

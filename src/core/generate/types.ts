@@ -170,6 +170,12 @@ export interface StepStreamEvent {
   step: number
 }
 
+export interface StepUsageStreamEvent {
+  type: 'step-usage'
+  step: number
+  usage: Usage
+}
+
 export interface FinishStreamEvent {
   type: 'finish'
   text?: string
@@ -185,6 +191,7 @@ export type StreamEvent
     | ToolResultStreamEvent
     | SuspendStreamEvent
     | StepStreamEvent
+    | StepUsageStreamEvent
     | FinishStreamEvent
 
 export interface StepResult {

@@ -5,7 +5,11 @@ export interface RawModelUsage {
   prompt_tokens?: number
   completion_tokens?: number
   total_tokens?: number
+  input_tokens?: number
+  output_tokens?: number
   prompt_cache_hit_tokens?: number
+  cached_tokens?: number
+  cache_read_input_tokens?: number
   prompt_tokens_details?: {
     cached_tokens?: number
   }
@@ -37,11 +41,16 @@ function normalizeCurrency(value: unknown): 'USD' | 'CNY' | undefined {
  */
 export function normalizeModelUsage(raw: RawModelUsage | null | undefined): TokenUsage | null {
   if (!raw || typeof raw !== 'object') return null
-  const promptTokens = nonNegativeInt(raw.prompt_tokens)
-  const completionTokens = nonNegativeInt(raw.completion_tokens)
+  const promptTokens = nonNegativeInt(raw.prompt_tokens ?? raw.input_tokens)
+  const completionTokens = nonNegativeInt(raw.completion_tokens ?? raw.output_tokens)
   const reportedTotal = nonNegativeInt(raw.total_tokens)
   const totalTokens = reportedTotal > 0 ? reportedTotal : promptTokens + completionTokens
-  const cachedTokens = nonNegativeInt(raw.prompt_cache_hit_tokens ?? raw.prompt_tokens_details?.cached_tokens)
+  const cachedTokens = nonNegativeInt(
+    raw.prompt_cache_hit_tokens
+    ?? raw.prompt_tokens_details?.cached_tokens
+    ?? raw.cached_tokens
+    ?? raw.cache_read_input_tokens,
+  )
   const reasoningTokens = nonNegativeInt(raw.completion_tokens_details?.reasoning_tokens)
   const cost = nonNegativeFloat(raw.cost)
   const costCurrency = cost !== undefined ? (normalizeCurrency(raw.cost_currency) ?? 'USD') : undefined

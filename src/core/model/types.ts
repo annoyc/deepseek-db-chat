@@ -124,6 +124,16 @@ export interface Usage {
     cached_tokens?: number
   }
   /**
+   * Top-level cached tokens reported by some providers (e.g. Moonshot / Kimi).
+   */
+  cached_tokens?: number
+  /**
+   * Anthropic-compatible cached read tokens and input/output aliases.
+   */
+  cache_read_input_tokens?: number
+  input_tokens?: number
+  output_tokens?: number
+  /**
    * Total number of tokens used in the request (prompt + completion).
    */
   total_tokens: number

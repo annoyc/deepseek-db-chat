@@ -7,7 +7,9 @@ import type {
   KnowledgeUserChunkCandidate,
   KnowledgeWebResult,
 } from '@/lib/knowledge-types'
+import { applyStreamUsage, emptyUsage } from '@/core/generate/generate-utils'
 import { maskPII } from '@/lib/masking'
+import { normalizeModelUsage } from '@/lib/usage'
 import { checkCitations } from './citations'
 import type { Embedder } from './embedding'
 import { createUploadKnowledgeBase, type KnowledgeBase } from './knowledge-base'
@@ -198,7 +200,13 @@ export async function* runKnowledgePipeline(
   const messages = buildAnswerMessages({ question, history, citations, webResults, answerMode: input.answerMode, useBaseModel: input.useBaseModel, today })
   let answer = ''
   let announcedThinking = false
+  const answerUsage = emptyUsage()
+  let hasAnswerUsage = false
   for await (const chunk of model.invokeStream({ messages, signal })) {
+    if (chunk.usage) {
+      applyStreamUsage(answerUsage, chunk.usage)
+      hasAnswerUsage = true
+    }
     const delta = chunk.choices[0]?.delta
     if (delta?.reasoning_content && !announcedThinking && !answer) {
       announcedThinking = true
@@ -210,6 +218,10 @@ export async function* runKnowledgePipeline(
     }
   }
   if (!answer.trim()) throw new Error('模型未返回回答')
+  const normalizedUsage = hasAnswerUsage ? normalizeModelUsage(answerUsage) : null
+  if (normalizedUsage) {
+    yield { type: 'context-usage', usage: normalizedUsage }
+  }
   yield tool('synthesis', '生成回答', 'done', { output: `${answer.length} 字`, durationMs: elapsed(start) })
 
   // 7. Citation check: every [n] must point at a provided source.

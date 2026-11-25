@@ -323,6 +323,10 @@ export function KnowledgeChatProvider({ children }: { children: React.ReactNode 
             last.traceId = chunk.traceId
           }
 
+          if (chunk.type === 'context-usage') {
+            last.contextUsage = chunk.usage
+          }
+
           if (chunk.type === 'status') {
             last.statusText = chunk.message
             if ((evidence.toolSteps ?? []).length === 0) {

@@ -30,6 +30,7 @@ interface StreamingBuffer {
   statusText: string
   errorText: string
   usage?: TokenUsage
+  contextUsage?: TokenUsage
   traceId?: string
   finished: boolean
 }
@@ -113,6 +114,9 @@ function applyChunkToBuffer(buffer: StreamingBuffer, chunk: StreamChunk): void {
     case 'usage':
       buffer.usage = sumTokenUsage([buffer.usage, chunk.usage])
       break
+    case 'context-usage':
+      buffer.contextUsage = chunk.usage
+      break
     case 'trace':
       buffer.traceId = chunk.traceId
       break
@@ -140,6 +144,7 @@ function flushBufferToMessage(msg: ChatMessage, buffer: StreamingBuffer, priorUs
   if (buffer.analysisReport) updated.analysisReport = buffer.analysisReport as ChatMessage['analysisReport']
   const combinedUsage = sumTokenUsage([priorUsage, buffer.usage])
   if (combinedUsage) updated.usage = combinedUsage
+  if (buffer.contextUsage) updated.contextUsage = buffer.contextUsage
   if (buffer.traceId) updated.traceId = buffer.traceId
   updated.statusText = buffer.statusText || undefined
   if (buffer.finished && updated.toolCalls) {
@@ -631,6 +636,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             lastMsg.content = ''
             lastMsg.parts = []
             lastMsg.toolCalls = []
+            lastMsg.contextUsage = undefined
             if (accumulatedUsage) lastMsg.usage = accumulatedUsage
             messages[messages.length - 1] = lastMsg
             return { ...s, messages }

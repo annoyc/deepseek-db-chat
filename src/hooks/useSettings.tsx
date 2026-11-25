@@ -12,8 +12,9 @@ import {
   type ThinkingStyle,
 } from '@/lib/providers'
 import { SESSION_MAX_SQL_EXECUTIONS } from '@/core/constants'
-import { getEnvApiKeyStatus, listServerProviders } from '@/server/functions/settings'
+import { getEnvApiKeyStatus, listProviderModels, listServerProviders, type FetchedProviderModel } from '@/server/functions/settings'
 import { normalizeCollapseMode, type CollapseMode } from '@/lib/collapse-mode'
+import type { ContextWindowOverride } from '@/lib/context-window'
 
 export type { CollapseMode, CustomProvider, ProviderConfig, ProviderOption }
 
@@ -50,6 +51,10 @@ interface SettingsState {
   maxSqlExecutions: number
   thinkingCollapseMode: CollapseMode
   toolCallCollapseMode: CollapseMode
+  /** Explicit context window override for the active provider + model (user > api > configured). */
+  activeContextWindowOverride: ContextWindowOverride | undefined
+  setModelContextWindow: (providerId: string, modelId: string, tokens: number | null) => void
+  recordDiscoveredContextWindows: (providerId: string, models: FetchedProviderModel[]) => void
   setProvider: (provider: string) => void
   /** Switch to a specific provider and model at once (the model need not be the provider's default). */
   selectModel: (providerId: string, modelId: string) => void
@@ -69,6 +74,10 @@ interface SettingsState {
 const SettingsContext = createContext<SettingsState | null>(null)
 
 const EMPTY_CONFIG: ProviderConfig = { apiKey: '', baseURL: '' }
+
+function modelContextWindowKey(providerId: string, modelId: string): string {
+  return `${providerId}:${modelId}`
+}
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [provider, setProviderRaw, , providerHydrated] = useLocalStorage<string>('ai-provider', DEFAULT_PROVIDER)
@@ -92,6 +101,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [toolCallCollapseModeRaw, setToolCallCollapseMode] = useLocalStorage<CollapseMode>(
     'toolcall-collapse-mode',
     'auto'
+  )
+  const [modelContextWindows, setModelContextWindows, , userWindowsHydrated] = useLocalStorage<Record<string, number>>(
+    'model-context-windows',
+    {}
+  )
+  const [discoveredContextWindows, setDiscoveredContextWindows, , apiWindowsHydrated] = useLocalStorage<Record<string, number>>(
+    'discovered-context-windows',
+    {}
   )
   const thinkingCollapseMode = normalizeCollapseMode(thinkingCollapseModeRaw, 'auto')
   const toolCallCollapseMode = normalizeCollapseMode(toolCallCollapseModeRaw, 'auto')
@@ -168,7 +185,93 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setCustomProviders((prev) => (Array.isArray(prev) ? prev : []).filter((p) => p.id !== providerId))
   }, [setCustomProviders])
 
-  const allHydrated = providerHydrated && configsHydrated && customHydrated && modelHydrated
+  const setModelContextWindow = useCallback((providerId: string, modelId: string, tokens: number | null) => {
+    const cleanProvider = providerId.trim()
+    const cleanModel = modelId.trim()
+    if (!cleanProvider || !cleanModel) return
+    const key = modelContextWindowKey(cleanProvider, cleanModel)
+    setModelContextWindows((prev) => {
+      const current = prev && typeof prev === 'object' ? prev : {}
+      if (tokens === null || !Number.isFinite(tokens) || tokens <= 0) {
+        if (!(key in current)) return current
+        const next = { ...current }
+        delete next[key]
+        return next
+      }
+      const rounded = Math.round(tokens)
+      if (current[key] === rounded) return current
+      return { ...current, [key]: rounded }
+    })
+  }, [setModelContextWindows])
+
+  const recordDiscoveredContextWindows = useCallback((providerId: string, models: FetchedProviderModel[]) => {
+    const cleanProvider = providerId.trim()
+    if (!cleanProvider || !Array.isArray(models) || models.length === 0) return
+    setDiscoveredContextWindows((prev) => {
+      const current = prev && typeof prev === 'object' ? prev : {}
+      let changed = false
+      const next = { ...current }
+      for (const item of models) {
+        if (!item?.id || typeof item.contextWindow !== 'number' || !Number.isFinite(item.contextWindow) || item.contextWindow <= 0) {
+          continue
+        }
+        const key = modelContextWindowKey(cleanProvider, item.id)
+        const rounded = Math.round(item.contextWindow)
+        if (next[key] !== rounded) {
+          next[key] = rounded
+          changed = true
+        }
+      }
+      return changed ? next : current
+    })
+  }, [setDiscoveredContextWindows])
+
+  const activeContextWindowOverride = useMemo<ContextWindowOverride | undefined>(() => {
+    const cleanModel = model.trim()
+    if (!cleanModel) return undefined
+    const key = modelContextWindowKey(provider, cleanModel)
+    const userVal = modelContextWindows?.[key]
+    if (typeof userVal === 'number' && Number.isFinite(userVal) && userVal > 0) {
+      return { tokens: Math.round(userVal), source: 'user' }
+    }
+    const apiVal = discoveredContextWindows?.[key]
+    if (typeof apiVal === 'number' && Number.isFinite(apiVal) && apiVal > 0) {
+      return { tokens: Math.round(apiVal), source: 'api' }
+    }
+    const configuredVal = activeProvider?.models.find((m) => m.id === cleanModel)?.contextWindow
+    if (typeof configuredVal === 'number' && Number.isFinite(configuredVal) && configuredVal > 0) {
+      return { tokens: Math.round(configuredVal), source: 'configured' }
+    }
+    return undefined
+  }, [provider, model, modelContextWindows, discoveredContextWindows, activeProvider])
+
+  const allHydrated = providerHydrated && configsHydrated && customHydrated && modelHydrated && userWindowsHydrated && apiWindowsHydrated
+
+  // Silently probe `/models` once per configured provider when the active model lacks an explicit context window.
+  const probedProvidersRef = useRef(new Set<string>())
+  useEffect(() => {
+    if (!allHydrated || !serverLoaded || !activeProvider?.configured || !model.trim()) return
+    if (activeContextWindowOverride) return
+    if (probedProvidersRef.current.has(provider)) return
+    probedProvidersRef.current.add(provider)
+
+    let cancelled = false
+    listProviderModels({
+      data: {
+        provider: aiRequest.provider,
+        apiKey: aiRequest.apiKey,
+        baseURL: aiRequest.baseURL,
+        thinkingStyle: aiRequest.thinkingStyle,
+      },
+    })
+      .then((list) => {
+        if (!cancelled && Array.isArray(list) && list.length > 0) {
+          recordDiscoveredContextWindows(provider, list)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [allHydrated, serverLoaded, activeProvider?.configured, provider, model, activeContextWindowOverride, aiRequest, recordDiscoveredContextWindows])
 
   // One-time migration of the formerly built-in 百炼 provider.
   useEffect(() => {
@@ -251,6 +354,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     maxSqlExecutions,
     thinkingCollapseMode,
     toolCallCollapseMode,
+    activeContextWindowOverride,
+    setModelContextWindow,
+    recordDiscoveredContextWindows,
     setProvider,
     selectModel,
     setProviderConfig,

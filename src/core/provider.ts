@@ -21,6 +21,7 @@ export interface ProviderModel {
   id: string
   name?: string
   description?: string
+  contextWindow?: number
 }
 
 /** A provider configured on the server; its API key (if any) lives in an env var. */
@@ -45,8 +46,8 @@ export const DEEPSEEK_PROVIDER: ProviderDefinition = {
   // `deepseek-flash` always serves the newest Flash snapshot (V4.1 Flash); the
   // retired `deepseek-v4-flash` alias is still accepted by the API but routed there.
   models: [
-    { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', description: '快速响应' },
-    { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '深度推理' },
+    { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', description: '快速响应', contextWindow: 1_000_000 },
+    { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', description: '深度推理', contextWindow: 1_000_000 },
   ],
   envApiKeyName: 'DEEPSEEK_API_KEY',
   envBaseURLName: 'DEEPSEEK_API_BASE_URL',
@@ -61,11 +62,11 @@ const LEGACY_BAILIAN_PROVIDER: ProviderDefinition = {
   defaultBaseURL: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   defaultModel: 'qwen3.7-plus',
   models: [
-    { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', description: '通用对话' },
-    { id: 'glm-5.2', name: 'GLM 5.2', description: '智谱大模型' },
-    { id: 'kimi-k2.7-code', name: 'Kimi 2.7 Code', description: 'Moonshot' },
-    { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro (百炼)', description: '深度推理' },
-    { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash (百炼)', description: '快速响应' },
+    { id: 'qwen3.7-plus', name: 'Qwen 3.7 Plus', description: '通用对话', contextWindow: 1_000_000 },
+    { id: 'glm-5.2', name: 'GLM 5.2', description: '智谱大模型', contextWindow: 1_000_000 },
+    { id: 'kimi-k2.7-code', name: 'Kimi 2.7 Code', description: 'Moonshot', contextWindow: 256_000 },
+    { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro (百炼)', description: '深度推理', contextWindow: 1_000_000 },
+    { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash (百炼)', description: '快速响应', contextWindow: 1_000_000 },
   ],
   envApiKeyName: 'BAILIAN_API_KEY',
   envBaseURLName: 'BAILIAN_API_BASE_URL',
@@ -79,6 +80,7 @@ const modelSchema = z.union([
     id: z.string().trim().min(1).max(200),
     name: z.string().trim().max(100).optional(),
     description: z.string().trim().max(100).optional(),
+    contextWindow: z.number().int().positive().optional(),
   }),
 ])
 

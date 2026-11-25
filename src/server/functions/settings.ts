@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { THINKING_STYLES } from '@/core/provider'
-import { checkServerKey, describeServerProviders, fetchProviderModels, testProviderConnection, type ConnectionTestResult, type ServerProviderInfo } from '@/server/providers'
+import { checkServerKey, describeServerProviders, fetchProviderModelInfos, testProviderConnection, type ConnectionTestResult, type FetchedProviderModel, type ServerProviderInfo } from '@/server/providers'
 import { z } from 'zod'
 
 const providerIdSchema = z.string().max(64)
@@ -19,7 +19,9 @@ export const getEnvApiKeyStatus = createServerFn({ method: 'POST' })
 export const listServerProviders = createServerFn({ method: 'GET' })
   .handler(async (): Promise<ServerProviderInfo[]> => describeServerProviders())
 
-/** Fetch model ids from a provider's OpenAI-compatible `/models` endpoint. */
+export type { FetchedProviderModel }
+
+/** Fetch model ids (and optional context lengths) from a provider's OpenAI-compatible `/models` endpoint. */
 export const listProviderModels = createServerFn({ method: 'POST' })
   .inputValidator((data: { provider: string; apiKey?: string; baseURL?: string; thinkingStyle?: string }) => z.object({
     provider: providerIdSchema,
@@ -27,7 +29,7 @@ export const listProviderModels = createServerFn({ method: 'POST' })
     baseURL: z.string().max(2_048).optional(),
     thinkingStyle: z.enum(THINKING_STYLES).optional(),
   }).parse(data))
-  .handler(async ({ data }): Promise<string[]> => fetchProviderModels(data, getRequest().signal))
+  .handler(async ({ data }): Promise<FetchedProviderModel[]> => fetchProviderModelInfos(data, getRequest().signal))
 
 /** Probe streaming + tool calls, JSON output and the thinking parameter for one model. */
 export const testProviderConnectionFn = createServerFn({ method: 'POST' })

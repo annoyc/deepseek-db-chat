@@ -73,6 +73,8 @@ export interface ChatMessage {
   answerModel?: string
   /** Token/cost usage for this single assistant message step. */
   usage?: TokenUsage
+  /** Most recent single-step model usage (reflects current context window occupancy). */
+  contextUsage?: TokenUsage
   /** Whole-turn aggregated token/cost usage stamped on the final assistant message. */
   answerUsage?: TokenUsage
   feedback?: 'up' | 'down'
@@ -183,6 +185,7 @@ export type StreamChunk =
   | { type: 'analysis-report'; report: AnalysisReport }
   | { type: 'status'; message: string }
   | { type: 'usage'; usage: TokenUsage }
+  | { type: 'context-usage'; usage: TokenUsage }
   | { type: 'trace'; traceId: string }
   | { type: 'error'; message: string }
   | { type: 'finish' }

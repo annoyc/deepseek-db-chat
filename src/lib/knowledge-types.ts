@@ -1,3 +1,5 @@
+import type { TokenUsage } from './types'
+
 export type KnowledgeRole = 'user' | 'assistant'
 
 export type KnowledgeAnswerMode = 'concise' | 'standard' | 'deep'
@@ -80,6 +82,7 @@ export interface KnowledgeMessage {
   evidence?: KnowledgeEvidence
   error?: string
   feedback?: 'up' | 'down'
+  contextUsage?: TokenUsage
   traceId?: string
 }
 
@@ -113,6 +116,7 @@ export type KnowledgeStreamChunk =
       webResults?: KnowledgeWebResult[]
       citations?: KnowledgeCitation[]
     }
+  | { type: 'context-usage'; usage: TokenUsage }
   | { type: 'trace'; traceId: string }
   | { type: 'error'; message: string }
   | { type: 'finish' }

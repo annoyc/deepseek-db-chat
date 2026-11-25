@@ -3,7 +3,7 @@ import type { GenerateTextParams, StepInvoker, StepResult, StreamEvent } from '.
 import type { ChatCompletionChunkDelta, ChatMessage, Usage } from '@/core/model/types'
 import type { ChatCompletionTool } from '@/core/tool/types'
 import { agentLoop } from './generate-loop'
-import { emptyUsage, mergeUsage } from './generate-utils'
+import { applyStreamUsage, emptyUsage } from './generate-utils'
 
 function accumulateToolCalls(
   accumulated: ChatCompletionTool[],
@@ -52,7 +52,7 @@ const streamStepInvoker: StepInvoker = async function* (model, params) {
 
   for await (const chunk of stream) {
     if (chunk.usage) {
-      mergeUsage(stepUsage, chunk.usage)
+      applyStreamUsage(stepUsage, chunk.usage)
     }
 
     const choice = chunk.choices[0]

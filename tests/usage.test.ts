@@ -46,6 +46,35 @@ test('normalizeModelUsage handles DeepSeek, OpenAI/OpenRouter, and empty payload
       costCurrency: 'USD',
     },
   )
+
+  // Moonshot/Kimi top-level cached_tokens and Anthropic-compatible input_tokens/cache_read_input_tokens
+  assert.deepEqual(
+    normalizeModelUsage({
+      prompt_tokens: 2000,
+      completion_tokens: 300,
+      cached_tokens: 1200,
+    }),
+    {
+      promptTokens: 2000,
+      completionTokens: 300,
+      totalTokens: 2300,
+      cachedTokens: 1200,
+    },
+  )
+
+  assert.deepEqual(
+    normalizeModelUsage({
+      input_tokens: 1500,
+      output_tokens: 250,
+      cache_read_input_tokens: 800,
+    }),
+    {
+      promptTokens: 1500,
+      completionTokens: 250,
+      totalTokens: 1750,
+      cachedTokens: 800,
+    },
+  )
 })
 
 test('sumTokenUsage aggregates multi-step usage and guards mixed currencies', () => {

@@ -3,7 +3,7 @@ import { X, Eye, EyeOff, Server, Lock, Loader2, Plus, Trash2, RefreshCw, Activit
 import { useSettings } from '@/hooks/useSettings'
 import { Modal, ModalTitle } from '@/components/ui/modal'
 import type { CollapseMode, ProviderConfig } from '@/hooks/useSettings'
-import { listProviderModels, testProviderConnectionFn } from '@/server/functions/settings'
+import { listProviderModels, testProviderConnectionFn, type FetchedProviderModel } from '@/server/functions/settings'
 import type { ConnectionTestResult } from '@/server/providers'
 import { encryptPasswordFn } from '@/server/functions/crypto'
 import {
@@ -283,12 +283,13 @@ function ConnectionTester({ models, usableModelIds, buildRequest, currentModel, 
   )
 }
 
-function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseModel, onChange, onClearKey }: {
+function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseModel, onModelsFetched, onChange, onClearKey }: {
   provider: ServerProvider
   draft: ServerDraft
   savedApiKey?: string
   currentModel?: string
   onUseModel: UseModelHandler
+  onModelsFetched?: (models: FetchedProviderModel[]) => void
   onChange: (partial: Partial<ServerDraft>) => void
   onClearKey: () => void
 }) {
@@ -321,7 +322,9 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
     setFetching(true)
     try {
       const request = await buildRequest()
-      setFetchedIds(await listProviderModels({ data: request }))
+      const fetched = await listProviderModels({ data: request })
+      onModelsFetched?.(fetched)
+      setFetchedIds(fetched.map((m) => m.id))
     } catch (err) {
       setFetchedIds(null)
       setFetchError(err instanceof Error ? `获取失败：${err.message}` : '获取失败，请重试')
@@ -440,10 +443,11 @@ function ServerProviderForm({ provider, draft, savedApiKey, currentModel, onUseM
   )
 }
 
-function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemove }: {
+function CustomProviderForm({ draft, currentModel, onUseModel, onModelsFetched, onChange, onRemove }: {
   draft: CustomDraft
   currentModel?: string
   onUseModel: UseModelHandler
+  onModelsFetched?: (models: FetchedProviderModel[]) => void
   onChange: (partial: Partial<CustomDraft>) => void
   onRemove: () => void
 }) {
@@ -459,7 +463,9 @@ function CustomProviderForm({ draft, currentModel, onUseModel, onChange, onRemov
     setFetching(true)
     try {
       const apiKey = await encryptIfTyped(typedKey, draft.savedApiKey)
-      const ids = await listProviderModels({ data: { provider: draft.id, apiKey, baseURL: draft.baseURL.trim(), thinkingStyle: draft.thinkingStyle } })
+      const fetched = await listProviderModels({ data: { provider: draft.id, apiKey, baseURL: draft.baseURL.trim(), thinkingStyle: draft.thinkingStyle } })
+      onModelsFetched?.(fetched)
+      const ids = fetched.map((m) => m.id)
       const existing = parseModelList(draft.modelsText)
       const known = new Set(existing.map((m) => m.id))
       const added = ids.filter((id) => !known.has(id))
@@ -584,6 +590,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
     clearProviderApiKey,
     saveCustomProvider,
     removeCustomProvider,
+    recordDiscoveredContextWindows,
     thinkingCollapseMode, setThinkingCollapseMode,
     toolCallCollapseMode, setToolCallCollapseMode,
     maxSqlExecutions, setMaxSqlExecutions,
@@ -693,12 +700,21 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
       for (const draft of customDrafts) {
         const typedKey = draft.apiKeyInput.trim()
         const apiKey = typedKey ? (await encryptPasswordFn({ data: { password: typedKey } })).encrypted : draft.savedApiKey
+        const existingWindows = new Map(
+          (customProviders.find((p) => p.id === draft.id)?.models ?? [])
+            .filter((m) => typeof m.contextWindow === 'number' && m.contextWindow > 0)
+            .map((m) => [m.id, m.contextWindow!]),
+        )
+        const models = parseModelList(draft.modelsText).map((m) => {
+          const cw = existingWindows.get(m.id)
+          return cw ? { ...m, contextWindow: cw } : m
+        })
         saveCustomProvider({
           id: draft.id,
           name: draft.name.trim(),
           baseURL: draft.baseURL.trim().replace(/\/+$/, ''),
           apiKey,
-          models: parseModelList(draft.modelsText),
+          models,
           thinkingStyle: draft.thinkingStyle,
         })
       }
@@ -815,6 +831,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 savedApiKey={providerConfigs[activeServer.id]?.apiKey}
                 currentModel={provider === activeServer.id ? currentModel : undefined}
                 onUseModel={(modelId) => handleUseModel(activeServer.id, modelId)}
+                onModelsFetched={(models) => recordDiscoveredContextWindows(activeServer.id, models)}
                 onChange={(partial) => updateServerDraft(activeServer.id, partial)}
                 onClearKey={() => handleClearServerKey(activeServer.id)}
               />
@@ -826,6 +843,7 @@ export function ApiKeyDialog({ open, onClose }: ApiKeyDialogProps) {
                 draft={activeCustom}
                 currentModel={provider === activeCustom.id ? currentModel : undefined}
                 onUseModel={(modelId) => handleUseModel(activeCustom.id, modelId)}
+                onModelsFetched={(models) => recordDiscoveredContextWindows(activeCustom.id, models)}
                 onChange={(partial) => updateCustomDraft(activeCustom.id, partial)}
                 onRemove={() => removeDraft(activeCustom.id)}
               />

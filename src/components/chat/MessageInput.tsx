@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { ArrowUp, Square, Atom, ChevronDown, Shield, AlertTriangle } from 'lucide-react'
 import { useChatStore } from '@/hooks/useChat'
 import { useDatabaseStore } from '@/hooks/useDatabase'
@@ -6,16 +6,18 @@ import { useSettings } from '@/hooks/useSettings'
 import { isDemoConnectionId } from '@/lib/demo-connection'
 import { modelLabel } from '@/lib/providers'
 import { isSubmitKey } from '@/lib/keyboard'
+import { computeChatContextUsage } from '@/lib/context-window'
 import { Modal, ModalTitle } from '@/components/ui/modal'
+import { ContextUsageIndicator } from './ContextUsageIndicator'
 
 export function MessageInput() {
   const [input, setInput] = useState('')
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showSqlWarning, setShowSqlWarning] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const { sendMessage, isStreaming, activeSessionId, stopStreaming, persistenceState, inputDraft } = useChatStore()
+  const { sendMessage, isStreaming, activeSessionId, activeSession, createNewSession, stopStreaming, persistenceState, inputDraft } = useChatStore()
   const { activeConnectionId, getFullConnection } = useDatabaseStore()
-  const { provider, providers, activeProvider, serverProviders, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission } = useSettings()
+  const { provider, providers, activeProvider, serverProviders, setProvider, model, setModel, thinkingStyle, thinkingMode, setThinkingMode, reasoningEffort, setReasoningEffort, sqlPermission, setSqlPermission, activeContextWindowOverride, setModelContextWindow } = useSettings()
   const hasServerKey = serverProviders.some((p) => p.id === activeProvider?.id && p.hasEnvKey)
   const zeroConfigReady = isDemoConnectionId(activeConnectionId) && hasServerKey
   const prevSessionIdRef = useRef(activeSessionId)
@@ -45,7 +47,21 @@ export function MessageInput() {
 
   const providerModels = activeProvider?.models ?? []
   const currentModel = providerModels.find((m) => m.id === model)
-  const currentLabel = `${activeProvider?.name ?? provider} / ${currentModel ? modelLabel(currentModel) : (model || '未选择模型')}`
+  const currentModelDisplay = currentModel ? modelLabel(currentModel) : (model || '未选择模型')
+  const currentLabel = `${activeProvider?.name ?? provider} / ${currentModelDisplay}`
+  const contextUsage = useMemo(
+    () => computeChatContextUsage({
+      messages: activeSession?.messages ?? [],
+      executionLog: activeSession?.executionLog,
+      draftText: input,
+      modelId: model,
+      contextWindowOverride: activeContextWindowOverride,
+      thinkingStyle,
+      thinkingMode,
+      isStreaming,
+    }),
+    [activeSession?.messages, activeSession?.executionLog, input, model, activeContextWindowOverride, thinkingStyle, thinkingMode, isStreaming],
+  )
   const historyUnavailable = persistenceState === 'loading' || persistenceState === 'load-error'
   const historyHint = persistenceState === 'load-error' ? '历史记录读取失败，请先点击“重试读取”' : '正在读取历史记录，请稍候'
   const canSend = input.trim() && !isStreaming && activeConnectionId && !historyUnavailable
@@ -211,30 +227,41 @@ export function MessageInput() {
               )}
             </div>
 
-            {isStreaming ? (
-              <button
-                onClick={stopStreaming}
-                className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
-                title="停止生成"
-                aria-label="停止生成"
-              >
-                <Square className="w-4 h-4" fill="currentColor" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={!canSend}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                  canSend
-                    ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
-                    : 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                }`}
-                title="发送"
-                aria-label="发送"
-              >
-                <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
-              </button>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              <ContextUsageIndicator
+                usage={contextUsage}
+                modelName={currentModelDisplay}
+                isStreaming={isStreaming}
+                canStartNewSession={(activeSession?.messages.length ?? 0) > 0}
+                onNewSession={createNewSession}
+                onSetContextWindow={model ? (tokens) => setModelContextWindow(provider, model, tokens) : undefined}
+                toolLabel="工具结果与 SQL 记录"
+              />
+              {isStreaming ? (
+                <button
+                  onClick={stopStreaming}
+                  className="w-8 h-8 rounded-full flex items-center justify-center transition-all bg-red-500 text-white hover:bg-red-600 shadow-sm"
+                  title="停止生成"
+                  aria-label="停止生成"
+                >
+                  <Square className="w-4 h-4" fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSubmit}
+                  disabled={!canSend}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    canSend
+                      ? 'bg-primary text-white hover:bg-primary/90 shadow-sm'
+                      : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                  }`}
+                  title="发送"
+                  aria-label="发送"
+                >
+                  <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

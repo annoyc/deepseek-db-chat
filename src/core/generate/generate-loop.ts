@@ -167,6 +167,9 @@ export async function* agentLoop<T extends z.ZodTypeAny>(
       mergeUsage(totalUsage, stepResult.usage)
       lastFinishReason = stepResult.finishReason
       lastPromptTokens = stepResult.usage.prompt_tokens
+      if (stepResult.usage.prompt_tokens > 0 || stepResult.usage.total_tokens > 0) {
+        yield { type: 'step-usage', step: stepRef.value, usage: { ...stepResult.usage } }
+      }
 
       currentMessages.push(stepResult.assistantMessage)
 

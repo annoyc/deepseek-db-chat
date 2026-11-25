@@ -43,15 +43,77 @@ export function checkServerKey(providerId: string, encryptedApiKey?: string): { 
 }
 
 const MAX_MODELS = 500
+const MIN_CONTEXT_WINDOW = 1024
+const MAX_CONTEXT_WINDOW = 100_000_000
 
-export async function fetchProviderModels(request: AiRequestConfig, signal?: AbortSignal): Promise<string[]> {
+export interface FetchedProviderModel {
+  id: string
+  contextWindow?: number
+}
+
+function validContextWindow(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  const rounded = Math.round(value)
+  return rounded >= MIN_CONTEXT_WINDOW && rounded <= MAX_CONTEXT_WINDOW ? rounded : undefined
+}
+
+/**
+ * Extract context window size from an OpenAI-compatible `/models` entry.
+ * Supports OpenRouter (`context_length`, `top_provider.context_length`),
+ * vLLM (`max_model_len`), and common gateway fields.
+ */
+export function extractModelContextWindow(item: unknown): number | undefined {
+  if (!item || typeof item !== 'object') return undefined
+  const record = item as Record<string, unknown>
+  const topProvider = record.top_provider && typeof record.top_provider === 'object'
+    ? record.top_provider as Record<string, unknown>
+    : undefined
+  const limits = record.limits && typeof record.limits === 'object'
+    ? record.limits as Record<string, unknown>
+    : undefined
+
+  const candidates = [
+    record.context_length,
+    topProvider?.context_length,
+    record.context_window,
+    record.max_model_len,
+    record.max_context_length,
+    record.max_context_tokens,
+    record.max_input_tokens,
+    record.input_token_limit,
+    limits?.context,
+    limits?.max_input_tokens,
+  ]
+
+  for (const candidate of candidates) {
+    const parsed = validContextWindow(candidate)
+    if (parsed !== undefined) return parsed
+  }
+  return undefined
+}
+
+export async function fetchProviderModelInfos(request: AiRequestConfig, signal?: AbortSignal): Promise<FetchedProviderModel[]> {
   const target = resolveAiTarget(request)
   const response = await apiRequest<ListModelsResponse>(getModelsEndpoint(target.baseURL), target.apiKey, {}, 15_000, 'GET', signal)
   if (!Array.isArray(response?.data)) throw new Error('该服务未返回模型列表，请手动填写模型 ID')
-  const ids = response.data
-    .map(item => (typeof item?.id === 'string' ? item.id.trim() : ''))
-    .filter(id => id && id.length <= 200)
-  return [...new Set(ids)].sort().slice(0, MAX_MODELS)
+  const byId = new Map<string, FetchedProviderModel>()
+  for (const item of response.data) {
+    const id = typeof item?.id === 'string' ? item.id.trim() : ''
+    if (!id || id.length > 200) continue
+    const contextWindow = extractModelContextWindow(item)
+    const existing = byId.get(id)
+    if (!existing || (existing.contextWindow === undefined && contextWindow !== undefined)) {
+      byId.set(id, contextWindow !== undefined ? { id, contextWindow } : { id })
+    }
+  }
+  return [...byId.values()]
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, MAX_MODELS)
+}
+
+export async function fetchProviderModels(request: AiRequestConfig, signal?: AbortSignal): Promise<string[]> {
+  const models = await fetchProviderModelInfos(request, signal)
+  return models.map(m => m.id)
 }
 
 export type ConnectionCheckKey = 'tools' | 'json' | 'thinking'

@@ -223,7 +223,9 @@ async function localPipelineDeps(data: KnowledgeChatInput): Promise<KnowledgePip
     knowledgeBase: async () => knowledgeBase,
     chatModel: ({ purpose, thinking }) => createRequestModel(aiRequest, {
       thinking: { type: thinking ? 'enabled' : 'disabled' },
-      ...(purpose === 'analysis' ? { temperature: 0, timeout: 15000, maxRetries: 0 } : { timeout: 60000 }),
+      ...(purpose === 'analysis'
+        ? { temperature: 0, timeout: 15000, maxRetries: 0 }
+        : { timeout: 60000, streamOptions: { include_usage: true } }),
     }),
     embedder: knowledgeBase.embedding ? createServerEmbedder(knowledgeBase.embedding) : null,
     webSearch: createBochaWebSearch(),
