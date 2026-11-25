@@ -82,7 +82,9 @@ export function KnowledgeDocumentList({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={Boolean(uploading) || full}
-          title={full ? `最多保存 ${limits.maxDocuments} 份文档，请先移除不需要的文档` : '上传文档'}
+          title={full
+            ? `最多保存 ${limits.maxDocuments} 份文档，请先移除不需要的文档`
+            : `上传文档（PDF、Word、Markdown、TXT，单个不超过 ${formatBytes(limits.maxBytes)}，浏览器本地解析保存）`}
           className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-transparent"
         >
           <Upload className="h-3.5 w-3.5" />
@@ -100,9 +102,6 @@ export function KnowledgeDocumentList({
           }}
         />
       </div>
-      <p className="px-2 text-xs leading-4 text-ink-faint">
-        {`PDF、Word、Markdown、TXT，单个不超过 ${formatBytes(limits.maxBytes)}。文件在本浏览器解析和保存，提问时只发送相关片段`}
-      </p>
 
       {uploading && (
         <div className="mt-2 flex items-center gap-2 rounded-lg bg-primary/5 px-2 py-1.5 text-xs text-primary">

@@ -23,7 +23,7 @@
 
 **[Open Hosted Workspace · DataQuery & Knowledge Workbench (Zero-Config Demo)](https://deepseek-db-chat.vercel.app/workbench/dbpilot)** · [Knowledge Q&A (`/workbench/knowledge`)](https://deepseek-db-chat.vercel.app/workbench/knowledge) · [Interactive Evaluation Report (`/workbench/evals`)](https://deepseek-db-chat.vercel.app/workbench/evals)
 
-> Preloaded with a read-only e-commerce demo database (8 tables), 5 regulatory documents, and a server-hosted model — open and click any suggested question right away.
+> Preloaded with a read-only e-commerce demo database (8 tables), 3 active regulatory documents, and a server-hosted model — open and click any suggested question right away.
 
 > All three GIFs were recorded on the live workbench with **DeepSeek V4.1 Flash**, the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql), and the bundled electricity-market regulation corpus. SQL is reviewed, confirmed, and executed against read-only MySQL. Key interactions are preserved and waiting periods are shortened. See the [recording notes](./docs/demo/README.md).
 
@@ -43,7 +43,7 @@ Ask for monthly order counts and total payable amounts, review and confirm the g
 
 ### 3. Regulatory Knowledge Q&A with Clause-Level Evidence
 
-Ask an electricity-market regulation question to trigger PII check, query rewrite, retrieval, and citation verification — complete with inline `[n]` clause citations, expiry warnings, and a side-by-side Evidence Panel.
+Ask an electricity-market regulation question (such as green electricity settlement pricing) to trigger PII check, query rewrite, retrieval, and citation verification — complete with inline `[n]` clause citations, validity status, and a side-by-side Evidence Panel.
 
 ![Knowledge Q&A: regulation retrieval, clause citations, validity check, and evidence panel](./docs/demo/knowledge-rag.gif)
 

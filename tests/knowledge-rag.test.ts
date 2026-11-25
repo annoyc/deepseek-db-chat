@@ -14,7 +14,7 @@ import { chunkDocument } from '../src/server/knowledge/chunker'
 import { checkCitations } from '../src/server/knowledge/citations'
 import { parseCorpusFile } from '../src/server/knowledge/corpus'
 import { buildIndex, decodeVectors, encodeVectors } from '../src/server/knowledge/index-builder'
-import { createKnowledgeBase } from '../src/server/knowledge/knowledge-base'
+import { createKnowledgeBase, filterActiveIndex } from '../src/server/knowledge/knowledge-base'
 import { NO_EVIDENCE_ANSWER, runKnowledgePipeline, type KnowledgePipelineDeps, type KnowledgePipelineInput } from '../src/server/knowledge/pipeline'
 import { buildAnswerMessages } from '../src/server/knowledge/prompt'
 import { retrievalQueries } from '../src/server/knowledge/query-analysis'
@@ -66,6 +66,35 @@ test('committed index matches the corpus (run pnpm kb:ingest after editing knowl
   const committed = committedIndex as unknown as KbIndexFile
   assert.equal(committed.corpusHash, rebuilt.corpusHash)
   assert.deepEqual(committed.chunks.map(c => [c.id, c.hash]), rebuilt.chunks.map(c => [c.id, c.hash]))
+})
+
+test('filterActiveIndex drops expired default regulations and keeps active chunks/vectors aligned', async () => {
+  const committed = committedIndex as unknown as KbIndexFile
+  const active = filterActiveIndex(committed, '2026-11-25')
+  assert.deepEqual(
+    active.documents.map((doc) => doc.id).sort(),
+    ['ancillary-service-market-2025', 'mid-long-term-market-2025', 'power-market-operation-2024'],
+  )
+  assert.ok(active.chunks.length > 0 && active.chunks.length < committed.chunks.length)
+  assert.ok(active.chunks.every((chunk) => !['retail-company-2021', 'spot-market-2023'].includes(chunk.docId)))
+  const activeKb = createKnowledgeBase(active)
+  assert.equal(activeKb.documents.size, 3)
+
+  // Also verify vector alignment when an embedded index contains expired documents.
+  const embedded = await buildIndex([
+    { meta: { id: 'valid-doc', title: '有效规则', effectiveUntil: '2030-01-01' }, body: '## 第一章\n\n第一条 绿电结算规则。' },
+    { meta: { id: 'expired-doc', title: '过期规则', effectiveUntil: '2026-10-15' }, body: '## 第一章\n\n第一条 旧版现货规则。' },
+  ], {
+    embedding: {
+      info: { provider: 'bailian', model: 'fake', dimensions: 4 },
+      embed: async (texts) => texts.map((_, i) => new Float32Array([i === 0 ? 1 : 0, i === 1 ? 1 : 0, 0, 0])),
+    },
+  })
+  const filtered = filterActiveIndex(embedded, '2026-11-25')
+  assert.deepEqual(filtered.documents.map((d) => d.id), ['valid-doc'])
+  assert.equal(filtered.chunks.length, 1)
+  const filteredKb = createKnowledgeBase(filtered)
+  assert.deepEqual([...filteredKb.vectors!], [0, 1, 0, 0])
 })
 
 test('corpus front matter is validated', () => {

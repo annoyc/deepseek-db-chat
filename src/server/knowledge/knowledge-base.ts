@@ -1,11 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import { Bm25Index } from '@/lib/retrieval/bm25'
 import { chunkSearchText } from './chunker'
-import { decodeVectors } from './index-builder'
+import { decodeVectors, encodeVectors } from './index-builder'
 import { defaultTokenizer, type Tokenizer } from '@/lib/retrieval/tokenizer'
 import { embeddingKey } from '@/lib/knowledge-documents'
 import type { KnowledgeUserChunkCandidate } from '@/lib/knowledge-types'
 import type { KbChunk, KbDocumentMeta, KbEmbeddingInfo, KbIndexFile } from './types'
+import { beijingDate, documentStatus } from './validity'
 
 export interface KnowledgeBase {
   /** Defaults to builtin. */
@@ -67,6 +68,41 @@ export function createUploadKnowledgeBase(candidates: KnowledgeUserChunkCandidat
   return { ...base, embedding, vectors }
 }
 
+/**
+ * Drop expired documents (and their chunks/vectors) from an index for a given Beijing date.
+ * Used when loading the bundled default corpus so visitors only see currently valid rules,
+ * while keeping the full historical corpus available for offline RAG benchmarks.
+ */
+export function filterActiveIndex(index: KbIndexFile, today: string): KbIndexFile {
+  const documents = index.documents.filter((doc) => documentStatus(doc, today).status !== 'expired')
+  if (documents.length === index.documents.length) return index
+
+  const activeIds = new Set(documents.map((doc) => doc.id))
+  const keptIndices: number[] = []
+  const chunks: KbChunk[] = []
+  index.chunks.forEach((chunk, i) => {
+    if (activeIds.has(chunk.docId)) {
+      keptIndices.push(i)
+      chunks.push(chunk)
+    }
+  })
+
+  let embedding = index.embedding
+  if (embedding) {
+    const dim = embedding.dimensions
+    const flat = decodeVectors(embedding.vectors, index.chunks.length, dim)
+    const keptVectors = keptIndices.map((i) => flat.subarray(i * dim, (i + 1) * dim))
+    embedding = { ...embedding, vectors: encodeVectors(keptVectors) }
+  }
+
+  return {
+    ...index,
+    documents,
+    chunks,
+    ...(embedding ? { embedding } : {}),
+  }
+}
+
 let cached: Promise<KnowledgeBase> | undefined
 
 /**
@@ -78,7 +114,10 @@ export function loadKnowledgeBase(): Promise<KnowledgeBase> {
     const path = process.env.KB_INDEX_PATH?.trim()
     const index = path
       ? JSON.parse(await readFile(path, 'utf8')) as KbIndexFile
-      : (await import('../../../knowledge/kb-index.json')).default as unknown as KbIndexFile
+      : filterActiveIndex(
+          (await import('../../../knowledge/kb-index.json')).default as unknown as KbIndexFile,
+          beijingDate(new Date()),
+        )
     return createKnowledgeBase(index)
   })()
   // A failed load (e.g. a missing file) is retried on the next request rather than cached.
