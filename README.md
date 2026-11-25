@@ -21,25 +21,31 @@
 
 ## 演示效果
 
-**[打开在线工作台（开箱即用 · 免配 API Key 与数据库）](https://deepseek-db-chat.vercel.app/)** · [查看交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals)
+**[打开在线工作台 · 数问 · 数据与知识工作台（免配 API Key 与数据库）](https://deepseek-db-chat.vercel.app/workbench/dbpilot)** · [知识库问答（`/workbench/knowledge`）](https://deepseek-db-chat.vercel.app/workbench/knowledge) · [交互式评测报告（`/workbench/evals`）](https://deepseek-db-chat.vercel.app/workbench/evals)
 
 > 已内置只读电商演示库（8 张表）与 5 份全国电力市场规则语料，并预置服务端模型，打开即可直接点击建议问题或自由提问。
 
-> 两段 GIF 录制于本地工作台，使用**真实 DeepSeek V4 Flash API**和[合成电商数据集](./scripts/mysql-demo-seed.sql)。SQL 经人工确认后在 MySQL 中实际执行；动画保留关键操作，压缩了等待时间。详见[录制说明](./docs/demo/README.md)。
+> 三段 GIF 均录制于线上工作台，使用 **DeepSeek V4.1 Flash** 真实流式推理、[合成电商数据集](./scripts/mysql-demo-seed.sql)与内置电力市场规则语料。SQL 经人工确认后在只读 MySQL 中实际执行；动画保留关键交互帧并压缩了等待时间。详见[录制说明](./docs/demo/README.md)。
 
 部署方可以提供自动加载的内置只读演示连接。AI 查询还需要已配置的模型服务，也可以自行添加应用服务端可访问的 MySQL 连接。
 
 ### 1. 自然语言探索数据库
 
-询问数据库有多少张表、查看表清单。元数据工具直接提供答案，避免重复生成 SQL。
+询问数据库有多少张表并查看表清单，元数据工具直接返回 8 张基础表信息，避免重复生成 SQL。
 
 ![数据库探索：询问表数量，直接获得完整表清单](./docs/demo/schema-exploration.gif)
 
-### 2. 从业务问题到可视化结果
+### 2. 从业务问题到双轴可视化与指标摘要
 
-用自然语言提出业务问题，检查生成的 SQL，确认执行后查看查询结果和图表。
+用自然语言提问月度订单数与应付总额，检查模型生成的 SQL 并确认执行，在右侧数据面板联动查看自动双轴柱状图/折线图、数据表与 KPI 分析摘要。
 
-![数据分析：自然语言提问、审核并确认 SQL、查看结果与图表](./docs/demo/sql-analysis.gif)
+![数据分析：自然语言提问、审核并确认 SQL、查看双轴图表与指标摘要](./docs/demo/sql-analysis.gif)
+
+### 3. 规章制度问答与条款级证据溯源
+
+提问电力市场规则问题，经脱敏、改写拆解、检索与引用校验生成带 `[n]` 出处标注及时效提醒的回答，并在右侧证据面板核查工具使用链与原文条款。
+
+![知识库问答：规则检索、条款引用、有效期提示与证据面板溯源](./docs/demo/knowledge-rag.gif)
 
 ---
 

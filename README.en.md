@@ -21,25 +21,31 @@
 
 ## See It in Action
 
-**[Open Hosted Workspace (Zero-Config Demo · No API Key or DB Setup Required)](https://deepseek-db-chat.vercel.app/)** · [Interactive Evaluation Report (`/workbench/evals`)](https://deepseek-db-chat.vercel.app/workbench/evals)
+**[Open Hosted Workspace · DataQuery & Knowledge Workbench (Zero-Config Demo)](https://deepseek-db-chat.vercel.app/workbench/dbpilot)** · [Knowledge Q&A (`/workbench/knowledge`)](https://deepseek-db-chat.vercel.app/workbench/knowledge) · [Interactive Evaluation Report (`/workbench/evals`)](https://deepseek-db-chat.vercel.app/workbench/evals)
 
 > Preloaded with a read-only e-commerce demo database (8 tables), 5 regulatory documents, and a server-hosted model — open and click any suggested question right away.
 
-> Recorded in a local workspace with the **real DeepSeek V4 Flash API** and the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql). SQL is reviewed, confirmed, and executed against MySQL. The GIFs preserve key interactions and shorten waiting periods. See the [recording notes](./docs/demo/README.md).
+> All three GIFs were recorded on the live workbench with **DeepSeek V4.1 Flash**, the [synthetic e-commerce dataset](./scripts/mysql-demo-seed.sql), and the bundled electricity-market regulation corpus. SQL is reviewed, confirmed, and executed against read-only MySQL. Key interactions are preserved and waiting periods are shortened. See the [recording notes](./docs/demo/README.md).
 
 Deployments can provide a built-in read-only demo connection that appears automatically. AI queries require a configured model provider. You can also add your own MySQL connection reachable from the application server.
 
 ### 1. Explore the Database
 
-Ask how many tables exist and inspect the table list. Metadata tools provide the answer directly, without generating a redundant SQL query.
+Ask how many tables exist and inspect the table list. Metadata tools return all 8 base tables directly without generating redundant SQL.
 
 ![Database exploration: ask for the table count and receive the complete table list](./docs/demo/schema-exploration.gif)
 
-### 2. From a Question to a Chart
+### 2. From a Question to Dual-Axis Charts & KPI Summary
 
-Ask a business question, review the generated SQL, confirm execution, and explore the returned data and chart.
+Ask for monthly order counts and total payable amounts, review and confirm the generated SQL, and inspect dual-axis bar/line charts, sortable tables, and KPI summary cards in the linked Data Panel.
 
-![Data analysis: natural-language question, SQL review and confirmation, query results and chart](./docs/demo/sql-analysis.gif)
+![Data analysis: natural-language question, SQL review and confirmation, dual-axis charts and KPI summary](./docs/demo/sql-analysis.gif)
+
+### 3. Regulatory Knowledge Q&A with Clause-Level Evidence
+
+Ask an electricity-market regulation question to trigger PII check, query rewrite, retrieval, and citation verification — complete with inline `[n]` clause citations, expiry warnings, and a side-by-side Evidence Panel.
+
+![Knowledge Q&A: regulation retrieval, clause citations, validity check, and evidence panel](./docs/demo/knowledge-rag.gif)
 
 ---
 
