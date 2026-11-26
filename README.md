@@ -241,7 +241,7 @@ DEMO_DB_DATABASE=deepseek_demo
 | 层级 | 技术 |
 |---|---|
 | **全栈框架** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) + [Vite](https://vite.dev/) |
-| **AI 引擎** | 自研内联多模型 Agent Engine（DeepSeek 原生 + OpenAI 兼容，基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)） |
+| **AI 引擎** | 内联多模型 Agent Engine（支持 DeepSeek 及任意 OpenAI 兼容服务，内置思考模式、工具调用与前缀缓存优化） |
 | **数据库与安全** | [mysql2](https://github.com/sidorares/node-mysql2) · [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser)（AST 校验）· [Zod](https://zod.dev/) |
 | **前端与可视化** | React 19 · [Tailwind CSS v4](https://tailwindcss.com/) · [Recharts](https://recharts.org/) · [Lucide Icons](https://lucide.dev/) |
 | **流式与渲染** | Server-Sent Events (SSE) · [react-markdown](https://github.com/remarkjs/react-markdown) · [remark-gfm](https://github.com/remarkjs/remark-gfm) |
@@ -280,4 +280,4 @@ evals/                  # Text-to-SQL 与知识库 RAG 自动化评测套件
 
 ## License
 
-本项目基于 [MIT License](./LICENSE) 开源。
+本项目基于 [MIT License](./LICENSE) 开源。内置 Agent 运行时早期原型基于 [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)（MIT）演进并扩展为多模型架构，详见 [src/core/NOTICE](./src/core/NOTICE)。

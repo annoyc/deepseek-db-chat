@@ -237,7 +237,7 @@ Question → PII Masking → Rewrite & Decompose → Hybrid Search (BM25 + Vecto
 | Layer | Technology |
 |---|---|
 | **Framework** | [TanStack Start](https://tanstack.com/start) + [TanStack Router](https://tanstack.com/router) + [Vite](https://vite.dev/) |
-| **AI Core** | Inlined Multi-Provider Agent Engine (DeepSeek native + OpenAI-compatible, based on [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit)) |
+| **AI Core** | Inlined Multi-Provider Agent Engine (DeepSeek & any OpenAI-compatible provider, with thinking mode, tool calling & prefix caching) |
 | **Database & Safety** | [mysql2](https://github.com/sidorares/node-mysql2) · [node-sql-parser](https://github.com/taozhi8833998/node-sql-parser) (AST guard) · [Zod](https://zod.dev/) |
 | **UI & Charts** | React 19 · [Tailwind CSS v4](https://tailwindcss.com/) · [Recharts](https://recharts.org/) · [Lucide Icons](https://lucide.dev/) |
 | **Streaming & Markdown** | Server-Sent Events (SSE) · [react-markdown](https://github.com/remarkjs/react-markdown) · [remark-gfm](https://github.com/remarkjs/remark-gfm) |
@@ -276,4 +276,4 @@ evals/                  # Text-to-SQL and Knowledge RAG benchmark harnesses
 
 ## License
 
-Released under the [MIT License](./LICENSE).
+Released under the [MIT License](./LICENSE). The inlined agent runtime evolved from [deepseek-kit](https://github.com/FliPPeDround/deepseek-kit) (MIT) and has been extended into a multi-provider engine; see [src/core/NOTICE](./src/core/NOTICE).
